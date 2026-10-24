@@ -1,5 +1,8 @@
 package com.example.carmaintenance
 
+import android.content.Context
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -21,18 +24,26 @@ import androidx.compose.ui.platform.LocalContext
 @Composable
 fun AppScreen() {
     val context = LocalContext.current
+
     var cars by remember { mutableStateOf(loadCars(context)) }
-    var templates by remember { mutableStateOf(loadTemplates(context).ifEmpty { defaultTemplates().also { saveTemplates(context, it) } }) }
+    var templates by remember {
+        mutableStateOf(loadTemplates(context).ifEmpty {
+            defaultTemplates().also { saveTemplates(context, it) }
+        })
+    }
     var works by remember { mutableStateOf(loadWorks(context)) }
     var records by remember { mutableStateOf(loadServiceRecords(context)) }
     var parts by remember { mutableStateOf(loadPartCatalog(context)) }
+
     var selectedCarId by remember {
         mutableStateOf(
-            context.getSharedPreferences("car_maintenance", android.content.Context.MODE_PRIVATE)
+            context.getSharedPreferences("car_maintenance", Context.MODE_PRIVATE)
                 .getString("selected_car_id", null)
-                ?.takeIf { id -> cars.any { it.id == id } } ?: cars.firstOrNull()?.id
+                ?.takeIf { id -> cars.any { it.id == id } }
+                ?: cars.firstOrNull()?.id
         )
     }
+
     var screen by remember { mutableStateOf("Главная") }
     var carDialog by remember { mutableStateOf(false) }
     var editingCar by remember { mutableStateOf<Car?>(null) }
@@ -48,6 +59,55 @@ fun AppScreen() {
     var selectedRecord by remember { mutableStateOf<ServiceRecord?>(null) }
     var partsScreen by remember { mutableStateOf(false) }
 
+    // Состояние резервного копирования
+    var showRestoreConfirmation by remember { mutableStateOf(false) }
+    var pendingBackupJson by remember { mutableStateOf<String?>(null) }
+    var backupMessage by remember { mutableStateOf<String?>(null) }
+
+    // Создание JSON-файла резервной копии
+    val createBackupLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.CreateDocument("application/json")
+    ) { uri ->
+        if (uri != null) {
+            val result = runCatching {
+                val json = createBackupJson(context)
+
+                context.contentResolver.openOutputStream(uri)?.use { output ->
+                    output.write(json.toByteArray(Charsets.UTF_8))
+                } ?: error("Не удалось открыть файл для записи")
+            }
+
+            backupMessage = if (result.isSuccess) {
+                "Резервная копия сохранена."
+            } else {
+                "Ошибка сохранения: ${
+                    result.exceptionOrNull()?.message ?: "неизвестная ошибка"
+                }"
+            }
+        }
+    }
+
+    // Выбор файла для восстановления
+    val restoreBackupLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.OpenDocument()
+    ) { uri ->
+        if (uri != null) {
+            val result = runCatching {
+                context.contentResolver.openInputStream(uri)
+                    ?.bufferedReader(Charsets.UTF_8)
+                    ?.use { it.readText() }
+                    ?: error("Не удалось прочитать файл")
+            }
+
+            if (result.isSuccess) {
+                pendingBackupJson = result.getOrThrow()
+                showRestoreConfirmation = true
+            } else {
+                backupMessage = "Не удалось прочитать файл резервной копии."
+            }
+        }
+    }
+
     val car = cars.firstOrNull { it.id == selectedCarId }
 
     fun saveAndRefreshWorks(newWorks: List<MaintenanceWork>) {
@@ -57,14 +117,22 @@ fun AppScreen() {
 
     fun createDefaultForCar(c: Car) {
         val source = templates.filter {
-            it.category == WorkCategory.GENERAL || (it.category == WorkCategory.LPG && c.hasLpg)
+            it.category == WorkCategory.GENERAL ||
+                (it.category == WorkCategory.LPG && c.hasLpg)
         }
+
         val existingForCar = works.filter { it.carId == c.id }
-        val existingTemplateIds = existingForCar.map { it.templateId }.filter { it.isNotBlank() }.toSet()
+        val existingTemplateIds = existingForCar
+            .map { it.templateId }
+            .filter { it.isNotBlank() }
+            .toSet()
+
         val add = source.filter { template ->
-            template.id !in existingTemplateIds && existingForCar.none { work ->
-                work.name.equals(template.name, ignoreCase = true) && work.category == template.category
-            }
+            template.id !in existingTemplateIds &&
+                existingForCar.none { work ->
+                    work.name.equals(template.name, ignoreCase = true) &&
+                        work.category == template.category
+                }
         }.map { template ->
             MaintenanceWork(
                 carId = c.id,
@@ -79,82 +147,168 @@ fun AppScreen() {
                 notes = template.notes
             )
         }
+
         saveAndRefreshWorks(works + add)
     }
 
     fun completeWork(w: MaintenanceWork, km: Int, date: Long, note: String) {
-        val line = ServiceLine(name = w.name, type = ServiceLineType.WORK, notes = note)
-        val record = ServiceRecord(
-            carId = w.carId, date = date, mileage = km, reason = note,
-            lines = listOf(line), notes = note
+        val line = ServiceLine(
+            name = w.name,
+            type = ServiceLineType.WORK,
+            notes = note
         )
+
+        val record = ServiceRecord(
+            carId = w.carId,
+            date = date,
+            mileage = km,
+            reason = note,
+            lines = listOf(line),
+            notes = note
+        )
+
         records = records + record
         saveServiceRecords(context, records)
+
         saveAndRefreshWorks(works.map {
-            if (it.id == w.id) it.copy(lastMileage = km, lastDate = date, hasLastExecution = true, skipped = false)
-            else it
+            if (it.id == w.id) {
+                it.copy(
+                    lastMileage = km,
+                    lastDate = date,
+                    hasLastExecution = true,
+                    skipped = false
+                )
+            } else {
+                it
+            }
         })
     }
 
-    Scaffold(containerColor = BgColor, bottomBar = { BottomNav(screen) { screen = it } }) { pad ->
+    Scaffold(
+        containerColor = BgColor,
+        bottomBar = { BottomNav(screen) { screen = it } }
+    ) { pad ->
         Box(Modifier.fillMaxSize().padding(pad)) {
             when {
                 templateEditor -> TemplateEditorScreen(
                     templates = templates,
                     onBack = { templateEditor = false },
-                    onSave = { templates = it; saveTemplates(context, templates) }
+                    onSave = {
+                        templates = it
+                        saveTemplates(context, templates)
+                    }
                 )
-                errorDecoder -> ErrorDecoderScreen(onBack = { errorDecoder = false })
+
+                errorDecoder -> ErrorDecoderScreen(
+                    onBack = { errorDecoder = false }
+                )
+
                 partsScreen -> PartsCatalogScreen(
-                    car, parts,
+                    car,
+                    parts,
                     onBack = { partsScreen = false },
-                    onAdd = { p -> parts = parts + p; savePartCatalog(context, parts) }
+                    onAdd = { p ->
+                        parts = parts + p
+                        savePartCatalog(context, parts)
+                    }
                 )
+
                 else -> when (screen) {
                     "Главная" -> HomeScreen(
                         car, cars, works, records,
                         onCarSelect = {
                             selectedCarId = it
-                            context.getSharedPreferences("car_maintenance", android.content.Context.MODE_PRIVATE)
-                                .edit().putString("selected_car_id", it).apply()
+                            context.getSharedPreferences(
+                                "car_maintenance",
+                                Context.MODE_PRIVATE
+                            ).edit().putString("selected_car_id", it).apply()
                         },
-                        onAddCar = { editingCar = null; carDialog = true },
-                        onAddWork = { suggestedWork = ""; serviceInitial = null; serviceDialog = true },
+                        onAddCar = {
+                            editingCar = null
+                            carDialog = true
+                        },
+                        onAddWork = {
+                            suggestedWork = ""
+                            serviceInitial = null
+                            serviceDialog = true
+                        },
                         onWork = { actionWork = it },
                         onMileage = { mileageDialog = true },
                         onOpenCar = { screen = "Автомобиль" }
                     )
+
                     "Перечень работ" -> WorkListScreen(
                         car, records, parts,
-                        onAdd = { suggestedWork = ""; serviceInitial = null; serviceDialog = true },
-                        onEdit = { selectedRecord = it; serviceInitial = it; serviceDialog = true },
-                        onPartSave = { parts = parts + it; savePartCatalog(context, parts) }
+                        onAdd = {
+                            suggestedWork = ""
+                            serviceInitial = null
+                            serviceDialog = true
+                        },
+                        onEdit = {
+                            selectedRecord = it
+                            serviceInitial = it
+                            serviceDialog = true
+                        },
+                        onPartSave = {
+                            parts = parts + it
+                            savePartCatalog(context, parts)
+                        }
                     )
+
                     "Регламент" -> RegulationScreen(
-                        car, works.filter { it.carId == car?.id }, records,
+                        car,
+                        works.filter { it.carId == car?.id },
+                        records,
                         onWork = { actionWork = it },
-                        onAdd = { editingRegulation = null; regulationDialog = true },
-                        onFill = { if (car != null) createDefaultForCar(car) }
+                        onAdd = {
+                            editingRegulation = null
+                            regulationDialog = true
+                        },
+                        onFill = {
+                            if (car != null) createDefaultForCar(car)
+                        }
                     )
+
                     "Статистика" -> StatisticsScreen(car, records)
+
                     "Ещё" -> MoreScreen(
                         onTemplate = { templateEditor = true },
                         onDecoder = { errorDecoder = true },
-                        onParts = { partsScreen = true }
+                        onParts = { partsScreen = true },
+                        onCreateBackup = {
+                            createBackupLauncher.launch("car-maintenance-backup.json")
+                        },
+                        onRestoreBackup = {
+                            restoreBackupLauncher.launch(
+                                arrayOf("application/json", "text/plain", "*/*")
+                            )
+                        }
                     )
+
                     "Автомобиль" -> CarDetailScreen(
                         car,
                         onBack = { screen = "Главная" },
-                        onEdit = { editingCar = car; carDialog = true },
+                        onEdit = {
+                            editingCar = car
+                            carDialog = true
+                        },
                         onMileage = { mileageDialog = true },
-                        onFill = { if (car != null) createDefaultForCar(car) },
+                        onFill = {
+                            if (car != null) createDefaultForCar(car)
+                        },
                         onDelete = {
                             if (car != null) {
                                 cars = cars.filter { it.id != car.id }
                                 saveCars(context, cars)
                                 selectedCarId = cars.firstOrNull()?.id
-                                context.getSharedPreferences("car_maintenance", android.content.Context.MODE_PRIVATE)
-                                    .edit().putString("selected_car_id", selectedCarId ?: "").apply()
+
+                                context.getSharedPreferences(
+                                    "car_maintenance",
+                                    Context.MODE_PRIVATE
+                                ).edit()
+                                    .putString("selected_car_id", selectedCarId ?: "")
+                                    .apply()
+
                                 screen = "Главная"
                             }
                         }
@@ -168,33 +322,51 @@ fun AppScreen() {
         AddCarDialog(editingCar, { carDialog = false }) { newCar ->
             cars = if (cars.any { it.id == newCar.id }) {
                 cars.map { if (it.id == newCar.id) newCar else it }
-            } else cars + newCar
+            } else {
+                cars + newCar
+            }
+
             saveCars(context, cars)
             selectedCarId = newCar.id
-            context.getSharedPreferences("car_maintenance", android.content.Context.MODE_PRIVATE)
-                .edit().putString("selected_car_id", newCar.id).apply()
+
+            context.getSharedPreferences(
+                "car_maintenance",
+                Context.MODE_PRIVATE
+            ).edit().putString("selected_car_id", newCar.id).apply()
+
             carDialog = false
             editingCar = null
-            if (works.none { it.carId == newCar.id }) createDefaultForCar(newCar)
+
+            if (works.none { it.carId == newCar.id }) {
+                createDefaultForCar(newCar)
+            }
         }
     }
 
     if (mileageDialog && car != null) {
         MileageDialog(car.mileage, { mileageDialog = false }) { value ->
-            cars = cars.map { if (it.id == car.id) it.copy(mileage = value) else it }
+            cars = cars.map {
+                if (it.id == car.id) it.copy(mileage = value) else it
+            }
             saveCars(context, cars)
             mileageDialog = false
         }
     }
 
     if (serviceDialog && car != null) {
-        ServiceRecordDialog(car, serviceInitial, suggestedWork, parts, {
-            serviceDialog = false
-            serviceInitial = null
-        }) { record ->
+        ServiceRecordDialog(
+            car, serviceInitial, suggestedWork, parts,
+            {
+                serviceDialog = false
+                serviceInitial = null
+            }
+        ) { record ->
             records = if (records.any { it.id == record.id }) {
                 records.map { if (it.id == record.id) record else it }
-            } else records + record
+            } else {
+                records + record
+            }
+
             saveServiceRecords(context, records)
             serviceDialog = false
             serviceInitial = null
@@ -203,35 +375,148 @@ fun AppScreen() {
 
     if (actionWork != null && car != null) {
         val currentWork = actionWork!!
+
         WorkActionsDialog(
             currentWork, car, records,
             onDismiss = { actionWork = null },
-            onComplete = { km, date, note -> completeWork(currentWork, km, date, note); actionWork = null },
-            onSkip = {
-                saveAndRefreshWorks(works.map { if (it.id == currentWork.id) it.copy(skipped = true) else it })
+            onComplete = { km, date, note ->
+                completeWork(currentWork, km, date, note)
                 actionWork = null
             },
-            onEdit = { editingRegulation = currentWork; actionWork = null; regulationDialog = true },
+            onSkip = {
+                saveAndRefreshWorks(
+                    works.map {
+                        if (it.id == currentWork.id) it.copy(skipped = true) else it
+                    }
+                )
+                actionWork = null
+            },
+            onEdit = {
+                editingRegulation = currentWork
+                actionWork = null
+                regulationDialog = true
+            },
             onDelete = {
                 saveAndRefreshWorks(works.filter { it.id != currentWork.id })
                 actionWork = null
             },
-            onShowInList = { screen = "Перечень работ"; actionWork = null }
+            onShowInList = {
+                screen = "Перечень работ"
+                actionWork = null
+            }
         )
     }
 
     if (regulationDialog && car != null) {
-        RegulationWorkDialog(car.id, editingRegulation, templates, {
-            regulationDialog = false
-            editingRegulation = null
-        }) { work ->
+        RegulationWorkDialog(
+            car.id, editingRegulation, templates,
+            {
+                regulationDialog = false
+                editingRegulation = null
+            }
+        ) { work ->
             saveAndRefreshWorks(
-                if (works.any { it.id == work.id }) works.map { if (it.id == work.id) work else it }
-                else works + work
+                if (works.any { it.id == work.id }) {
+                    works.map { if (it.id == work.id) work else it }
+                } else {
+                    works + work
+                }
             )
+
             regulationDialog = false
             editingRegulation = null
         }
+    }
+
+    // Подтверждение восстановления резервной копии
+    if (showRestoreConfirmation) {
+        AlertDialog(
+            onDismissRequest = {
+                showRestoreConfirmation = false
+                pendingBackupJson = null
+            },
+            containerColor = CardColor,
+            title = {
+                Text("Восстановить данные?", color = TextPrimary)
+            },
+            text = {
+                Text(
+                    "Текущие данные приложения будут заменены данными из резервной копии. Рекомендуется сначала сохранить копию текущих данных.",
+                    color = TextSecondary
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    val json = pendingBackupJson
+                    val success = json != null &&
+                        runCatching {
+                            restoreBackupJson(context, json)
+                        }.getOrDefault(false)
+
+                    showRestoreConfirmation = false
+                    pendingBackupJson = null
+
+                    if (success) {
+                        cars = loadCars(context)
+                        templates = loadTemplates(context).ifEmpty {
+                            defaultTemplates().also { saveTemplates(context, it) }
+                        }
+                        works = loadWorks(context)
+                        records = loadServiceRecords(context)
+                        parts = loadPartCatalog(context)
+
+                        val savedId = context.getSharedPreferences(
+                            "car_maintenance",
+                            Context.MODE_PRIVATE
+                        ).getString("selected_car_id", null)
+
+                        selectedCarId = savedId?.takeIf { id ->
+                            cars.any { it.id == id }
+                        } ?: cars.firstOrNull()?.id
+
+                        context.getSharedPreferences(
+                            "car_maintenance",
+                            Context.MODE_PRIVATE
+                        ).edit()
+                            .putString("selected_car_id", selectedCarId ?: "")
+                            .apply()
+
+                        backupMessage = "Данные успешно восстановлены."
+                    } else {
+                        backupMessage =
+                            "Не удалось восстановить копию. Проверь, что выбран правильный JSON-файл."
+                    }
+                }) {
+                    Text("Восстановить", color = ColorRed)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = {
+                    showRestoreConfirmation = false
+                    pendingBackupJson = null
+                }) {
+                    Text("Отмена", color = TextSecondary)
+                }
+            }
+        )
+    }
+
+    backupMessage?.let { message ->
+        AlertDialog(
+            onDismissRequest = { backupMessage = null },
+            containerColor = CardColor,
+            title = {
+                Text("Резервное копирование", color = TextPrimary)
+            },
+            text = {
+                Text(message, color = TextSecondary)
+            },
+            confirmButton = {
+                TextButton(onClick = { backupMessage = null }) {
+                    Text("ОК", color = ColorGreen)
+                }
+            }
+        )
     }
 }
 
@@ -263,9 +548,17 @@ private fun BottomNav(screen: String, onSelect: (String) -> Unit) {
 }
 
 @Composable
-private fun Page(title: String, content: @Composable ColumnScope.() -> Unit) {
+private fun Page(
+    title: String,
+    content: @Composable ColumnScope.() -> Unit
+) {
     Column(Modifier.fillMaxSize().padding(16.dp)) {
-        Text(title, color = TextPrimary, fontSize = 24.sp, fontWeight = FontWeight.Bold)
+        Text(
+            title,
+            color = TextPrimary,
+            fontSize = 24.sp,
+            fontWeight = FontWeight.Bold
+        )
         Spacer(Modifier.height(12.dp))
         content()
     }
@@ -273,18 +566,32 @@ private fun Page(title: String, content: @Composable ColumnScope.() -> Unit) {
 
 @Composable
 private fun HomeScreen(
-    car: Car?, cars: List<Car>, works: List<MaintenanceWork>, records: List<ServiceRecord>,
-    onCarSelect: (String) -> Unit, onAddCar: () -> Unit, onAddWork: () -> Unit,
-    onWork: (MaintenanceWork) -> Unit, onMileage: () -> Unit, onOpenCar: () -> Unit
+    car: Car?,
+    cars: List<Car>,
+    works: List<MaintenanceWork>,
+    records: List<ServiceRecord>,
+    onCarSelect: (String) -> Unit,
+    onAddCar: () -> Unit,
+    onAddWork: () -> Unit,
+    onWork: (MaintenanceWork) -> Unit,
+    onMileage: () -> Unit,
+    onOpenCar: () -> Unit
 ) {
     if (car == null) {
-        Page("Учёт автомобильного ТО") { Button(onClick = onAddCar) { Text("Добавить автомобиль") } }
+        Page("Учёт автомобильного ТО") {
+            Button(onClick = onAddCar) {
+                Text("Добавить автомобиль")
+            }
+        }
         return
     }
+
     val carWorks = works.filter { it.carId == car.id }
     val statuses = carWorks.map { getWorkStatus(it, car, records) }
+
     LazyColumn(
-        Modifier.fillMaxSize(), contentPadding = PaddingValues(16.dp),
+        Modifier.fillMaxSize(),
+        contentPadding = PaddingValues(16.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         item {
@@ -294,35 +601,114 @@ private fun HomeScreen(
                 shape = RoundedCornerShape(18.dp)
             ) {
                 Column(Modifier.padding(18.dp)) {
-                    Text("${car.brand} ${car.model}", color = TextPrimary, fontSize = 22.sp, fontWeight = FontWeight.Bold)
-                    Text("${car.year.ifBlank { "—" }} • ${car.engine.ifBlank { "двигатель не указан" }}", color = TextSecondary)
+                    Text(
+                        "${car.brand} ${car.model}",
+                        color = TextPrimary,
+                        fontSize = 22.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Text(
+                        "${car.year.ifBlank { "—" }} • ${car.engine.ifBlank { "двигатель не указан" }}",
+                        color = TextSecondary
+                    )
                     Spacer(Modifier.height(8.dp))
-                    Text("${car.mileage.ifBlank { "0" }} км", color = ColorBlue, fontSize = 22.sp, fontWeight = FontWeight.Bold)
-                    Text("VIN: ${car.vin.ifBlank { "не указан" }}", color = TextSecondary)
-                    Text("Топливо: ${car.fuel.ifBlank { "не указано" }}${if (car.hasLpg) " • ГБО" else ""}", color = TextSecondary)
-                    TextButton(onClick = onMileage) { Text("Изменить пробег", color = ColorYellow) }
+                    Text(
+                        "${car.mileage.ifBlank { "0" }} км",
+                        color = ColorBlue,
+                        fontSize = 22.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Text(
+                        "VIN: ${car.vin.ifBlank { "не указан" }}",
+                        color = TextSecondary
+                    )
+                    Text(
+                        "Топливо: ${car.fuel.ifBlank { "не указано" }}${if (car.hasLpg) " • ГБО" else ""}",
+                        color = TextSecondary
+                    )
+                    TextButton(onClick = onMileage) {
+                        Text("Изменить пробег", color = ColorYellow)
+                    }
                 }
             }
         }
+
         item {
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                StatusBlock("Выполнено", statuses.count { it == WorkStatus.COMPLETED }, ColorGreen, Modifier.weight(1f))
-                StatusBlock("Необходимо", statuses.count { it == WorkStatus.REQUIRED }, ColorRed, Modifier.weight(1f))
+            Row(
+                Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                StatusBlock(
+                    "Выполнено",
+                    statuses.count { it == WorkStatus.COMPLETED },
+                    ColorGreen,
+                    Modifier.weight(1f)
+                )
+                StatusBlock(
+                    "Необходимо",
+                    statuses.count { it == WorkStatus.REQUIRED },
+                    ColorRed,
+                    Modifier.weight(1f)
+                )
             }
         }
+
         item {
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                StatusBlock("Рекомендации", statuses.count { it == WorkStatus.PREVENTIVE }, ColorYellow, Modifier.weight(1f))
-                StatusBlock("Пропущено", statuses.count { it == WorkStatus.SKIPPED }, ColorPurple, Modifier.weight(1f))
+            Row(
+                Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                StatusBlock(
+                    "Рекомендации",
+                    statuses.count { it == WorkStatus.PREVENTIVE },
+                    ColorYellow,
+                    Modifier.weight(1f)
+                )
+                StatusBlock(
+                    "Пропущено",
+                    statuses.count { it == WorkStatus.SKIPPED },
+                    ColorPurple,
+                    Modifier.weight(1f)
+                )
             }
         }
+
         item {
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                QuickAction("Добавить запись", { Icon(imageVector = Icons.Default.Add, contentDescription = null, tint = ColorGreen) }, ColorGreen, onAddWork, Modifier.weight(1f))
-                QuickAction("Автомобиль", { Icon(imageVector = Icons.Default.Build, contentDescription = null, tint = ColorBlue) }, ColorBlue, onOpenCar, Modifier.weight(1f))
+            Row(
+                Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                QuickAction(
+                    "Добавить запись",
+                    {
+                        Icon(
+                            imageVector = Icons.Default.Add,
+                            contentDescription = null,
+                            tint = ColorGreen
+                        )
+                    },
+                    ColorGreen,
+                    onAddWork,
+                    Modifier.weight(1f)
+                )
+                QuickAction(
+                    "Автомобиль",
+                    {
+                        Icon(
+                            imageVector = Icons.Default.Build,
+                            contentDescription = null,
+                            tint = ColorBlue
+                        )
+                    },
+                    ColorBlue,
+                    onOpenCar,
+                    Modifier.weight(1f)
+                )
             }
         }
+
         item { SectionTitle("Ближайшие работы") }
+
         items(carWorks.sortedBy {
             when (getWorkStatus(it, car, records)) {
                 WorkStatus.REQUIRED -> 0
@@ -338,19 +724,37 @@ private fun HomeScreen(
 
 @Composable
 private fun WorkListScreen(
-    car: Car?, records: List<ServiceRecord>, parts: List<PartCatalogItem>,
-    onAdd: () -> Unit, onEdit: (ServiceRecord) -> Unit, onPartSave: (PartCatalogItem) -> Unit
+    car: Car?,
+    records: List<ServiceRecord>,
+    parts: List<PartCatalogItem>,
+    onAdd: () -> Unit,
+    onEdit: (ServiceRecord) -> Unit,
+    onPartSave: (PartCatalogItem) -> Unit
 ) {
     if (car == null) {
-        Page("Перечень работ") { Text("Сначала добавьте автомобиль", color = TextSecondary) }
+        Page("Перечень работ") {
+            Text("Сначала добавьте автомобиль", color = TextSecondary)
+        }
         return
     }
+
     Page("Перечень работ") {
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            Button(onClick = onAdd, modifier = Modifier.weight(1f)) { Text("Добавить запись") }
-            Text("${records.count { it.carId == car.id }} записей", color = TextSecondary, modifier = Modifier.padding(12.dp))
+        Row(
+            Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            Button(onClick = onAdd, modifier = Modifier.weight(1f)) {
+                Text("Добавить запись")
+            }
+            Text(
+                "${records.count { it.carId == car.id }} записей",
+                color = TextSecondary,
+                modifier = Modifier.padding(12.dp)
+            )
         }
+
         Spacer(Modifier.height(8.dp))
+
         LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
             items(records.filter { it.carId == car.id }.sortedByDescending { it.date }) { record ->
                 Card(
@@ -359,16 +763,30 @@ private fun WorkListScreen(
                 ) {
                     Column(Modifier.padding(14.dp)) {
                         Text(formatDate(record.date), color = ColorBlue)
-                        Text(record.servicePlace.ifBlank { "Самостоятельно" }, color = TextSecondary)
-                        Text(record.reason.ifBlank { "Обслуживание" }, color = TextPrimary, fontWeight = FontWeight.Bold)
+                        Text(
+                            record.servicePlace.ifBlank { "Самостоятельно" },
+                            color = TextSecondary
+                        )
+                        Text(
+                            record.reason.ifBlank { "Обслуживание" },
+                            color = TextPrimary,
+                            fontWeight = FontWeight.Bold
+                        )
                         Text("Пробег: ${record.mileage} км", color = TextSecondary)
+
                         record.lines.forEach { line ->
                             Text(
                                 "• ${line.name}${if (line.article.isNotBlank()) " [${line.article}]" else ""} — ${formatMoney(line.cost)} ${line.currency}",
-                                color = TextPrimary, fontSize = 13.sp
+                                color = TextPrimary,
+                                fontSize = 13.sp
                             )
                         }
-                        Text("Итого: ${formatTotals(record)}", color = ColorGreen, fontWeight = FontWeight.Bold)
+
+                        Text(
+                            "Итого: ${formatTotals(record)}",
+                            color = ColorGreen,
+                            fontWeight = FontWeight.Bold
+                        )
                     }
                 }
             }
@@ -378,27 +796,49 @@ private fun WorkListScreen(
 
 @Composable
 private fun RegulationScreen(
-    car: Car?, works: List<MaintenanceWork>, records: List<ServiceRecord>,
-    onWork: (MaintenanceWork) -> Unit, onAdd: () -> Unit, onFill: () -> Unit
+    car: Car?,
+    works: List<MaintenanceWork>,
+    records: List<ServiceRecord>,
+    onWork: (MaintenanceWork) -> Unit,
+    onAdd: () -> Unit,
+    onFill: () -> Unit
 ) {
     if (car == null) {
-        Page("Регламент") { Text("Сначала добавьте автомобиль", color = TextSecondary) }
+        Page("Регламент") {
+            Text("Сначала добавьте автомобиль", color = TextSecondary)
+        }
         return
     }
+
     val generalWorks = works.filter { it.category == WorkCategory.GENERAL }
     val lpgWorks = works.filter { it.category == WorkCategory.LPG }
+
     Page("Регламент") {
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            Button(onClick = onFill, modifier = Modifier.weight(1f)) { Text("Заполнить из шаблона") }
-            Button(onClick = onAdd, modifier = Modifier.weight(1f)) { Text("Добавить") }
+        Row(
+            Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            Button(onClick = onFill, modifier = Modifier.weight(1f)) {
+                Text("Заполнить из шаблона")
+            }
+            Button(onClick = onAdd, modifier = Modifier.weight(1f)) {
+                Text("Добавить")
+            }
         }
+
         Spacer(Modifier.height(8.dp))
+
         LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
             item { SectionTitle("Обслуживание автомобиля") }
-            items(generalWorks) { work -> WorkCard(work, car, records) { onWork(work) } }
+            items(generalWorks) { work ->
+                WorkCard(work, car, records) { onWork(work) }
+            }
+
             if (car.hasLpg) {
                 item { SectionTitle("Регламент ГБО") }
-                items(lpgWorks) { work -> WorkCard(work, car, records) { onWork(work) } }
+                items(lpgWorks) { work ->
+                    WorkCard(work, car, records) { onWork(work) }
+                }
             }
         }
     }
@@ -407,51 +847,155 @@ private fun RegulationScreen(
 @Composable
 private fun StatisticsScreen(car: Car?, records: List<ServiceRecord>) {
     if (car == null) {
-        Page("Статистика") { Text("Сначала добавьте автомобиль", color = TextSecondary) }
+        Page("Статистика") {
+            Text("Сначала добавьте автомобиль", color = TextSecondary)
+        }
         return
     }
+
     val carRecords = records.filter { it.carId == car.id }
-    val totals = carRecords.flatMap { it.lines }.groupBy { it.currency }.mapValues { (_, lines) -> lines.sumOf { it.cost } }
+    val totals = carRecords.flatMap { it.lines }
+        .groupBy { it.currency }
+        .mapValues { (_, lines) -> lines.sumOf { it.cost } }
+
     Page("Статистика") {
-        StatusBlock("Записей обслуживания", carRecords.size, ColorBlue, Modifier.fillMaxWidth())
+        StatusBlock(
+            "Записей обслуживания",
+            carRecords.size,
+            ColorBlue,
+            Modifier.fillMaxWidth()
+        )
         Spacer(Modifier.height(12.dp))
         SectionTitle("Расходы по валютам")
-        totals.forEach { (currency, value) -> InfoRow(currency, formatMoney(value)) }
+        totals.forEach { (currency, value) ->
+            InfoRow(currency, formatMoney(value))
+        }
         Spacer(Modifier.height(12.dp))
         SectionTitle("Работы")
         InfoRow("Всего строк", carRecords.sumOf { it.lines.size }.toString())
-        InfoRow("Последнее обслуживание", formatDate(carRecords.maxOfOrNull { it.date } ?: 0L))
+        InfoRow(
+            "Последнее обслуживание",
+            formatDate(carRecords.maxOfOrNull { it.date } ?: 0L)
+        )
         Text(
             "Расход топлива не рассчитывается: для автомобиля с бензином и ГБО такой показатель без дополнительных данных может быть некорректным.",
-            color = TextSecondary, fontSize = 12.sp
+            color = TextSecondary,
+            fontSize = 12.sp
         )
     }
 }
 
 @Composable
-private fun MoreScreen(onTemplate: () -> Unit, onDecoder: () -> Unit, onParts: () -> Unit) {
+private fun MoreScreen(
+    onTemplate: () -> Unit,
+    onDecoder: () -> Unit,
+    onParts: () -> Unit,
+    onCreateBackup: () -> Unit,
+    onRestoreBackup: () -> Unit
+) {
     Page("Ещё") {
-        Button(onClick = onTemplate, modifier = Modifier.fillMaxWidth()) { Text("Шаблоны регламента") }
-        Button(onClick = onDecoder, modifier = Modifier.fillMaxWidth()) { Text("Расшифровка кодов ошибок") }
-        Button(onClick = onParts, modifier = Modifier.fillMaxWidth()) { Text("Запчасти и расходники") }
-        Text("Шаблоны общие, а интервалы, статусы и история — отдельно для каждого автомобиля.", color = TextSecondary)
+        Button(
+            onClick = onTemplate,
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Text("Шаблоны регламента")
+        }
+
+        Button(
+            onClick = onDecoder,
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Text("Расшифровка кодов ошибок")
+        }
+
+        Button(
+            onClick = onParts,
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Text("Запчасти и расходники")
+        }
+
+        HorizontalDivider(color = TextSecondary.copy(alpha = 0.3f))
+        Spacer(Modifier.height(4.dp))
+
+        Text(
+            "Резервное копирование",
+            color = TextPrimary,
+            fontSize = 18.sp,
+            fontWeight = FontWeight.Bold
+        )
+
+        Text(
+            "Сохраните данные в JSON-файл, чтобы перенести их на другой телефон или восстановить позднее.",
+            color = TextSecondary
+        )
+
+        Button(
+            onClick = onCreateBackup,
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Icon(imageVector = Icons.Default.Save, contentDescription = null)
+            Spacer(Modifier.width(8.dp))
+            Text("Создать резервную копию")
+        }
+
+        OutlinedButton(
+            onClick = onRestoreBackup,
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Icon(imageVector = Icons.Default.Refresh, contentDescription = null)
+            Spacer(Modifier.width(8.dp))
+            Text("Восстановить из копии")
+        }
+
+        Text(
+            "Перед восстановлением текущие данные будут заменены. Фотографии автомобиля, хранящиеся отдельно на телефоне, могут не перенестись.",
+            color = TextSecondary,
+            fontSize = 12.sp
+        )
+
+        Spacer(Modifier.height(8.dp))
+
+        Text(
+            "Шаблоны общие, а интервалы, статусы и история — отдельно для каждого автомобиля.",
+            color = TextSecondary
+        )
     }
 }
 
 @Composable
 private fun CarDetailScreen(
-    car: Car?, onBack: () -> Unit, onEdit: () -> Unit, onMileage: () -> Unit,
-    onFill: () -> Unit, onDelete: () -> Unit
+    car: Car?,
+    onBack: () -> Unit,
+    onEdit: () -> Unit,
+    onMileage: () -> Unit,
+    onFill: () -> Unit,
+    onDelete: () -> Unit
 ) {
     if (car == null) {
         onBack()
         return
     }
+
     Page("Автомобиль") {
-        TextButton(onClick = onBack) { Text("← Назад", color = ColorBlue) }
-        Card(Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = CardColor)) {
-            Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                Text("${car.brand} ${car.model}", color = TextPrimary, fontSize = 22.sp, fontWeight = FontWeight.Bold)
+        TextButton(onClick = onBack) {
+            Text("← Назад", color = ColorBlue)
+        }
+
+        Card(
+            Modifier.fillMaxWidth(),
+            colors = CardDefaults.cardColors(containerColor = CardColor)
+        ) {
+            Column(
+                Modifier.padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                Text(
+                    "${car.brand} ${car.model}",
+                    color = TextPrimary,
+                    fontSize = 22.sp,
+                    fontWeight = FontWeight.Bold
+                )
                 InfoRow("Год", car.year)
                 InfoRow("Пробег", "${car.mileage} км")
                 InfoRow("VIN", car.vin)
@@ -460,43 +1004,86 @@ private fun CarDetailScreen(
                 InfoRow("ГБО", if (car.hasLpg) "Установлено" else "Нет")
             }
         }
+
         Spacer(Modifier.height(12.dp))
-        Button(onClick = onMileage, modifier = Modifier.fillMaxWidth()) { Text("Изменить пробег") }
-        Button(onClick = onFill, modifier = Modifier.fillMaxWidth()) { Text("Заполнить регламент") }
-        Button(onClick = onEdit, modifier = Modifier.fillMaxWidth()) { Text("Редактировать") }
-        TextButton(onClick = onDelete) { Text("Удалить автомобиль", color = ColorRed) }
+
+        Button(onClick = onMileage, modifier = Modifier.fillMaxWidth()) {
+            Text("Изменить пробег")
+        }
+        Button(onClick = onFill, modifier = Modifier.fillMaxWidth()) {
+            Text("Заполнить регламент")
+        }
+        Button(onClick = onEdit, modifier = Modifier.fillMaxWidth()) {
+            Text("Редактировать")
+        }
+        TextButton(onClick = onDelete) {
+            Text("Удалить автомобиль", color = ColorRed)
+        }
     }
 }
 
 @Composable
 private fun PartsCatalogScreen(
-    car: Car?, parts: List<PartCatalogItem>, onBack: () -> Unit, onAdd: (PartCatalogItem) -> Unit
+    car: Car?,
+    parts: List<PartCatalogItem>,
+    onBack: () -> Unit,
+    onAdd: (PartCatalogItem) -> Unit
 ) {
     if (car == null) {
-        Page("Запчасти и расходники") { Text("Сначала добавьте автомобиль", color = TextSecondary) }
+        Page("Запчасти и расходники") {
+            Text("Сначала добавьте автомобиль", color = TextSecondary)
+        }
         return
     }
+
     var show by remember { mutableStateOf(false) }
+
     Page("Запчасти и расходники") {
-        TextButton(onClick = onBack) { Text("← Назад", color = ColorBlue) }
-        Text("Каталог создаётся вручную для этого автомобиля. Встроенной базы рекомендаций нет.", color = TextSecondary)
+        TextButton(onClick = onBack) {
+            Text("← Назад", color = ColorBlue)
+        }
+        Text(
+            "Каталог создаётся вручную для этого автомобиля. Встроенной базы рекомендаций нет.",
+            color = TextSecondary
+        )
         Spacer(Modifier.height(8.dp))
-        Button(onClick = { show = true }, modifier = Modifier.fillMaxWidth()) { Text("Добавить запчасть / расходник") }
+
+        Button(
+            onClick = { show = true },
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Text("Добавить запчасть / расходник")
+        }
+
         Spacer(Modifier.height(8.dp))
+
         LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
             items(parts.filter { it.carId == car.id }) { part ->
-                Card(Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = CardColor)) {
+                Card(
+                    Modifier.fillMaxWidth(),
+                    colors = CardDefaults.cardColors(containerColor = CardColor)
+                ) {
                     Column(Modifier.padding(12.dp)) {
                         Text(part.name, color = TextPrimary, fontWeight = FontWeight.Bold)
-                        Text("Артикул: ${part.article.ifBlank { "—" }}", color = TextSecondary)
-                        Text("Последняя цена: ${formatMoney(part.lastCost)} ${part.currency}", color = TextSecondary)
+                        Text(
+                            "Артикул: ${part.article.ifBlank { "—" }}",
+                            color = TextSecondary
+                        )
+                        Text(
+                            "Последняя цена: ${formatMoney(part.lastCost)} ${part.currency}",
+                            color = TextSecondary
+                        )
                     }
                 }
             }
         }
     }
+
     if (show) {
-        PartCatalogDialog(car.id, onDismiss = { show = false }) { part ->
+        PartCatalogDialog(
+            car.id,
+            onDismiss = { show = false }
+        ) { part ->
             onAdd(part)
             show = false
         }
@@ -504,7 +1091,11 @@ private fun PartsCatalogScreen(
 }
 
 @Composable
-private fun PartCatalogDialog(carId: String, onDismiss: () -> Unit, onSave: (PartCatalogItem) -> Unit) {
+private fun PartCatalogDialog(
+    carId: String,
+    onDismiss: () -> Unit,
+    onSave: (PartCatalogItem) -> Unit
+) {
     var name by remember { mutableStateOf("") }
     var article by remember { mutableStateOf("") }
     var category by remember { mutableStateOf("Запчасть") }
@@ -517,17 +1108,34 @@ private fun PartCatalogDialog(carId: String, onDismiss: () -> Unit, onSave: (Par
         title = { Text("Новая запчасть", color = TextPrimary) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                OutlinedTextField(value = name, onValueChange = { name = it }, label = { Text("Название") })
-                OutlinedTextField(value = article, onValueChange = { article = it }, label = { Text("Артикул") })
-                OutlinedTextField(value = category, onValueChange = { category = it }, label = { Text("Категория") })
+                OutlinedTextField(
+                    value = name,
+                    onValueChange = { name = it },
+                    label = { Text("Название") }
+                )
+                OutlinedTextField(
+                    value = article,
+                    onValueChange = { article = it },
+                    label = { Text("Артикул") }
+                )
+                OutlinedTextField(
+                    value = category,
+                    onValueChange = { category = it },
+                    label = { Text("Категория") }
+                )
+
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     OutlinedTextField(
-                        value = cost, onValueChange = { cost = it }, label = { Text("Цена") },
+                        value = cost,
+                        onValueChange = { cost = it },
+                        label = { Text("Цена") },
                         modifier = Modifier.weight(1f)
                     )
                     OutlinedTextField(
-                        value = currency, onValueChange = { currency = it.uppercase() },
-                        label = { Text("Валюта") }, modifier = Modifier.weight(1f)
+                        value = currency,
+                        onValueChange = { currency = it.uppercase() },
+                        label = { Text("Валюта") },
+                        modifier = Modifier.weight(1f)
                     )
                 }
             }
@@ -537,15 +1145,23 @@ private fun PartCatalogDialog(carId: String, onDismiss: () -> Unit, onSave: (Par
                 if (name.isNotBlank()) {
                     onSave(
                         PartCatalogItem(
-                            carId = carId, name = name, article = article, category = category,
-                            lastCost = cost.toDoubleOrNull() ?: 0.0, currency = currency.uppercase()
+                            carId = carId,
+                            name = name,
+                            article = article,
+                            category = category,
+                            lastCost = cost.toDoubleOrNull() ?: 0.0,
+                            currency = currency.uppercase()
                         )
                     )
                 }
-            }) { Text("Сохранить", color = ColorGreen) }
+            }) {
+                Text("Сохранить", color = ColorGreen)
+            }
         },
         dismissButton = {
-            TextButton(onClick = onDismiss) { Text("Отмена", color = TextSecondary) }
+            TextButton(onClick = onDismiss) {
+                Text("Отмена", color = TextSecondary)
+            }
         }
     )
 }
@@ -553,16 +1169,30 @@ private fun PartCatalogDialog(carId: String, onDismiss: () -> Unit, onSave: (Par
 @Composable
 private fun ErrorDecoderScreen(onBack: () -> Unit) {
     var code by remember { mutableStateOf("") }
+
     Page("Расшифровка кодов ошибок") {
-        TextButton(onClick = onBack) { Text("← Назад", color = ColorBlue) }
-        Text("Введите код OBD-II, например P0300, чтобы получить расшифровку.", color = TextSecondary)
-        Spacer(Modifier.height(8.dp))
-        OutlinedTextField(
-            value = code, onValueChange = { code = it.uppercase() },
-            label = { Text("Код ошибки") }, singleLine = true, modifier = Modifier.fillMaxWidth()
+        TextButton(onClick = onBack) {
+            Text("← Назад", color = ColorBlue)
+        }
+        Text(
+            "Введите код OBD-II, например P0300, чтобы получить расшифровку.",
+            color = TextSecondary
         )
         Spacer(Modifier.height(8.dp))
-        if (code.isNotBlank()) Text(obdMeaning(code), color = TextPrimary)
+
+        OutlinedTextField(
+            value = code,
+            onValueChange = { code = it.uppercase() },
+            label = { Text("Код ошибки") },
+            singleLine = true,
+            modifier = Modifier.fillMaxWidth()
+        )
+
+        Spacer(Modifier.height(8.dp))
+
+        if (code.isNotBlank()) {
+            Text(obdMeaning(code), color = TextPrimary)
+        }
     }
 }
 
