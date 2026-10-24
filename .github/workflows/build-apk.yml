@@ -1,4 +1,3 @@
-
 name: Build clean APK
 
 on:
@@ -44,6 +43,7 @@ jobs:
       - name: Check backup source
         shell: bash
         run: |
+          set -e
           echo "=== Backup.kt ==="
           ls -l app/src/main/java/com/example/carmaintenance/Backup.kt
           grep -nE 'fun (createBackupJson|restoreBackupJson)' app/src/main/java/com/example/carmaintenance/Backup.kt
@@ -51,9 +51,11 @@ jobs:
           find app/src/main/java -name "*.kt" -type f
 
       - name: Build debug APK
-        run: gradle --no-daemon assembleDebug
+        shell: bash
+        run: gradle --no-daemon --stacktrace --info assembleDebug
 
       - name: Upload APK
+        if: success()
         uses: actions/upload-artifact@v4
         with:
           name: Car-Maintenance-Clean-APK
