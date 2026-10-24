@@ -1,3 +1,4 @@
+
 name: Build clean APK
 
 on:
@@ -22,13 +23,11 @@ jobs:
         run: |
           set -e
           echo "Checking project files..."
-
           test -f settings.gradle.kts
           test -f build.gradle.kts
           test -f gradle.properties
           test -f app/build.gradle.kts
           test -f app/src/main/AndroidManifest.xml
-
           echo "Project files found."
 
       - name: Set up JDK 17
@@ -41,6 +40,15 @@ jobs:
         uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '8.9'
+
+      - name: Check backup source
+        shell: bash
+        run: |
+          echo "=== Backup.kt ==="
+          ls -l app/src/main/java/com/example/carmaintenance/Backup.kt
+          grep -nE 'fun (createBackupJson|restoreBackupJson)' app/src/main/java/com/example/carmaintenance/Backup.kt
+          echo "=== Kotlin source files ==="
+          find app/src/main/java -name "*.kt" -type f
 
       - name: Build debug APK
         run: gradle --no-daemon assembleDebug
