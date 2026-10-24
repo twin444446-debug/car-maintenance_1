@@ -1,0 +1,91 @@
+name: Build clean APK from archive
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout clean repository
+        uses: actions/checkout@v4
+
+      - name: Check archive
+        shell: bash
+        run: |
+          set -euo pipefail
+          ARCHIVE="car-maintenance-migration-fix.zip"
+
+          if [ ! -f "$ARCHIVE" ]; then
+            echo "::error::Archive not found: $ARCHIVE"
+            ls -la
+            exit 1
+          fi
+
+          unzip -t "$ARCHIVE"
+
+      - name: Extract archive
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/source"
+          unzip -q car-maintenance-migration-fix.zip \
+            -d "$RUNNER_TEMP/source"
+
+          echo "Extracted files:"
+          find "$RUNNER_TEMP/source" -maxdepth 5 -type f | head -200
+
+      - name: Find Android project root
+        shell: bash
+        run: |
+          set -euo pipefail
+          ROOT=""
+
+          while IFS= read -r SETTINGS; do
+            CANDIDATE="$(dirname "$SETTINGS")"
+
+            if [ -f "$CANDIDATE/build.gradle.kts" ] &&
+               [ -f "$CANDIDATE/app/build.gradle.kts" ] &&
+               [ -f "$CANDIDATE/app/src/main/AndroidManifest.xml" ]; then
+              ROOT="$CANDIDATE"
+              break
+            fi
+          done < <(
+            find "$RUNNER_TEMP/source" \
+              -type f -name settings.gradle.kts
+          )
+
+          if [ -z "$ROOT" ]; then
+            echo "::error::Android project root not found in archive"
+            exit 1
+          fi
+
+          echo "PROJECT_ROOT=$ROOT" >> "$GITHUB_ENV"
+          echo "Using project root: $ROOT"
+
+      - name: Set up JDK
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.9'
+
+      - name: Build debug APK
+        working-directory: ${{ env.PROJECT_ROOT }}
+        shell: bash
+        run: gradle --no-daemon assembleDebug
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: Clean-Archive-APK
+          path: ${{ env.PROJECT_ROOT }}/app/build/outputs/apk/debug/*.apk
+          if-no-files-found: error
