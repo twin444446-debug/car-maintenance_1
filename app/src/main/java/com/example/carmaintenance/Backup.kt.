@@ -1,0 +1,64 @@
+package com.example.carmaintenance
+
+import android.content.Context
+import org.json.JSONArray
+import org.json.JSONObject
+
+private const val BACKUP_VERSION = 1
+
+/**
+ * Создаёт JSON-копию данных приложения.
+ * Использует существующие функции загрузки из Storage.kt.
+ */
+fun createBackupJson(context: Context): String {
+    val prefs = context.getSharedPreferences("car_maintenance", Context.MODE_PRIVATE)
+
+    val root = JSONObject().apply {
+        put("backupVersion", BACKUP_VERSION)
+        put("createdAt", System.currentTimeMillis())
+        put("cars", JSONArray(prefs.getString("cars", "[]") ?: "[]"))
+        put("works", JSONArray(prefs.getString("works_v2", "[]") ?: "[]"))
+        put("templates", JSONArray(prefs.getString("templates_v2", "[]") ?: "[]"))
+        put("records", JSONArray(prefs.getString("service_records_v2", "[]") ?: "[]"))
+        put("parts", JSONArray(prefs.getString("parts_v2", "[]") ?: "[]"))
+        put("selectedCarId", prefs.getString("selected_car_id", null) ?: "")
+    }
+
+    return root.toString(2)
+}
+
+/**
+ * Проверяет резервную копию и восстанавливает данные.
+ * Возвращает false, если файл повреждён или имеет неподдерживаемый формат.
+ */
+fun restoreBackupJson(context: Context, json: String): Boolean {
+    val root = runCatching { JSONObject(json) }.getOrNull() ?: return false
+
+    if (root.optInt("backupVersion", -1) != BACKUP_VERSION) return false
+
+    val keys = listOf(
+        "cars" to "cars",
+        "works" to "works_v2",
+        "templates" to "templates_v2",
+        "records" to "service_records_v2",
+        "parts" to "parts_v2"
+    )
+
+    // Проверяем все разделы до изменения текущих данных.
+    for ((jsonKey, _) in keys) {
+        if (root.optJSONArray(jsonKey) == null) return false
+    }
+
+    val prefs = context.getSharedPreferences("car_maintenance", Context.MODE_PRIVATE)
+    val editor = prefs.edit()
+
+    for ((jsonKey, prefKey) in keys) {
+        editor.putString(prefKey, root.getJSONArray(jsonKey).toString())
+    }
+
+    editor.putString("selected_car_id", root.optString("selectedCarId", ""))
+    editor.putBoolean("logic_migrated_v2", true)
+
+    // commit() позволяет проверить, удалось ли записать данные.
+    return editor.commit()
+}
