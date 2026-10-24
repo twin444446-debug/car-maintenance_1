@@ -934,8 +934,7 @@ private fun MoreScreen(
             onClick = onCreateBackup,
             modifier = Modifier.fillMaxWidth()
         ) {
-            Icon(imageVector = Icons.Default.Save, contentDescription = null)
-            Spacer(Modifier.width(8.dp))
+            
             Text("Создать резервную копию")
         }
 
@@ -943,8 +942,7 @@ private fun MoreScreen(
             onClick = onRestoreBackup,
             modifier = Modifier.fillMaxWidth()
         ) {
-            Icon(imageVector = Icons.Default.Refresh, contentDescription = null)
-            Spacer(Modifier.width(8.dp))
+            
             Text("Восстановить из копии")
         }
 
