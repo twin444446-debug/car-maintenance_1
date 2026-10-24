@@ -59,12 +59,10 @@ fun AppScreen() {
     var selectedRecord by remember { mutableStateOf<ServiceRecord?>(null) }
     var partsScreen by remember { mutableStateOf(false) }
 
-    // Состояние резервного копирования
     var showRestoreConfirmation by remember { mutableStateOf(false) }
     var pendingBackupJson by remember { mutableStateOf<String?>(null) }
     var backupMessage by remember { mutableStateOf<String?>(null) }
 
-    // Создание JSON-файла резервной копии
     val createBackupLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.CreateDocument("application/json")
     ) { uri ->
@@ -87,7 +85,6 @@ fun AppScreen() {
         }
     }
 
-    // Выбор файла для восстановления
     val restoreBackupLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.OpenDocument()
     ) { uri ->
@@ -428,7 +425,6 @@ fun AppScreen() {
         }
     }
 
-    // Подтверждение восстановления резервной копии
     if (showRestoreConfirmation) {
         AlertDialog(
             onDismissRequest = {
@@ -934,8 +930,6 @@ private fun MoreScreen(
             onClick = onCreateBackup,
             modifier = Modifier.fillMaxWidth()
         ) {
-            Icon(imageVector = Icons.Default.Save, contentDescription = null)
-            Spacer(Modifier.width(8.dp))
             Text("Создать резервную копию")
         }
 
@@ -943,8 +937,6 @@ private fun MoreScreen(
             onClick = onRestoreBackup,
             modifier = Modifier.fillMaxWidth()
         ) {
-            Icon(imageVector = Icons.Default.Refresh, contentDescription = null)
-            Spacer(Modifier.width(8.dp))
             Text("Восстановить из копии")
         }
 
