@@ -647,460 +647,77 @@ private fun HomeScreen(
                 StatusBlock(
                     "Необходимо",
                     statuses.count { it == WorkStatus.REQUIRED },
-
-@Composable
-private fun HomeScreen(
-    car: Car?,
-    cars: List<Car>,
-    works: List<MaintenanceWork>,
-    records: List<ServiceRecord>,
-    onCarSelect: (String) -> Unit,
-    onAddCar: () -> Unit,
-    onAddWork: () -> Unit,
-    onWork: (MaintenanceWork) -> Unit,
-    onMileage: () -> Unit,
-    onOpenCar: () -> Unit
-) {
-    if (car == null) {
-        Page("Учёт автомобильного ТО") {
-            Button(onClick = onAddCar) {
-                Text("Добавить автомобиль")
-            }
-        }
-        return
-    }
-
-    val carWorks = works.filter { it.carId == car.id }
-    val statuses = carWorks.map {
-        getWorkStatus(it, car, records)
-    }
-
-    val attentionCount = statuses.count {
-        it == WorkStatus.REQUIRED
-    }
-
-    val completedCount = statuses.count {
-        it == WorkStatus.COMPLETED
-    }
-
-    val preventiveCount = statuses.count {
-        it == WorkStatus.PREVENTIVE
-    }
-
-    val skippedCount = statuses.count {
-        it == WorkStatus.SKIPPED
-    }
-
-    LazyColumn(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(BgColor),
-        contentPadding = PaddingValues(
-            start = 16.dp,
-            end = 16.dp,
-            top = 18.dp,
-            bottom = 24.dp
-        ),
-        verticalArrangement = Arrangement.spacedBy(16.dp)
-    ) {
-        item {
-            Column {
-                Text(
-                    text = "МОЙ АВТОМОБИЛЬ",
-                    color = ColorBlue,
-                    fontSize = 12.sp,
-                    fontWeight = FontWeight.Bold
-                )
-
-                Spacer(Modifier.height(5.dp))
-
-                Text(
-                    text = "Учёт автомобильного ТО",
-                    color = TextPrimary,
-                    fontSize = 22.sp,
-                    fontWeight = FontWeight.Bold
+                    ColorRed,
+                    Modifier.weight(1f)
                 )
             }
         }
 
         item {
-            Card(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clickable { onOpenCar() },
-                shape = RoundedCornerShape(22.dp),
-                colors = CardDefaults.cardColors(
-                    containerColor = CardColor
-                ),
-                border = androidx.compose.foundation.BorderStroke(
-                    1.dp,
-                    ColorBlue.copy(alpha = 0.25f)
-                )
+            Row(
+                Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                Column(
-                    modifier = Modifier.padding(18.dp)
-                ) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Column(
-                            modifier = Modifier.weight(1f)
-                        ) {
-                            Text(
-                                text = "${car.brand} ${car.model}".trim(),
-                                color = TextPrimary,
-                                fontSize = 22.sp,
-                                fontWeight = FontWeight.Bold
-                            )
+                StatusBlock(
+                    "Рекомендации",
+                    statuses.count { it == WorkStatus.PREVENTIVE },
+                    ColorYellow,
+                    Modifier.weight(1f)
+                )
+                StatusBlock(
+                    "Пропущено",
+                    statuses.count { it == WorkStatus.SKIPPED },
+                    ColorPurple,
+                    Modifier.weight(1f)
+                )
+            }
+        }
 
-                            Text(
-                                text = buildString {
-                                    append(car.year.ifBlank { "Год не указан" })
-                                    append(" • ")
-                                    append(
-                                        car.engine.ifBlank {
-                                            "Двигатель не указан"
-                                        }
-                                    )
-                                },
-                                color = TextSecondary,
-                                fontSize = 13.sp
-                            )
-                        }
-
+        item {
+            Row(
+                Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                QuickAction(
+                    "Добавить запись",
+                    {
+                        Icon(
+                            imageVector = Icons.Default.Add,
+                            contentDescription = null,
+                            tint = ColorGreen
+                        )
+                    },
+                    ColorGreen,
+                    onAddWork,
+                    Modifier.weight(1f)
+                )
+                QuickAction(
+                    "Автомобиль",
+                    {
                         Icon(
                             imageVector = Icons.Default.Build,
-                            contentDescription = "Автомобиль",
-                            tint = ColorBlue,
-                            modifier = Modifier.size(34.dp)
-                        )
-                    }
-
-                    HorizontalDivider(
-                        modifier = Modifier.padding(vertical = 14.dp),
-                        color = TextSecondary.copy(alpha = 0.18f)
-                    )
-
-                    Text(
-                        text = "ТЕКУЩИЙ ПРОБЕГ",
-                        color = TextSecondary,
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.Bold
-                    )
-
-                    Spacer(Modifier.height(4.dp))
-
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(
-                            text = "${car.mileage.ifBlank { "0" }} км",
-                            color = ColorBlue,
-                            fontSize = 28.sp,
-                            fontWeight = FontWeight.Bold,
-                            modifier = Modifier.weight(1f)
-                        )
-
-                        TextButton(onClick = onMileage) {
-                            Text(
-                                "Изменить",
-                                color = ColorYellow
-                            )
-                        }
-                    }
-
-                    Text(
-                        text = "VIN: ${car.vin.ifBlank { "не указан" }}",
-                        color = TextSecondary,
-                        fontSize = 12.sp
-                    )
-
-                    Spacer(Modifier.height(4.dp))
-
-                    Text(
-                        text = "Топливо: ${car.fuel.ifBlank { "не указано" }}${if (car.hasLpg) " • ГБО" else ""}",
-                        color = TextSecondary,
-                        fontSize = 12.sp
-                    )
-                }
-            }
-        }
-
-        item {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(10.dp)
-            ) {
-                StatusBlock(
-                    title = "Всего работ",
-                    value = carWorks.size,
-                    color = ColorBlue,
-                    modifier = Modifier.weight(1f)
-                )
-
-                StatusBlock(
-                    title = "Нужно сделать",
-                    value = attentionCount,
-                    color = ColorRed,
-                    modifier = Modifier.weight(1f)
-                )
-            }
-        }
-
-        item {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(10.dp)
-            ) {
-                StatusBlock(
-                    title = "Выполнено",
-                    value = completedCount,
-                    color = ColorGreen,
-                    modifier = Modifier.weight(1f)
-                )
-
-                StatusBlock(
-                    title = "Рекомендации",
-                    value = preventiveCount,
-                    color = ColorYellow,
-                    modifier = Modifier.weight(1f)
-                )
-            }
-        }
-
-        item {
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(18.dp),
-                colors = CardDefaults.cardColors(
-                    containerColor = NavColor
-                )
-            ) {
-                Column(
-                    modifier = Modifier.padding(14.dp)
-                ) {
-                    Text(
-                        text = "БЫСТРЫЕ ДЕЙСТВИЯ",
-                        color = TextSecondary,
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.Bold
-                    )
-
-                    Spacer(Modifier.height(10.dp))
-
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        QuickAction(
-                            text = "Добавить запись",
-                            icon = {
-                                Icon(
-                                    Icons.Default.Add,
-                                    contentDescription = null,
-                                    tint = ColorGreen
-                                )
-                            },
-                            color = ColorGreen,
-                            onClick = onAddWork,
-                            modifier = Modifier.weight(1f)
-                        )
-
-                        QuickAction(
-                            text = "Автомобиль",
-                            icon = {
-                                Icon(
-                                    Icons.Default.Build,
-                                    contentDescription = null,
-                                    tint = ColorBlue
-                                )
-                            },
-                            color = ColorBlue,
-                            onClick = onOpenCar,
-                            modifier = Modifier.weight(1f)
-                        )
-                    }
-
-                    Spacer(Modifier.height(8.dp))
-
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        QuickAction(
-                            text = "Пробег",
-                            icon = {
-                                Icon(
-                                    Icons.Default.Edit,
-                                    contentDescription = null,
-                                    tint = ColorYellow
-                                )
-                            },
-                            color = ColorYellow,
-                            onClick = onMileage,
-                            modifier = Modifier.weight(1f)
-                        )
-
-                        QuickAction(
-                            text = "Добавить авто",
-                            icon = {
-                                Icon(
-                                    Icons.Default.Add,
-                                    contentDescription = null,
-                                    tint = ColorBlue
-                                )
-                            },
-                            color = ColorBlue,
-                            onClick = onAddCar,
-                            modifier = Modifier.weight(1f)
-                        )
-                    }
-                }
-            }
-        }
-
-        item {
-            Column {
-                Text(
-                    text = "Ближайшие работы",
-                    color = TextPrimary,
-                    fontSize = 19.sp,
-                    fontWeight = FontWeight.Bold
-                )
-
-                Text(
-                    text = "Работы, требующие внимания",
-                    color = TextSecondary,
-                    fontSize = 12.sp
-                )
-            }
-        }
-
-        if (carWorks.isEmpty()) {
-            item {
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(16.dp),
-                    colors = CardDefaults.cardColors(
-                        containerColor = CardColor
-                    )
-                ) {
-                    Column(
-                        modifier = Modifier.padding(18.dp)
-                    ) {
-                        Text(
-                            text = "Регламентных работ пока нет",
-                            color = TextPrimary,
-                            fontWeight = FontWeight.Bold
-                        )
-
-                        Spacer(Modifier.height(6.dp))
-
-                        Text(
-                            text = "Добавь первую работу, чтобы отслеживать обслуживание автомобиля.",
-                            color = TextSecondary,
-                            fontSize = 13.sp
-                        )
-
-                        Spacer(Modifier.height(8.dp))
-
-                        Button(onClick = onAddWork) {
-                            Text("Добавить работу")
-                        }
-                    }
-                }
-            }
-        } else {
-            items(
-                carWorks.sortedBy {
-                    when (getWorkStatus(it, car, records)) {
-                        WorkStatus.REQUIRED -> 0
-                        WorkStatus.PREVENTIVE -> 1
-                        WorkStatus.SKIPPED -> 2
-                        else -> 3
-                    }
-                }.take(8)
-            ) { work ->
-                WorkCard(
-                    work = work,
-                    car = car,
-                    records = records,
-                    onClick = { onWork(work) }
-                )
-            }
-        }
-
-        if (skippedCount > 0) {
-            item {
-                Text(
-                    text = "Пропущено работ: $skippedCount",
-                    color = ColorPurple,
-                    fontSize = 13.sp,
-                    fontWeight = FontWeight.Medium
-                )
-            }
-        }
-
-        if (cars.size > 1) {
-            item {
-                Text(
-                    text = "Другие автомобили",
-                    color = TextPrimary,
-                    fontSize = 18.sp,
-                    fontWeight = FontWeight.Bold
-                )
-            }
-
-            items(cars.filter { it.id != car.id }) { otherCar ->
-                Card(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clickable {
-                            onCarSelect(otherCar.id)
-                        },
-                    shape = RoundedCornerShape(16.dp),
-                    colors = CardDefaults.cardColors(
-                        containerColor = CardColor
-                    )
-                ) {
-                    Row(
-                        modifier = Modifier.padding(16.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.DirectionsCar,
                             contentDescription = null,
-                            tint = ColorBlue,
-                            modifier = Modifier.size(30.dp)
+                            tint = ColorBlue
                         )
-
-                        Spacer(Modifier.width(12.dp))
-
-                        Column(
-                            modifier = Modifier.weight(1f)
-                        ) {
-                            Text(
-                                text = "${otherCar.brand} ${otherCar.model}".trim(),
-                                color = TextPrimary,
-                                fontWeight = FontWeight.Bold
-                            )
-
-                            Text(
-                                text = "${otherCar.mileage.ifBlank { "0" }} км",
-                                color = TextSecondary,
-                                fontSize = 12.sp
-                            )
-                        }
-
-                        Text(
-                            text = "Выбрать",
-                            color = ColorBlue,
-                            fontSize = 12.sp
-                        )
-                    }
-                }
+                    },
+                    ColorBlue,
+                    onOpenCar,
+                    Modifier.weight(1f)
+                )
             }
+        }
+
+        item { SectionTitle("Ближайшие работы") }
+
+        items(carWorks.sortedBy {
+            when (getWorkStatus(it, car, records)) {
+                WorkStatus.REQUIRED -> 0
+                WorkStatus.SKIPPED -> 1
+                WorkStatus.PREVENTIVE -> 2
+                else -> 3
+            }
+        }.take(8)) { work ->
+            WorkCard(work, car, records) { onWork(work) }
         }
     }
 }
