@@ -1,4 +1,3 @@
-
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android") version "2.0.21"
@@ -38,8 +37,11 @@ android {
         targetCompatibility = JavaVersion.VERSION_17
     }
 
+    // ОБНОВЛЕННЫЙ БЛОК KOTLIN OPTIONS
     kotlinOptions {
         jvmTarget = "17"
+        // Разрешаем использование экспериментального API (HorizontalPager)
+        freeCompilerArgs += "-opt-in=androidx.compose.foundation.ExperimentalFoundationApi"
     }
 
     buildFeatures {
@@ -57,6 +59,12 @@ dependencies {
     implementation("androidx.compose.ui:ui-graphics")
     implementation("androidx.compose.ui:ui-tooling-preview")
     implementation("androidx.compose.material3:material3")
+    
+    // ДОБАВЛЕНО: Foundation (для HorizontalPager)
+    implementation("androidx.compose.foundation:foundation")
+    
+    // ДОБАВЛЕНО: Расширенные иконки (для DirectionsCar)
+    implementation("androidx.compose.material:material-icons-extended")
 
     implementation("io.coil-kt:coil-compose:2.6.0")
     debugImplementation("androidx.compose.ui:ui-tooling")
