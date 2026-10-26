@@ -1,5 +1,6 @@
 package com.example.carmaintenance
 
+import androidx.compose.ui.text.font.FontWeight
 import android.app.DatePickerDialog
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
