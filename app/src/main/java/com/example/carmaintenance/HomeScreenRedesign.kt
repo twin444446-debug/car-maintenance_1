@@ -318,48 +318,48 @@ fun HomeScreenRedesign(
         }
 
         // --- 5. БЫСТРЫЕ ДЕЙСТВИЯ (Сетка 2x2) ---
-        item(key = "quick_actions_title") {
-            Text("Быстрые действия", color = TextPrimary, fontSize = 18.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(start = 4.dp, top = 4.dp))
-        }
+item(key = "quick_actions_title") {
+    Text("Быстрые действия", color = TextPrimary, fontSize = 18.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(start = 4.dp, top = 4.dp))
+}
 
-        item(key = "quick_actions_grid") {
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                // Первый ряд
-                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    QuickAction(
-                        title = "Добавить\nзапись",
-                        icon = { Icon(Icons.Default.Add, contentDescription = null, tint = ColorGreen) },
-                        color = ColorGreen,
-                        onClick = onAddWork,
-                        modifier = Modifier.weight(1f)
-                    )
-                    QuickAction(
-                        title = "Перечень\nработ",
-                        icon = { Icon(Icons.Default.List, contentDescription = null, tint = ColorBlue) },
-                        color = ColorBlue,
-                        onClick = { /* Навигация через нижнее меню */ },
-                        modifier = Modifier.weight(1f)
-                    )
-                }
-                // Второй ряд
-                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    QuickAction(
-                        title = "Добавить\nавто",
-                        icon = { Icon(Icons.Default.DirectionsCar, contentDescription = null, tint = ColorGreen) },
-                        color = ColorGreen,
-                        onClick = onAddCar,
-                        modifier = Modifier.weight(1f)
-                    )
-                    QuickAction(
-                        title = "Регламент",
-                        icon = { Icon(Icons.Default.Build, contentDescription = null, tint = ColorGreen) },
-                        color = ColorGreen,
-                        onClick = onOpenRegulations,
-                        modifier = Modifier.weight(1f)
-                    )
-                }
-            }
+item(key = "quick_actions_grid") {
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        // Первый ряд
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            QuickAction(
+                text = "Добавить\nзапись", // <--- ИСПРАВЛЕНО (было title)
+                icon = { Icon(Icons.Default.Add, contentDescription = null, tint = ColorGreen) },
+                color = ColorGreen,
+                onClick = onAddWork,
+                modifier = Modifier.weight(1f)
+            )
+            QuickAction(
+                text = "Перечень\nработ", // <--- ИСПРАВЛЕНО (было title)
+                icon = { Icon(Icons.Default.List, contentDescription = null, tint = ColorBlue) },
+                color = ColorBlue,
+                onClick = { /* Навигация через нижнее меню */ },
+                modifier = Modifier.weight(1f)
+            )
         }
+        // Второй ряд
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            QuickAction(
+                text = "Добавить\nавто", // <--- ИСПРАВЛЕНО (было title)
+                icon = { Icon(Icons.Default.DirectionsCar, contentDescription = null, tint = ColorGreen) },
+                color = ColorGreen,
+                onClick = onAddCar,
+                modifier = Modifier.weight(1f)
+            )
+            QuickAction(
+                text = "Регламент", // <--- ИСПРАВЛЕНО (было title)
+                icon = { Icon(Icons.Default.Build, contentDescription = null, tint = ColorGreen) },
+                color = ColorGreen,
+                onClick = onOpenRegulations,
+                modifier = Modifier.weight(1f)
+            )
+        }
+    }
+}
 
         // --- 6. БЛИЖАЙШИЕ РАБОТЫ ---
         item(key = "nearest_works_header") {
