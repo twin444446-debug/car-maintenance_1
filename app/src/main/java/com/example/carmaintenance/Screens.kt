@@ -300,26 +300,97 @@ var pendingDeleteCar by remember { mutableStateOf<Car?>(null) }
                         onFill = {
                             if (car != null) createDefaultForCar(car)
                         },
+                        
                         onDelete = {
                             if (car != null) {
-                                cars = cars.filter { it.id != car.id }
-                                saveCars(context, cars)
-                                selectedCarId = cars.firstOrNull()?.id
-
-                                context.getSharedPreferences(
-                                    "car_maintenance",
-                                    Context.MODE_PRIVATE
-                                ).edit()
-                                    .putString("selected_car_id", selectedCarId ?: "")
-                                    .apply()
-
-                                screen = "Главная"
+                                pendingDeleteCar = car
+                                showDeleteCarConfirmation = true
                             }
                         }
                     )
                 }
             }
         }
+    }
+
+    if (showDeleteCarConfirmation) {
+        AlertDialog(
+            onDismissRequest = {
+                showDeleteCarConfirmation = false
+                pendingDeleteCar = null
+            },
+            containerColor = CardColor,
+            title = {
+                Text(
+                    "Удалить автомобиль?",
+                    color = TextPrimary
+                )
+            },
+            text = {
+                Text(
+                    "Автомобиль, его регламентные работы, записи обслуживания и каталог запчастей будут удалены. Это действие нельзя отменить.",
+                    color = TextSecondary
+                )
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        val carToDelete = pendingDeleteCar
+
+                        if (carToDelete != null) {
+                            cars = cars.filter {
+                                it.id != carToDelete.id
+                            }
+                            saveCars(context, cars)
+
+                            works = works.filter {
+                                it.carId != carToDelete.id
+                            }
+                            saveWorks(context, works)
+
+                            records = records.filter {
+                                it.carId != carToDelete.id
+                            }
+                            saveServiceRecords(context, records)
+
+                            parts = parts.filter {
+                                it.carId != carToDelete.id
+                            }
+                            savePartCatalog(context, parts)
+
+                            selectedCarId = cars.firstOrNull()?.id
+
+                            context.getSharedPreferences(
+                                "car_maintenance",
+                                Context.MODE_PRIVATE
+                            ).edit()
+                                .putString(
+                                    "selected_car_id",
+                                    selectedCarId ?: ""
+                                )
+                                .apply()
+
+                            screen = "Главная"
+                        }
+
+                        showDeleteCarConfirmation = false
+                        pendingDeleteCar = null
+                    }
+                ) {
+                    Text("Удалить", color = ColorRed)
+                }
+            },
+            dismissButton = {
+                TextButton(
+                    onClick = {
+                        showDeleteCarConfirmation = false
+                        pendingDeleteCar = null
+                    }
+                ) {
+                    Text("Отмена", color = TextSecondary)
+                }
+            }
+        )
     }
 
     if (carDialog) {
