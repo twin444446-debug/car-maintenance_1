@@ -136,19 +136,34 @@ fun HomeScreenRedesign(
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
 
-        // Заголовок
-        item {
+        // Заголовок и добавление автомобиля
+item {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.SpaceBetween
+    ) {
+        Text(
+            "Главная",
+            color = TextPrimary,
+            fontSize = 28.sp,
+            fontWeight = FontWeight.Bold
+        )
+
+        TextButton(onClick = onAddCar) {
+            Icon(
+                Icons.Default.Add,
+                contentDescription = null,
+                tint = ColorGreen
+            )
+            Spacer(Modifier.width(4.dp))
             Text(
-                "Главная",
-                color = TextPrimary,
-                fontSize = 28.sp,
-                fontWeight = FontWeight.Bold,
-                modifier = Modifier.padding(
-                    start = 4.dp,
-                    bottom = 2.dp
-                )
+                "Добавить авто",
+                color = ColorGreen
             )
         }
+    }
+}
 
         // Карточка автомобиля
         item {
