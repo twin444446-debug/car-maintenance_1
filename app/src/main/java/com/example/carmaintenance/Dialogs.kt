@@ -188,7 +188,131 @@ fun WorkActionsDialog(
                     OutlinedTextField(
                         value = note,
                         onValueChange = { note = it },
-                        label = { Text("Примечания") },
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun WorkActionsDialog(
+    work: MaintenanceWork,
+    car: Car,
+    records: List<ServiceRecord>,
+    onDismiss: () -> Unit,
+    onComplete: (km: Int, date: Long, note: String, lines: List<ServiceLine>) -> Unit, // <--- 4 параметра
+    onSkip: () -> Unit,
+    onEdit: () -> Unit,
+    onDelete: () -> Unit,
+    onShowInList: () -> Unit
+) {
+    var showCompleteForm by remember { mutableStateOf(false) }
+    
+    var km by remember { mutableStateOf(car.mileage.ifBlank { "0" }) }
+    var note by remember { mutableStateOf("") }
+    
+    // Список строк (работ/запчастей)
+    val lines = remember { 
+        mutableStateListOf(
+            ServiceLine(name = work.name, type = ServiceLineType.WORK)
+        ) 
+    }
+
+    if (!showCompleteForm) {
+        AlertDialog(
+            onDismissRequest = onDismiss,
+            containerColor = CardColor,
+            title = { Text(work.name, color = TextPrimary) },
+            text = { Text("Выберите действие", color = TextSecondary) },
+            confirmButton = {
+                TextButton(onClick = { showCompleteForm = true }) {
+                    Text("Выполнить", color = ColorGreen, fontWeight = FontWeight.Bold)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = onDismiss) { Text("Отмена", color = TextSecondary) }
+            }
+        )
+    } else {
+        AlertDialog(
+            onDismissRequest = { showCompleteForm = false },
+            containerColor = CardColor,
+            title = { Text("Выполнение: ${work.name}", color = TextPrimary, fontSize = 18.sp) },
+            text = {
+                Column(
+                    verticalArrangement = Arrangement.spacedBy(12.dp),
+                    modifier = Modifier.fillMaxWidth().verticalScroll(rememberScrollState())
+                ) {
+                    OutlinedTextField(
+                        value = km,
+                        onValueChange = { km = it },
+                        label = { Text("Пробег (км)") },
+                        modifier = Modifier.fillMaxWidth(),
+                        singleLine = true
+                    )
+                    
+                    Text("Работы и материалы", color = TextPrimary, fontWeight = FontWeight.Bold)
+                    
+                    lines.forEachIndexed { index, line ->
+                        Card(
+                            colors = CardDefaults.cardColors(containerColor = BgColor),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Column(Modifier.padding(8.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                                OutlinedTextField(
+                                    value = line.name,
+                                    onValueChange = { lines[index] = line.copy(name = it) },
+                                    label = { Text("Наименование", fontSize = 12.sp) },
+                                    modifier = Modifier.fillMaxWidth(),
+                                    singleLine = true
+                                )
+                                OutlinedTextField(
+                                    value = line.article,
+                                    onValueChange = { lines[index] = line.copy(article = it) },
+                                    label = { Text("Артикул", fontSize = 12.sp) },
+                                    modifier = Modifier.fillMaxWidth(),
+                                    singleLine = true
+                                )
+                                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                    OutlinedTextField(
+                                        value = if (line.cost == 0.0) "" else line.cost.toString(),
+                                        onValueChange = { 
+                                            val c = it.replace(",", ".").toDoubleOrNull() ?: 0.0
+                                            lines[index] = line.copy(cost = c) 
+                                        },
+                                        label = { Text("Цена", fontSize = 12.sp) },
+                                        modifier = Modifier.weight(1f),
+                                        singleLine = true
+                                    )
+                                    OutlinedTextField(
+                                        value = line.currency,
+                                        onValueChange = { lines[index] = line.copy(currency = it.uppercase()) },
+                                        label = { Text("Вал.", fontSize = 12.sp) },
+                                        modifier = Modifier.weight(1f),
+                                        singleLine = true
+                                    )
+                                }
+                                if (lines.size > 1) {
+                                    TextButton(
+                                        onClick = { lines.removeAt(index) },
+                                        modifier = Modifier.align(Alignment.End)
+                                    ) {
+                                        Text("Удалить строку", color = ColorRed, fontSize = 12.sp)
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    Button(
+                        onClick = { lines.add(ServiceLine(name = "", type = ServiceLineType.WORK)) },
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = ButtonDefaults.buttonColors(containerColor = ColorBlue.copy(alpha = 0.2f))
+                    ) {
+                        Icon(Icons.Default.Add, contentDescription = null, tint = ColorBlue)
+                        Spacer(Modifier.width(8.dp))
+                        Text("Добавить строку", color = ColorBlue)
+                    }
+
+                    OutlinedTextField(
+                        value = note,
+                        onValueChange = { note = it },
+                        label = { Text("Примечание ко всей записи") },
                         modifier = Modifier.fillMaxWidth(),
                         minLines = 2
                     )
@@ -201,10 +325,7 @@ fun WorkActionsDialog(
                             km.toIntOrNull() ?: 0,
                             System.currentTimeMillis(),
                             note,
-                            partName,
-                            partCode,
-                            cost.replace(",", ".").toDoubleOrNull() ?: 0.0,
-                            currency
+                            lines.toList()
                         )
                     }
                 ) {
