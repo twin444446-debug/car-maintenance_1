@@ -87,26 +87,14 @@ fun AppScreen() {
     km: Int, 
     date: Long, 
     note: String,
-    partName: String,
-    partCode: String,
-    cost: Double,
-    currency: String
+    lines: List<ServiceLine> // <--- ТЕПЕРЬ ПРИНИМАЕМ СПИСОК СТРОК
 ) {
-    val line = ServiceLine(
-        name = partName.ifBlank { w.name },
-        type = ServiceLineType.WORK,
-        notes = note,
-        article = partCode,
-        cost = cost,
-        currency = currency
-    )
-    
     val record = ServiceRecord(
         carId = w.carId, 
         date = date, 
         mileage = km, 
         reason = note,
-        lines = listOf(line), 
+        lines = lines, // <--- СОХРАНЯЕМ ВЕСЬ СПИСОК
         notes = note
     )
     
