@@ -236,39 +236,128 @@ fun HomeScreenRedesign(
                                 onClick = onOpenCar,
                                 modifier = Modifier
                                     .align(Alignment.TopEnd)
-                                    .padding(8.dp)
-                                    .background(Color.Black.copy(alpha = 0.5f), RoundedCornerShape(50))
-                            ) {
-                                Icon(Icons.Default.Edit, contentDescription = "Редактировать", tint = Color.White)
+item(key = "car_pager_section") {
+    val initialIndex = cars.indexOfFirst { it.id == car.id }.coerceAtLeast(0)
+    val pagerState = rememberPagerState(initialPage = initialIndex, pageCount = { cars.size })
+
+    LaunchedEffect(pagerState.currentPage) {
+        val selectedCar = cars[pagerState.currentPage]
+        if (selectedCar.id != car.id) onCarSelect(selectedCar.id)
+    }
+
+    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+        HorizontalPager(
+            state = pagerState,
+            contentPadding = PaddingValues(horizontal = 14.dp),
+            pageSpacing = 10.dp,
+            modifier = Modifier.fillMaxWidth()
+        ) { page ->
+            val currentCar = cars[page]
+            
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(containerColor = CardColor),
+                shape = RoundedCornerShape(22.dp)
+            ) {
+                Column {
+                    // 1. Верхний блок с картинкой (заглушкой)
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(130.dp)
+                            .background(Color(0xFF1E293B))
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.DirectionsCar,
+                            contentDescription = null,
+                            tint = Color.White.copy(alpha = 0.1f),
+                            modifier = Modifier.align(Alignment.Center).size(72.dp)
+                        )
+                        IconButton(
+                            onClick = onOpenCar,
+                            modifier = Modifier
+                                .align(Alignment.TopEnd)
+                                .padding(8.dp)
+                                .background(Color.Black.copy(alpha = 0.5f), RoundedCornerShape(50))
+                        ) {
+                            Icon(Icons.Default.Edit, contentDescription = "Редактировать", tint = Color.White)
+                        }
+                    }
+
+                    // 2. Текстовый блок
+                    Column(Modifier.padding(16.dp)) {
+                        Text(
+                            "${currentCar.brand} ${currentCar.model}",
+                            color = TextPrimary,
+                            fontSize = 22.sp,
+                            fontWeight = FontWeight.Bold,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                        Text(
+                            "${currentCar.year.ifBlank { "Год не указан" }} • ${currentCar.engine.ifBlank { "Двигатель не указан" }}",
+                            color = TextSecondary,
+                            fontSize = 13.sp,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+
+                        Spacer(Modifier.height(12.dp))
+                        HorizontalDivider(color = TextSecondary.copy(alpha = 0.18f))
+                        Spacer(Modifier.height(10.dp))
+
+                        Text("ТЕКУЩИЙ ПРОБЕГ", color = TextSecondary, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text(
+                                "${currentCar.mileage.ifBlank { "0" }} км",
+                                color = ColorBlue,
+                                fontSize = 26.sp,
+                                fontWeight = FontWeight.Bold,
+                                modifier = Modifier.weight(1f)
+                            )
+                            TextButton(onClick = onMileage) {
+                                Text("Изменить", color = ColorYellow)
+                            }
+                        }
+                        
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Column {
+                                Text("VIN", color = TextSecondary, fontSize = 11.sp)
+                                Text(currentCar.vin.ifBlank { "не указан" }, color = TextPrimary, fontSize = 13.sp)
+                            }
+                            Column(horizontalAlignment = Alignment.End) {
+                                Text("Топливо", color = TextSecondary, fontSize = 11.sp)
+                                Text(
+                                    "${currentCar.fuel.ifBlank { "не указано" }}${if (currentCar.hasLpg) " • ГБО" else ""}",
+                                    color = TextPrimary, 
+                                    fontSize = 13.sp
+                                )
                             }
                         }
                     }
                 }
+            }
+        }
 
-                // Точки-индикаторы
-                if (cars.size > 1) {
-                    Spacer(Modifier.height(8.dp))
-                    Row(horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically) {
-                        cars.forEachIndexed { index, _ ->
-                            Box(
-                                Modifier.padding(horizontal = 4.dp).size(if (pagerState.currentPage == index) 10.dp else 7.dp)
-                                    .background(
-                                        if (pagerState.currentPage == index) ColorBlue else TextSecondary.copy(alpha = 0.45f),
-                                        RoundedCornerShape(50)
-                                    )
-                            )
-                        }
-                    }
-                    Spacer(Modifier.height(3.dp))
-                    Text(
-                        "Автомобиль ${pagerState.currentPage + 1} из ${cars.size}",
-                        color = TextSecondary,
-                        fontSize = 11.sp,
-                        textAlign = TextAlign.Center
+        // Индикаторы (точки)
+        if (cars.size > 1) {
+            Spacer(Modifier.height(8.dp))
+            Row(horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically) {
+                cars.forEachIndexed { index, _ ->
+                    Box(
+                        Modifier.padding(horizontal = 4.dp).size(if (pagerState.currentPage == index) 10.dp else 7.dp)
+                            .background(if (pagerState.currentPage == index) ColorBlue else TextSecondary.copy(alpha = 0.45f), RoundedCornerShape(50))
                     )
                 }
             }
+            Spacer(Modifier.height(3.dp))
+            Text("Автомобиль ${pagerState.currentPage + 1} из ${cars.size}", color = TextSecondary, fontSize = 11.sp)
         }
+    }
+}
 
         // --- 3. СТАТУС (Главная плашка) ---
         item(key = "main_status") {
