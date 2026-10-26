@@ -478,3 +478,21 @@ item(key = "quick_actions_grid") {
         }
     }
 }
+
+@Composable
+fun StatCardCompact(title: String, count: Int, color: Color, modifier: Modifier = Modifier) {
+    Card(
+        modifier = modifier.height(80.dp), // Фиксированная высота
+        colors = CardDefaults.cardColors(containerColor = color.copy(alpha = 0.15f)),
+        shape = RoundedCornerShape(16.dp)
+    ) {
+        Row(
+            modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Text(title, color = TextPrimary, fontSize = 14.sp, fontWeight = FontWeight.Medium)
+            Text("$count", color = color, fontSize = 28.sp, fontWeight = FontWeight.Bold)
+        }
+    }
+}
