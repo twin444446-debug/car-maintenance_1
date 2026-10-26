@@ -170,11 +170,43 @@ item {
 }
 
         // Карточка автомобиля
-        item {
-            Card(
-    modifier = Modifier
-        .fillMaxWidth()
-        .padding(20.dp),
+        
+item {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(20.dp)
+            .pointerInput(cars, car.id) {
+                var dragAmount = 0f
+
+                detectHorizontalDragGestures(
+                    onHorizontalDrag = { change, amount ->
+                        change.consume()
+                        dragAmount += amount
+                    },
+                    onDragEnd = {
+                        if (kotlin.math.abs(dragAmount) > 60f && cars.size > 1) {
+                            val index = cars.indexOfFirst { it.id == car.id }
+
+                            if (index >= 0) {
+                                val nextIndex = if (dragAmount < 0f) {
+                                    (index + 1) % cars.size
+                                } else {
+                                    (index - 1 + cars.size) % cars.size
+                                }
+
+                                onCarSelect(cars[nextIndex].id)
+                            }
+                        }
+
+                        dragAmount = 0f
+                    },
+                    onDragCancel = {
+                        dragAmount = 0f
+                    }
+                )
+            },
+
                 colors = CardDefaults.cardColors(
                     containerColor = CardColor
                 ),
