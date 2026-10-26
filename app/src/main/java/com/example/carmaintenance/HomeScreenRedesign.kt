@@ -1,15 +1,13 @@
+
 package com.example.carmaintenance
 
 import androidx.compose.foundation.background
-import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.horizontalScroll
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Build
@@ -19,7 +17,10 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
@@ -89,7 +90,6 @@ fun HomeScreenRedesign(
                 }
             }
         }
-
         return
     }
 
@@ -139,83 +139,86 @@ fun HomeScreenRedesign(
         ),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
+        // Заголовок
+        item {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Text(
+                    "Главная",
+                    color = TextPrimary,
+                    fontSize = 28.sp,
+                    fontWeight = FontWeight.Bold
+                )
 
-        // Заголовок и добавление автомобиля
-item {
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.SpaceBetween
-    ) {
-        Text(
-            "Главная",
-            color = TextPrimary,
-            fontSize = 28.sp,
-            fontWeight = FontWeight.Bold
-        )
-
-        TextButton(onClick = onAddCar) {
-            Icon(
-                Icons.Default.Add,
-                contentDescription = null,
-                tint = ColorGreen
-            )
-            Spacer(Modifier.width(4.dp))
-            Text(
-                "Добавить авто",
-                color = ColorGreen
-            )
+                TextButton(onClick = onAddCar) {
+                    Icon(
+                        Icons.Default.Add,
+                        contentDescription = null,
+                        tint = ColorGreen
+                    )
+                    Spacer(Modifier.width(4.dp))
+                    Text(
+                        "Добавить авто",
+                        color = ColorGreen
+                    )
+                }
+            }
         }
-    }
-}
 
-        // Карточка автомобиля
-        
-item {
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(20.dp)
-            .pointerInput(cars, car.id) {
-                var dragAmount = 0f
+        // Карточка автомобиля одинаковой высоты
+        item(key = "car_card_${car.id}") {
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(270.dp)
+                    .pointerInput(cars, car.id) {
+                        var dragAmount = 0f
 
-                detectHorizontalDragGestures(
-                    onHorizontalDrag = { change, amount ->
-                        change.consume()
-                        dragAmount += amount
-                    },
-                    onDragEnd = {
-                        if (kotlin.math.abs(dragAmount) > 60f && cars.size > 1) {
-                            val index = cars.indexOfFirst { it.id == car.id }
+                        detectHorizontalDragGestures(
+                            onHorizontalDrag = { change, amount ->
+                                change.consume()
+                                dragAmount += amount
+                            },
+                            onDragEnd = {
+                                if (
+                                    kotlin.math.abs(dragAmount) > 60f &&
+                                    cars.size > 1
+                                ) {
+                                    val index =
+                                        cars.indexOfFirst { it.id == car.id }
 
-                            if (index >= 0) {
-                                val nextIndex = if (dragAmount < 0f) {
-                                    (index + 1) % cars.size
-                                } else {
-                                    (index - 1 + cars.size) % cars.size
+                                    if (index >= 0) {
+                                        val nextIndex =
+                                            if (dragAmount < 0f) {
+                                                (index + 1) % cars.size
+                                            } else {
+                                                (index - 1 + cars.size) % cars.size
+                                            }
+
+                                        onCarSelect(cars[nextIndex].id)
+                                    }
                                 }
 
-                                onCarSelect(cars[nextIndex].id)
+                                dragAmount = 0f
+                            },
+                            onDragCancel = {
+                                dragAmount = 0f
                             }
-                        }
-
-                        dragAmount = 0f
+                        )
                     },
-                    onDragCancel = {
-                        dragAmount = 0f
-                    }
-                )
-            },
-
                 colors = CardDefaults.cardColors(
                     containerColor = CardColor
                 ),
                 shape = RoundedCornerShape(22.dp)
             ) {
                 Column(
-                    modifier = Modifier.padding(18.dp)
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(18.dp)
                 ) {
-
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         verticalAlignment = Alignment.CenterVertically
@@ -227,13 +230,18 @@ item {
                                 "${car.brand} ${car.model}",
                                 color = TextPrimary,
                                 fontSize = 23.sp,
-                                fontWeight = FontWeight.Bold
+                                fontWeight = FontWeight.Bold,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
                             )
 
                             Text(
-                                "${car.year.ifBlank { "Год не указан" }} • ${car.engine.ifBlank { "Двигатель не указан" }}",
+                                "${car.year.ifBlank { "Год не указан" }} • " +
+                                    car.engine.ifBlank { "Двигатель не указан" },
                                 color = TextSecondary,
-                                fontSize = 14.sp
+                                fontSize = 14.sp,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
                             )
                         }
 
@@ -242,17 +250,17 @@ item {
                         ) {
                             Icon(
                                 Icons.Default.Edit,
-                                contentDescription = "Автомобиль",
+                                contentDescription = "Редактировать автомобиль",
                                 tint = ColorBlue
                             )
                         }
                     }
 
-                    Spacer(Modifier.height(14.dp))
+                    Spacer(Modifier.height(10.dp))
 
                     Row(
                         modifier = Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.Bottom
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
                         Column(
                             modifier = Modifier.weight(1f)
@@ -268,7 +276,9 @@ item {
                                 "${car.mileage.ifBlank { "0" }} км",
                                 color = ColorBlue,
                                 fontSize = 27.sp,
-                                fontWeight = FontWeight.Bold
+                                fontWeight = FontWeight.Bold,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
                             )
                         }
 
@@ -282,31 +292,78 @@ item {
                         }
                     }
 
-                    Spacer(Modifier.height(8.dp))
+                    Spacer(Modifier.height(6.dp))
 
                     HorizontalDivider(
                         color = TextSecondary.copy(alpha = 0.15f)
                     )
 
-                    Spacer(Modifier.height(10.dp))
+                    Spacer(Modifier.height(8.dp))
 
                     Text(
                         "VIN: ${car.vin.ifBlank { "не указан" }}",
                         color = TextSecondary,
-                        fontSize = 13.sp
+                        fontSize = 13.sp,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
                     )
 
                     Spacer(Modifier.height(4.dp))
 
                     Text(
-                        "Топливо: ${
-                            car.fuel.ifBlank { "не указано" }
-                        }${
-                            if (car.hasLpg) " • ГБО установлено"
-                            else ""
-                        }",
+                        "Топливо: ${car.fuel.ifBlank { "не указано" }}" +
+                            if (car.hasLpg) " • ГБО установлено" else "",
                         color = TextSecondary,
-                        fontSize = 13.sp
+                        fontSize = 13.sp,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
+            }
+        }
+
+        // Индикатор выбранного автомобиля
+        item(key = "car_indicator_${car.id}") {
+            if (cars.size > 1) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 0.dp, bottom = 2.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Row(
+                        horizontalArrangement = Arrangement.Center,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        cars.forEach { itemCar ->
+                            Box(
+                                modifier = Modifier
+                                    .padding(horizontal = 4.dp)
+                                    .size(
+                                        if (itemCar.id == car.id) 10.dp
+                                        else 7.dp
+                                    )
+                                    .background(
+                                        color = if (itemCar.id == car.id) {
+                                            ColorBlue
+                                        } else {
+                                            TextSecondary.copy(alpha = 0.45f)
+                                        },
+                                        shape = RoundedCornerShape(50)
+                                    )
+                            )
+                        }
+                    }
+
+                    Spacer(Modifier.height(4.dp))
+
+                    Text(
+                        "Автомобиль ${
+                            cars.indexOfFirst { it.id == car.id } + 1
+                        } из ${cars.size}",
+                        color = TextSecondary,
+                        fontSize = 11.sp,
+                        textAlign = TextAlign.Center
                     )
                 }
             }
@@ -372,7 +429,7 @@ item {
             }
         }
 
-        // Статусы
+        // Выполнено и необходимо
         item {
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -394,6 +451,7 @@ item {
             }
         }
 
+        // Рекомендации и пропущенные работы
         item {
             Row(
                 modifier = Modifier.fillMaxWidth(),
