@@ -47,6 +47,8 @@ fun AppScreen() {
     var screen by remember { mutableStateOf("Главная") }
     var carDialog by remember { mutableStateOf(false) }
     var editingCar by remember { mutableStateOf<Car?>(null) }
+    var showDeleteCarConfirmation by remember { mutableStateOf(false) }
+var pendingDeleteCar by remember { mutableStateOf<Car?>(null) }
     var mileageDialog by remember { mutableStateOf(false) }
     var serviceDialog by remember { mutableStateOf(false) }
     var serviceInitial by remember { mutableStateOf<ServiceRecord?>(null) }
@@ -60,6 +62,8 @@ fun AppScreen() {
     var partsScreen by remember { mutableStateOf(false) }
 
     // Состояние резервного копирования
+    var showDeleteCarConfirmation by remember { mutableStateOf(false) }
+var pendingDeleteCar by remember { mutableStateOf<Car?>(null) }
     var showRestoreConfirmation by remember { mutableStateOf(false) }
     var pendingBackupJson by remember { mutableStateOf<String?>(null) }
     var backupMessage by remember { mutableStateOf<String?>(null) }
