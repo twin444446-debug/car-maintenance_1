@@ -62,8 +62,6 @@ var pendingDeleteCar by remember { mutableStateOf<Car?>(null) }
     var partsScreen by remember { mutableStateOf(false) }
 
     // Состояние резервного копирования
-    var showDeleteCarConfirmation by remember { mutableStateOf(false) }
-var pendingDeleteCar by remember { mutableStateOf<Car?>(null) }
     var showRestoreConfirmation by remember { mutableStateOf(false) }
     var pendingBackupJson by remember { mutableStateOf<String?>(null) }
     var backupMessage by remember { mutableStateOf<String?>(null) }
