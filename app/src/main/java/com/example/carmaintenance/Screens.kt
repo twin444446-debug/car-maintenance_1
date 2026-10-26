@@ -82,19 +82,42 @@ fun AppScreen() {
         saveAndRefreshWorks(works + add)
     }
 
-    fun completeWork(w: MaintenanceWork, km: Int, date: Long, note: String) {
-        val line = ServiceLine(name = w.name, type = ServiceLineType.WORK, notes = note)
-        val record = ServiceRecord(
-            carId = w.carId, date = date, mileage = km, reason = note,
-            lines = listOf(line), notes = note
-        )
-        records = records + record
-        saveServiceRecords(context, records)
-        saveAndRefreshWorks(works.map {
-            if (it.id == w.id) it.copy(lastMileage = km, lastDate = date, hasLastExecution = true, skipped = false)
-            else it
-        })
-    }
+    fun completeWork(
+    w: MaintenanceWork, 
+    km: Int, 
+    date: Long, 
+    note: String,
+    partName: String,
+    partCode: String,
+    cost: Double,
+    currency: String
+) {
+    val line = ServiceLine(
+        name = partName.ifBlank { w.name },
+        type = ServiceLineType.WORK,
+        notes = note,
+        article = partCode,
+        cost = cost,
+        currency = currency
+    )
+    
+    val record = ServiceRecord(
+        carId = w.carId, 
+        date = date, 
+        mileage = km, 
+        reason = note,
+        lines = listOf(line), 
+        notes = note
+    )
+    
+    records = records + record
+    saveServiceRecords(context, records)
+    
+    saveAndRefreshWorks(works.map {
+        if (it.id == w.id) it.copy(lastMileage = km, lastDate = date, hasLastExecution = true, skipped = false)
+        else it
+    })
+}
 
     Scaffold(containerColor = BgColor, bottomBar = { BottomNav(screen) { screen = it } }) { pad ->
         Box(Modifier.fillMaxSize().padding(pad)) {
@@ -206,7 +229,10 @@ fun AppScreen() {
         WorkActionsDialog(
             currentWork, car, records,
             onDismiss = { actionWork = null },
-            onComplete = { km, date, note -> completeWork(currentWork, km, date, note); actionWork = null },
+            onComplete = { km, date, note, partName, partCode, cost, currency -> 
+    completeWork(currentWork, km, date, note, partName, partCode, cost, currency)
+    actionWork = null 
+},
             onSkip = {
                 saveAndRefreshWorks(works.map { if (it.id == currentWork.id) it.copy(skipped = true) else it })
                 actionWork = null
