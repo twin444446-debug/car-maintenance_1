@@ -214,7 +214,7 @@ fun AppScreen() {
                 )
 
                 else -> when (screen) {
-                    "Главная" -> HomeScreen(
+                    "Главная" -> HomeScreenRedesign(
                         car, cars, works, records,
                         onCarSelect = {
                             selectedCarId = it
