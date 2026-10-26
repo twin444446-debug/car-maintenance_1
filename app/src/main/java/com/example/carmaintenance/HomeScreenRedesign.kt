@@ -254,8 +254,117 @@ item {
 
                     HorizontalDivider(
                         color = TextSecondary.copy(alpha = 0.15f)
-                    )
+        // Карточка автомобиля со свайпом
+        item {
+            var dragAmount by androidx.compose.runtime.remember(car.id) {
+                androidx.compose.runtime.mutableFloatStateOf(0f)
+            }
 
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .pointerInput(cars, car.id) {
+                        detectHorizontalDragGestures(
+                            onHorizontalDrag = { change, amount ->
+                                change.consume()
+                                dragAmount += amount
+                            },
+                            onDragEnd = {
+                                if (kotlin.math.abs(dragAmount) > 60f &&
+                                    cars.size > 1
+                                ) {
+                                    val index = cars.indexOfFirst {
+                                        it.id == car.id
+                                    }
+
+                                    if (index >= 0) {
+                                        val nextIndex = if (dragAmount < 0) {
+                                            (index + 1) % cars.size
+                                        } else {
+                                            (index - 1 + cars.size) % cars.size
+                                        }
+
+                                        onCarSelect(cars[nextIndex].id)
+                                    }
+                                }
+                                dragAmount = 0f
+                            },
+                            onDragCancel = {
+                                dragAmount = 0f
+                            }
+                        )
+                    },
+                colors = CardDefaults.cardColors(
+                    containerColor = CardColor
+                ),
+                shape = RoundedCornerShape(22.dp)
+            ) {
+                Column(
+                    modifier = Modifier.padding(18.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column(
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            Text(
+                                "${car.brand} ${car.model}",
+                                color = TextPrimary,
+                                fontSize = 23.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+
+                            Text(
+                                "${car.year.ifBlank { "Год не указан" }} • ${car.engine.ifBlank { "Двигатель не указан" }}",
+                                color = TextSecondary,
+                                fontSize = 14.sp
+                            )
+                        }
+
+                        IconButton(onClick = onOpenCar) {
+                            Icon(
+                                Icons.Default.Edit,
+                                contentDescription = "Редактировать автомобиль",
+                                tint = ColorBlue
+                            )
+                        }
+                    }
+
+                    Spacer(Modifier.height(14.dp))
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.Bottom
+                    ) {
+                        Column(
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            Text(
+                                "ТЕКУЩИЙ ПРОБЕГ",
+                                color = TextSecondary,
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+
+                            Text(
+                                "${car.mileage.ifBlank { "0" }} км",
+                                color = ColorBlue,
+                                fontSize = 27.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+
+                        TextButton(onClick = onMileage) {
+                            Text("Изменить", color = ColorYellow)
+                        }
+                    }
+
+                    Spacer(Modifier.height(8.dp))
+                    HorizontalDivider(
+                        color = TextSecondary.copy(alpha = 0.15f)
+                    )
                     Spacer(Modifier.height(10.dp))
 
                     Text(
@@ -267,15 +376,41 @@ item {
                     Spacer(Modifier.height(4.dp))
 
                     Text(
-                        "Топливо: ${
-                            car.fuel.ifBlank { "не указано" }
-                        }${
-                            if (car.hasLpg) " • ГБО установлено"
-                            else ""
+                        "Топливо: ${car.fuel.ifBlank { "не указано" }}${
+                            if (car.hasLpg) " • ГБО установлено" else ""
                         }",
                         color = TextSecondary,
                         fontSize = 13.sp
                     )
+                }
+            }
+        }
+
+        // Точки-индикаторы автомобилей
+        if (cars.size > 1) {
+            item {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.Center,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    cars.forEach { itemCar ->
+                        Box(
+                            modifier = Modifier
+                                .padding(horizontal = 4.dp)
+                                .size(
+                                    if (itemCar.id == car.id) 10.dp else 7.dp
+                                )
+                                .background(
+                                    color = if (itemCar.id == car.id) {
+                                        ColorBlue
+                                    } else {
+                                        TextSecondary.copy(alpha = 0.45f)
+                                    },
+                                    shape = RoundedCornerShape(50)
+                                )
+                        )
+                    }
                 }
             }
         }
