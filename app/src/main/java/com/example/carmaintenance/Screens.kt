@@ -87,14 +87,14 @@ fun AppScreen() {
     km: Int, 
     date: Long, 
     note: String,
-    lines: List<ServiceLine> // <--- ТЕПЕРЬ ПРИНИМАЕМ СПИСОК СТРОК
+    lines: List<ServiceLine> // <--- Здесь должен быть List<ServiceLine>, а не String!
 ) {
     val record = ServiceRecord(
         carId = w.carId, 
         date = date, 
         mileage = km, 
         reason = note,
-        lines = lines, // <--- СОХРАНЯЕМ ВЕСЬ СПИСОК
+        lines = lines, // <--- И здесь передаем lines
         notes = note
     )
     
