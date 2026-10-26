@@ -217,8 +217,8 @@ fun AppScreen() {
         WorkActionsDialog(
             currentWork, car, records,
             onDismiss = { actionWork = null },
-            onComplete = { km, date, note, partName, partCode, cost, currency -> 
-    completeWork(currentWork, km, date, note, partName, partCode, cost, currency)
+            onComplete = { km, date, note, lines -> 
+    completeWork(currentWork, km, date, note, lines)
     actionWork = null 
 },
             onSkip = {
