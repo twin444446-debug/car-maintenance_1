@@ -1,6 +1,8 @@
 package com.example.carmaintenance
 
 import androidx.compose.foundation.background
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.rememberScrollState
@@ -167,52 +169,12 @@ item {
     }
 }
 
-// Переключение между автомобилями
-if (cars.size > 1) {
-    item {
-        Column(
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            Text(
-                "Мои автомобили",
-                color = TextSecondary,
-                fontSize = 14.sp,
-                fontWeight = FontWeight.Bold
-            )
-
-            Spacer(Modifier.height(8.dp))
-
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .horizontalScroll(rememberScrollState()),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                cars.forEach { itemCar ->
-                    FilterChip(
-                        selected = itemCar.id == car.id,
-                        onClick = { onCarSelect(itemCar.id) },
-                        label = {
-                            Text("${itemCar.brand} ${itemCar.model}")
-                        },
-                        colors = FilterChipDefaults.filterChipColors(
-                            selectedContainerColor = ColorBlue.copy(alpha = 0.25f),
-                            selectedLabelColor = ColorBlue,
-                            labelColor = TextSecondary
-                        )
-                    )
-                }
-            }
-        }
-    }
-}
-
         // Карточка автомобиля
         item {
             Card(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clickable { onOpenCar() },
+    modifier = Modifier
+        .fillMaxWidth()
+        .padding(20.dp),
                 colors = CardDefaults.cardColors(
                     containerColor = CardColor
                 ),
