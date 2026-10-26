@@ -1,27 +1,23 @@
 package com.example.carmaintenance
 
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.runtime.mutableStateListOf
-import androidx.compose.foundation.background
-import androidx.compose.ui.text.font.FontWeight
 import android.app.DatePickerDialog
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import java.text.SimpleDateFormat
 import java.util.Calendar
-import java.util.Date
-import java.util.Locale
 
 @Composable
 fun AddCarDialog(existingCar: Car?, onDismiss: () -> Unit, onSave: (Car) -> Unit) {
@@ -65,6 +61,7 @@ fun ServiceRecordDialog(car: Car, initial: ServiceRecord? = null, suggestedName:
 
 @Composable private fun LineEditor(line: ServiceLine,onChange:(ServiceLine)->Unit,onDelete:()->Unit){Column(verticalArrangement=Arrangement.spacedBy(6.dp)){field("Название",line.name){onChange(line.copy(name=it))};Row(horizontalArrangement=Arrangement.spacedBy(6.dp)){field("Артикул",line.article){onChange(line.copy(article=it))};field("Стоимость",if(line.cost==0.0)"" else line.cost.toString(),KeyboardType.Decimal){onChange(line.copy(cost=it.toDoubleOrNull()?:0.0))}};Row(horizontalArrangement=Arrangement.spacedBy(6.dp)){field("Валюта",line.currency){onChange(line.copy(currency=it.uppercase()))};field("Тип масла",line.oilType){onChange(line.copy(oilType=it))}};field("Название масла",line.oilName){onChange(line.copy(oilName=it))};TextButton(onClick=onDelete){Text("Удалить строку",color=ColorRed)}}}
 
+// --- ОБНОВЛЕННЫЙ WORK ACTIONS DIALOG ---
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun WorkActionsDialog(
@@ -72,149 +69,18 @@ fun WorkActionsDialog(
     car: Car,
     records: List<ServiceRecord>,
     onDismiss: () -> Unit,
-    onComplete: (km: Int, date: Long, note: String, partName: String, partCode: String, cost: Double, currency: String) -> Unit,
+    onComplete: (km: Int, date: Long, note: String, lines: List<ServiceLine>) -> Unit, // 4 параметра
     onSkip: () -> Unit,
     onEdit: () -> Unit,
     onDelete: () -> Unit,
     onShowInList: () -> Unit
 ) {
     var showCompleteForm by remember { mutableStateOf(false) }
-    
-    var km by remember { mutableStateOf(car.mileage.ifBlank { "0" }) }
-    var note by remember { mutableStateOf("") }
-    var partName by remember { mutableStateOf(work.name) }
-    var partCode by remember { mutableStateOf("") }
-    var cost by remember { mutableStateOf("") }
-    
-    var currency by remember { mutableStateOf("RUB") }
-    var currencyExpanded by remember { mutableStateOf(false) }
-    val currencies = listOf("RUB", "UAH", "EUR")
-
-    if (!showCompleteForm) {
-        AlertDialog(
-            onDismissRequest = onDismiss,
-            containerColor = CardColor,
-            title = { Text(work.name, color = TextPrimary) },
-            text = { Text("Выберите действие", color = TextSecondary) },
-            confirmButton = {
-                TextButton(onClick = { showCompleteForm = true }) {
-                    Text("Выполнить", color = ColorGreen, fontWeight = FontWeight.Bold)
-                }
-            },
-            dismissButton = {
-                Row {
-                    TextButton(onClick = onDismiss) { Text("Отмена", color = TextSecondary) }
-                }
-            }
-        )
-    } else {
-        AlertDialog(
-            onDismissRequest = { showCompleteForm = false },
-            containerColor = CardColor,
-            title = { Text("Выполнение: ${work.name}", color = TextPrimary, fontSize = 18.sp) },
-            text = {
-                Column(
-                    verticalArrangement = Arrangement.spacedBy(8.dp),
-                    modifier = Modifier.fillMaxWidth().verticalScroll(rememberScrollState())
-                ) {
-                    OutlinedTextField(
-                        value = km,
-                        onValueChange = { km = it },
-                        label = { Text("Пробег (км)") },
-                        modifier = Modifier.fillMaxWidth(),
-                        singleLine = true
-                    )
-                    OutlinedTextField(
-                        value = partName,
-                        onValueChange = { partName = it },
-                        label = { Text("Наименование (работа/запчасть)") },
-                        modifier = Modifier.fillMaxWidth(),
-                        singleLine = true
-                    )
-                    OutlinedTextField(
-                        value = partCode,
-                        onValueChange = { partCode = it },
-                        label = { Text("Код запчасти (артикул)") },
-                        modifier = Modifier.fillMaxWidth(),
-                        singleLine = true
-                    )
-                    
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        OutlinedTextField(
-                            value = cost,
-                            onValueChange = { cost = it },
-                            label = { Text("Стоимость") },
-                            modifier = Modifier.weight(2f),
-                            singleLine = true
-                        )
-                        
-                        ExposedDropdownMenuBox(
-                            expanded = currencyExpanded,
-                            onExpandedChange = { currencyExpanded = !currencyExpanded },
-                            modifier = Modifier.weight(1f)
-                        ) {
-                            OutlinedTextField(
-                                value = currency,
-                                onValueChange = {},
-                                readOnly = true,
-                                label = { Text("Валюта") },
-                                trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = currencyExpanded) },
-                                colors = OutlinedTextFieldDefaults.colors(
-                                    focusedTextColor = TextPrimary,
-                                    unfocusedTextColor = TextPrimary,
-                                    focusedBorderColor = ColorGreen,
-                                    unfocusedBorderColor = TextSecondary
-                                ),
-                                modifier = Modifier.menuAnchor()
-                            )
-                            ExposedDropdownMenu(
-                                expanded = currencyExpanded,
-                                onDismissRequest = { currencyExpanded = false },
-                                modifier = Modifier.background(CardColor)
-                            ) {
-                                currencies.forEach { selection ->
-                                    DropdownMenuItem(
-                                        text = { Text(selection, color = TextPrimary) },
-                                        onClick = {
-                                            currency = selection
-                                            currencyExpanded = false
-                                        }
-                                    )
-                                }
-                            }
-                        }
-                    }
-
-                    OutlinedTextField(
-                        value = note,
-                        onValueChange = { note = it },
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-fun WorkActionsDialog(
-    work: MaintenanceWork,
-    car: Car,
-    records: List<ServiceRecord>,
-    onDismiss: () -> Unit,
-    onComplete: (km: Int, date: Long, note: String, lines: List<ServiceLine>) -> Unit, // <--- 4 параметра
-    onSkip: () -> Unit,
-    onEdit: () -> Unit,
-    onDelete: () -> Unit,
-    onShowInList: () -> Unit
-) {
-    var showCompleteForm by remember { mutableStateOf(false) }
-    
     var km by remember { mutableStateOf(car.mileage.ifBlank { "0" }) }
     var note by remember { mutableStateOf("") }
     
-    // Список строк (работ/запчастей)
-    val lines = remember { 
-        mutableStateListOf(
-            ServiceLine(name = work.name, type = ServiceLineType.WORK)
-        ) 
-    }
+    // Список строк для многострочного ввода
+    val lines = remember { mutableStateListOf(ServiceLine(name = work.name, type = ServiceLineType.WORK)) }
 
     if (!showCompleteForm) {
         AlertDialog(
@@ -343,6 +209,7 @@ fun WorkActionsDialog(
         )
     }
 }
+
 @Composable private fun ActionRow(text:String,color:Color,onClick:()->Unit){TextButton(onClick=onClick,modifier=Modifier.fillMaxWidth()){Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.SpaceBetween){Text(text,color=TextPrimary);Text("●",color=color)}}}
 
 @Composable
