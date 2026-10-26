@@ -1,6 +1,5 @@
 package com.example.carmaintenance
 
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -22,14 +21,13 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun HomeScreenRedesign(
     car: Car?,
@@ -42,8 +40,8 @@ fun HomeScreenRedesign(
     onWork: (MaintenanceWork) -> Unit,
     onMileage: () -> Unit,
     onOpenCar: () -> Unit,
-    onOpenSettings: () -> Unit = {}, // Добавил коллбэк для настроек
-    onOpenRegulations: () -> Unit = {} // Добавил коллбэк для регламента
+    onOpenSettings: () -> Unit = {},
+    onOpenRegulations: () -> Unit = {}
 ) {
     // Экран пустого состояния (если нет машин)
     if (car == null) {
@@ -133,18 +131,11 @@ fun HomeScreenRedesign(
         // --- 2. КАРУСЕЛЬ АВТОМОБИЛЕЙ (HorizontalPager) ---
         item(key = "car_pager_section") {
             val initialIndex = cars.indexOfFirst { it.id == car.id }.coerceAtLeast(0)
-            
-            val pagerState = rememberPagerState(
-                initialPage = initialIndex,
-                pageCount = { cars.size }
-            )
+            val pagerState = rememberPagerState(initialPage = initialIndex, pageCount = { cars.size })
 
-            // Синхронизация: свайпнули -> обновили активную машину
             LaunchedEffect(pagerState.currentPage) {
                 val selectedCar = cars[pagerState.currentPage]
-                if (selectedCar.id != car.id) {
-                    onCarSelect(selectedCar.id)
-                }
+                if (selectedCar.id != car.id) onCarSelect(selectedCar.id)
             }
 
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
@@ -161,44 +152,48 @@ fun HomeScreenRedesign(
                         colors = CardDefaults.cardColors(containerColor = CardColor),
                         shape = RoundedCornerShape(22.dp)
                     ) {
-                        Box {
-                            // Заглушка вместо фото
+                        Column {
+                            // 1. Верхний блок с картинкой (заглушкой)
                             Box(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .height(140.dp)
-                                    .background(Color(0xFF1E293B)) // Темно-синий фон заглушки
+                                    .height(130.dp)
+                                    .background(Color(0xFF1E293B))
                             ) {
-                                // Можно добавить иконку машины по центру заглушки
                                 Icon(
                                     imageVector = Icons.Default.DirectionsCar,
                                     contentDescription = null,
                                     tint = Color.White.copy(alpha = 0.1f),
-                                    modifier = Modifier.align(Alignment.Center).size(80.dp)
+                                    modifier = Modifier.align(Alignment.Center).size(72.dp)
                                 )
+                                IconButton(
+                                    onClick = onOpenCar,
+                                    modifier = Modifier
+                                        .align(Alignment.TopEnd)
+                                        .padding(8.dp)
+                                        .background(Color.Black.copy(alpha = 0.5f), RoundedCornerShape(50))
+                                ) {
+                                    Icon(Icons.Default.Edit, contentDescription = "Редактировать", tint = Color.White)
+                                }
                             }
 
-                            // Информация
-                            Column(Modifier.padding(18.dp)) {
-                                Row(verticalAlignment = Alignment.Top) {
-                                    Column(Modifier.weight(1f)) {
-                                        Text(
-                                            "${currentCar.brand} ${currentCar.model}",
-                                            color = TextPrimary,
-                                            fontSize = 22.sp,
-                                            fontWeight = FontWeight.Bold,
-                                            maxLines = 1,
-                                            overflow = TextOverflow.Ellipsis
-                                        )
-                                        Text(
-                                            "${currentCar.year.ifBlank { "Год не указан" }} • ${currentCar.engine.ifBlank { "Двигатель не указан" }}",
-                                            color = TextSecondary,
-                                            fontSize = 13.sp,
-                                            maxLines = 1,
-                                            overflow = TextOverflow.Ellipsis
-                                        )
-                                    }
-                                }
+                            // 2. Текстовый блок
+                            Column(Modifier.padding(16.dp)) {
+                                Text(
+                                    "${currentCar.brand} ${currentCar.model}",
+                                    color = TextPrimary,
+                                    fontSize = 22.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                                Text(
+                                    "${currentCar.year.ifBlank { "Год не указан" }} • ${currentCar.engine.ifBlank { "Двигатель не указан" }}",
+                                    color = TextSecondary,
+                                    fontSize = 13.sp,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
 
                                 Spacer(Modifier.height(12.dp))
                                 HorizontalDivider(color = TextSecondary.copy(alpha = 0.18f))
@@ -209,155 +204,53 @@ fun HomeScreenRedesign(
                                     Text(
                                         "${currentCar.mileage.ifBlank { "0" }} км",
                                         color = ColorBlue,
-                                        fontSize = 28.sp,
+                                        fontSize = 26.sp,
                                         fontWeight = FontWeight.Bold,
-                                        modifier = Modifier.weight(1f),
-                                        maxLines = 1,
-                                        overflow = TextOverflow.Ellipsis
+                                        modifier = Modifier.weight(1f)
                                     )
                                     TextButton(onClick = onMileage) {
                                         Text("Изменить", color = ColorYellow)
                                     }
                                 }
-                                Spacer(Modifier.height(5.dp))
-                                Text("VIN: ${currentCar.vin.ifBlank { "не указан" }}", color = TextSecondary, fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                                Spacer(Modifier.height(3.dp))
-                                Text(
-                                    "Топливо: ${currentCar.fuel.ifBlank { "не указано" }}${if (currentCar.hasLpg) " • ГБО установлено" else ""}",
-                                    color = TextSecondary,
-                                    fontSize = 12.sp,
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis
-                                )
+                                
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween
+                                ) {
+                                    Column {
+                                        Text("VIN", color = TextSecondary, fontSize = 11.sp)
+                                        Text(currentCar.vin.ifBlank { "не указан" }, color = TextPrimary, fontSize = 13.sp)
+                                    }
+                                    Column(horizontalAlignment = Alignment.End) {
+                                        Text("Топливо", color = TextSecondary, fontSize = 11.sp)
+                                        Text(
+                                            "${currentCar.fuel.ifBlank { "не указано" }}${if (currentCar.hasLpg) " • ГБО" else ""}",
+                                            color = TextPrimary, 
+                                            fontSize = 13.sp
+                                        )
+                                    }
+                                }
                             }
-
-                            // Кнопка редактирования (Карандаш) поверх заглушки
-                            IconButton(
-                                onClick = onOpenCar,
-                                modifier = Modifier
-                                    .align(Alignment.TopEnd)
-item(key = "car_pager_section") {
-    val initialIndex = cars.indexOfFirst { it.id == car.id }.coerceAtLeast(0)
-    val pagerState = rememberPagerState(initialPage = initialIndex, pageCount = { cars.size })
-
-    LaunchedEffect(pagerState.currentPage) {
-        val selectedCar = cars[pagerState.currentPage]
-        if (selectedCar.id != car.id) onCarSelect(selectedCar.id)
-    }
-
-    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-        HorizontalPager(
-            state = pagerState,
-            contentPadding = PaddingValues(horizontal = 14.dp),
-            pageSpacing = 10.dp,
-            modifier = Modifier.fillMaxWidth()
-        ) { page ->
-            val currentCar = cars[page]
-            
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                colors = CardDefaults.cardColors(containerColor = CardColor),
-                shape = RoundedCornerShape(22.dp)
-            ) {
-                Column {
-                    // 1. Верхний блок с картинкой (заглушкой)
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(130.dp)
-                            .background(Color(0xFF1E293B))
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.DirectionsCar,
-                            contentDescription = null,
-                            tint = Color.White.copy(alpha = 0.1f),
-                            modifier = Modifier.align(Alignment.Center).size(72.dp)
-                        )
-                        IconButton(
-                            onClick = onOpenCar,
-                            modifier = Modifier
-                                .align(Alignment.TopEnd)
-                                .padding(8.dp)
-                                .background(Color.Black.copy(alpha = 0.5f), RoundedCornerShape(50))
-                        ) {
-                            Icon(Icons.Default.Edit, contentDescription = "Редактировать", tint = Color.White)
                         }
                     }
+                }
 
-                    // 2. Текстовый блок
-                    Column(Modifier.padding(16.dp)) {
-                        Text(
-                            "${currentCar.brand} ${currentCar.model}",
-                            color = TextPrimary,
-                            fontSize = 22.sp,
-                            fontWeight = FontWeight.Bold,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
-                        )
-                        Text(
-                            "${currentCar.year.ifBlank { "Год не указан" }} • ${currentCar.engine.ifBlank { "Двигатель не указан" }}",
-                            color = TextSecondary,
-                            fontSize = 13.sp,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
-                        )
-
-                        Spacer(Modifier.height(12.dp))
-                        HorizontalDivider(color = TextSecondary.copy(alpha = 0.18f))
-                        Spacer(Modifier.height(10.dp))
-
-                        Text("ТЕКУЩИЙ ПРОБЕГ", color = TextSecondary, fontSize = 11.sp, fontWeight = FontWeight.Bold)
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text(
-                                "${currentCar.mileage.ifBlank { "0" }} км",
-                                color = ColorBlue,
-                                fontSize = 26.sp,
-                                fontWeight = FontWeight.Bold,
-                                modifier = Modifier.weight(1f)
+                // Индикаторы (точки)
+                if (cars.size > 1) {
+                    Spacer(Modifier.height(8.dp))
+                    Row(horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically) {
+                        cars.forEachIndexed { index, _ ->
+                            Box(
+                                Modifier.padding(horizontal = 4.dp).size(if (pagerState.currentPage == index) 10.dp else 7.dp)
+                                    .background(if (pagerState.currentPage == index) ColorBlue else TextSecondary.copy(alpha = 0.45f), RoundedCornerShape(50))
                             )
-                            TextButton(onClick = onMileage) {
-                                Text("Изменить", color = ColorYellow)
-                            }
-                        }
-                        
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween
-                        ) {
-                            Column {
-                                Text("VIN", color = TextSecondary, fontSize = 11.sp)
-                                Text(currentCar.vin.ifBlank { "не указан" }, color = TextPrimary, fontSize = 13.sp)
-                            }
-                            Column(horizontalAlignment = Alignment.End) {
-                                Text("Топливо", color = TextSecondary, fontSize = 11.sp)
-                                Text(
-                                    "${currentCar.fuel.ifBlank { "не указано" }}${if (currentCar.hasLpg) " • ГБО" else ""}",
-                                    color = TextPrimary, 
-                                    fontSize = 13.sp
-                                )
-                            }
                         }
                     }
+                    Spacer(Modifier.height(3.dp))
+                    Text("Автомобиль ${pagerState.currentPage + 1} из ${cars.size}", color = TextSecondary, fontSize = 11.sp)
                 }
             }
         }
-
-        // Индикаторы (точки)
-        if (cars.size > 1) {
-            Spacer(Modifier.height(8.dp))
-            Row(horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically) {
-                cars.forEachIndexed { index, _ ->
-                    Box(
-                        Modifier.padding(horizontal = 4.dp).size(if (pagerState.currentPage == index) 10.dp else 7.dp)
-                            .background(if (pagerState.currentPage == index) ColorBlue else TextSecondary.copy(alpha = 0.45f), RoundedCornerShape(50))
-                    )
-                }
-            }
-            Spacer(Modifier.height(3.dp))
-            Text("Автомобиль ${pagerState.currentPage + 1} из ${cars.size}", color = TextSecondary, fontSize = 11.sp)
-        }
-    }
-}
 
         // --- 3. СТАТУС (Главная плашка) ---
         item(key = "main_status") {
@@ -392,63 +285,60 @@ item(key = "car_pager_section") {
         }
 
         // --- 4. СТАТИСТИКА (2x2) ---
-        item(key = "status_row_1") {
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                StatusBlock("Выполнено", completedCount, ColorGreen, Modifier.weight(1f))
-                StatusBlock("Необходимо", requiredCount, ColorRed, Modifier.weight(1f))
-            }
-        }
-
-        item(key = "status_row_2") {
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                StatusBlock("Рекомендации", preventiveCount, ColorYellow, Modifier.weight(1f))
-                StatusBlock("Пропущено", skippedCount, ColorPurple, Modifier.weight(1f))
+        item(key = "stats_grid") {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    StatCardCompact("Выполнено", completedCount, ColorGreen, Modifier.weight(1f))
+                    StatCardCompact("Необходимо", requiredCount, ColorRed, Modifier.weight(1f))
+                }
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    StatCardCompact("Рекомендации", preventiveCount, ColorYellow, Modifier.weight(1f))
+                    StatCardCompact("Пропущено", skippedCount, ColorPurple, Modifier.weight(1f))
+                }
             }
         }
 
         // --- 5. БЫСТРЫЕ ДЕЙСТВИЯ (Сетка 2x2) ---
-item(key = "quick_actions_title") {
-    Text("Быстрые действия", color = TextPrimary, fontSize = 18.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(start = 4.dp, top = 4.dp))
-}
+        item(key = "quick_actions_title") {
+            Text("Быстрые действия", color = TextPrimary, fontSize = 18.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(start = 4.dp, top = 4.dp))
+        }
 
-item(key = "quick_actions_grid") {
-    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        // Первый ряд
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            QuickAction(
-                text = "Добавить\nзапись", // <--- ИСПРАВЛЕНО (было title)
-                icon = { Icon(Icons.Default.Add, contentDescription = null, tint = ColorGreen) },
-                color = ColorGreen,
-                onClick = onAddWork,
-                modifier = Modifier.weight(1f)
-            )
-            QuickAction(
-                text = "Перечень\nработ", // <--- ИСПРАВЛЕНО (было title)
-                icon = { Icon(Icons.Default.List, contentDescription = null, tint = ColorBlue) },
-                color = ColorBlue,
-                onClick = { /* Навигация через нижнее меню */ },
-                modifier = Modifier.weight(1f)
-            )
+        item(key = "quick_actions_grid") {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    QuickAction(
+                        text = "Добавить\nзапись",
+                        icon = { Icon(Icons.Default.Add, contentDescription = null, tint = ColorGreen) },
+                        color = ColorGreen,
+                        onClick = onAddWork,
+                        modifier = Modifier.weight(1f)
+                    )
+                    QuickAction(
+                        text = "Перечень\nработ",
+                        icon = { Icon(Icons.Default.List, contentDescription = null, tint = ColorBlue) },
+                        color = ColorBlue,
+                        onClick = { /* Навигация через нижнее меню */ },
+                        modifier = Modifier.weight(1f)
+                    )
+                }
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    QuickAction(
+                        text = "Добавить\nавто",
+                        icon = { Icon(Icons.Default.DirectionsCar, contentDescription = null, tint = ColorGreen) },
+                        color = ColorGreen,
+                        onClick = onAddCar,
+                        modifier = Modifier.weight(1f)
+                    )
+                    QuickAction(
+                        text = "Регламент",
+                        icon = { Icon(Icons.Default.Build, contentDescription = null, tint = ColorGreen) },
+                        color = ColorGreen,
+                        onClick = onOpenRegulations,
+                        modifier = Modifier.weight(1f)
+                    )
+                }
+            }
         }
-        // Второй ряд
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            QuickAction(
-                text = "Добавить\nавто", // <--- ИСПРАВЛЕНО (было title)
-                icon = { Icon(Icons.Default.DirectionsCar, contentDescription = null, tint = ColorGreen) },
-                color = ColorGreen,
-                onClick = onAddCar,
-                modifier = Modifier.weight(1f)
-            )
-            QuickAction(
-                text = "Регламент", // <--- ИСПРАВЛЕНО (было title)
-                icon = { Icon(Icons.Default.Build, contentDescription = null, tint = ColorGreen) },
-                color = ColorGreen,
-                onClick = onOpenRegulations,
-                modifier = Modifier.weight(1f)
-            )
-        }
-    }
-}
 
         // --- 6. БЛИЖАЙШИЕ РАБОТЫ ---
         item(key = "nearest_works_header") {
@@ -479,10 +369,11 @@ item(key = "quick_actions_grid") {
     }
 }
 
+// Новая функция для компактной статистики
 @Composable
 fun StatCardCompact(title: String, count: Int, color: Color, modifier: Modifier = Modifier) {
     Card(
-        modifier = modifier.height(80.dp), // Фиксированная высота
+        modifier = modifier.height(80.dp),
         colors = CardDefaults.cardColors(containerColor = color.copy(alpha = 0.15f)),
         shape = RoundedCornerShape(16.dp)
     ) {
