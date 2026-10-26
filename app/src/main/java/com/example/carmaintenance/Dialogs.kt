@@ -60,12 +60,163 @@ fun ServiceRecordDialog(car: Car, initial: ServiceRecord? = null, suggestedName:
 
 @Composable private fun LineEditor(line: ServiceLine,onChange:(ServiceLine)->Unit,onDelete:()->Unit){Column(verticalArrangement=Arrangement.spacedBy(6.dp)){field("Название",line.name){onChange(line.copy(name=it))};Row(horizontalArrangement=Arrangement.spacedBy(6.dp)){field("Артикул",line.article){onChange(line.copy(article=it))};field("Стоимость",if(line.cost==0.0)"" else line.cost.toString(),KeyboardType.Decimal){onChange(line.copy(cost=it.toDoubleOrNull()?:0.0))}};Row(horizontalArrangement=Arrangement.spacedBy(6.dp)){field("Валюта",line.currency){onChange(line.copy(currency=it.uppercase()))};field("Тип масла",line.oilType){onChange(line.copy(oilType=it))}};field("Название масла",line.oilName){onChange(line.copy(oilName=it))};TextButton(onClick=onDelete){Text("Удалить строку",color=ColorRed)}}}
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun WorkActionsDialog(work: MaintenanceWork, car: Car, records: List<ServiceRecord>, onDismiss:()->Unit, onComplete:(Int,Long,String)->Unit, onSkip:()->Unit, onEdit:()->Unit, onDelete:()->Unit, onShowInList:()->Unit) {
-    var complete by remember { mutableStateOf(false) }; var mileage by remember { mutableStateOf(car.mileage) }; var date by remember { mutableStateOf(System.currentTimeMillis()) }; var notes by remember { mutableStateOf("") }; val context=androidx.compose.ui.platform.LocalContext.current
-    AlertDialog(onDismissRequest=onDismiss,containerColor=CardColor,title={Text(work.name,color=TextPrimary)},text={if(!complete)Column(verticalArrangement=Arrangement.spacedBy(4.dp)){ActionRow("Выполнить и записать в историю",ColorGreen){complete=true};ActionRow("Пропустить текущий интервал",ColorPurple,onSkip);ActionRow("Показать в перечне работ",ColorBlue,onShowInList);ActionRow("Редактировать",TextSecondary,onEdit);ActionRow("Удалить",ColorRed,onDelete)}else Column(verticalArrangement=Arrangement.spacedBy(8.dp)){field("Пробег",mileage,KeyboardType.Number){mileage=it};field("Причина / примечание",notes){notes=it};Button(onClick={val c=Calendar.getInstance().apply{timeInMillis=date};DatePickerDialog(context,{_,y,m,d->date=Calendar.getInstance().apply{set(y,m,d,12,0,0)}.timeInMillis},c.get(Calendar.YEAR),c.get(Calendar.MONTH),c.get(Calendar.DAY_OF_MONTH)).show()},colors=ButtonDefaults.buttonColors(containerColor=NavColor)){Text("Дата: ${formatDate(date)}")}}},confirmButton={if(complete)TextButton(onClick={onComplete(mileage.toIntOrNull()?:0,date,notes)}){Text("Создать запись",color=ColorGreen)}},dismissButton={TextButton(onClick=onDismiss){Text(if(complete)"Назад" else "Закрыть",color=TextSecondary)}})
-}
+fun WorkActionsDialog(
+    work: MaintenanceWork,
+    car: Car,
+    records: List<ServiceRecord>,
+    onDismiss: () -> Unit,
+    onComplete: (km: Int, date: Long, note: String, partName: String, partCode: String, cost: Double, currency: String) -> Unit,
+    onSkip: () -> Unit,
+    onEdit: () -> Unit,
+    onDelete: () -> Unit,
+    onShowInList: () -> Unit
+) {
+    var showCompleteForm by remember { mutableStateOf(false) }
+    
+    var km by remember { mutableStateOf(car.mileage.ifBlank { "0" }) }
+    var note by remember { mutableStateOf("") }
+    var partName by remember { mutableStateOf(work.name) }
+    var partCode by remember { mutableStateOf("") }
+    var cost by remember { mutableStateOf("") }
+    
+    var currency by remember { mutableStateOf("RUB") }
+    var currencyExpanded by remember { mutableStateOf(false) }
+    val currencies = listOf("RUB", "UAH", "EUR")
 
+    if (!showCompleteForm) {
+        AlertDialog(
+            onDismissRequest = onDismiss,
+            containerColor = CardColor,
+            title = { Text(work.name, color = TextPrimary) },
+            text = { Text("Выберите действие", color = TextSecondary) },
+            confirmButton = {
+                TextButton(onClick = { showCompleteForm = true }) {
+                    Text("Выполнить", color = ColorGreen, fontWeight = FontWeight.Bold)
+                }
+            },
+            dismissButton = {
+                Row {
+                    TextButton(onClick = onDismiss) { Text("Отмена", color = TextSecondary) }
+                }
+            }
+        )
+    } else {
+        AlertDialog(
+            onDismissRequest = { showCompleteForm = false },
+            containerColor = CardColor,
+            title = { Text("Выполнение: ${work.name}", color = TextPrimary, fontSize = 18.sp) },
+            text = {
+                Column(
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                    modifier = Modifier.fillMaxWidth().verticalScroll(rememberScrollState())
+                ) {
+                    OutlinedTextField(
+                        value = km,
+                        onValueChange = { km = it },
+                        label = { Text("Пробег (км)") },
+                        modifier = Modifier.fillMaxWidth(),
+                        singleLine = true
+                    )
+                    OutlinedTextField(
+                        value = partName,
+                        onValueChange = { partName = it },
+                        label = { Text("Наименование (работа/запчасть)") },
+                        modifier = Modifier.fillMaxWidth(),
+                        singleLine = true
+                    )
+                    OutlinedTextField(
+                        value = partCode,
+                        onValueChange = { partCode = it },
+                        label = { Text("Код запчасти (артикул)") },
+                        modifier = Modifier.fillMaxWidth(),
+                        singleLine = true
+                    )
+                    
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        OutlinedTextField(
+                            value = cost,
+                            onValueChange = { cost = it },
+                            label = { Text("Стоимость") },
+                            modifier = Modifier.weight(2f),
+                            singleLine = true
+                        )
+                        
+                        ExposedDropdownMenuBox(
+                            expanded = currencyExpanded,
+                            onExpandedChange = { currencyExpanded = !currencyExpanded },
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            OutlinedTextField(
+                                value = currency,
+                                onValueChange = {},
+                                readOnly = true,
+                                label = { Text("Валюта") },
+                                trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = currencyExpanded) },
+                                colors = OutlinedTextFieldDefaults.colors(
+                                    focusedTextColor = TextPrimary,
+                                    unfocusedTextColor = TextPrimary,
+                                    focusedBorderColor = ColorGreen,
+                                    unfocusedBorderColor = TextSecondary
+                                ),
+                                modifier = Modifier.menuAnchor()
+                            )
+                            ExposedDropdownMenu(
+                                expanded = currencyExpanded,
+                                onDismissRequest = { currencyExpanded = false },
+                                modifier = Modifier.background(CardColor)
+                            ) {
+                                currencies.forEach { selection ->
+                                    DropdownMenuItem(
+                                        text = { Text(selection, color = TextPrimary) },
+                                        onClick = {
+                                            currency = selection
+                                            currencyExpanded = false
+                                        }
+                                    )
+                                }
+                            }
+                        }
+                    }
+
+                    OutlinedTextField(
+                        value = note,
+                        onValueChange = { note = it },
+                        label = { Text("Примечания") },
+                        modifier = Modifier.fillMaxWidth(),
+                        minLines = 2
+                    )
+                }
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        onComplete(
+                            km.toIntOrNull() ?: 0,
+                            System.currentTimeMillis(),
+                            note,
+                            partName,
+                            partCode,
+                            cost.replace(",", ".").toDoubleOrNull() ?: 0.0,
+                            currency
+                        )
+                    }
+                ) {
+                    Text("Сохранить", color = ColorGreen, fontWeight = FontWeight.Bold)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showCompleteForm = false }) {
+                    Text("Назад", color = TextSecondary)
+                }
+            }
+        )
+    }
+}
 @Composable private fun ActionRow(text:String,color:Color,onClick:()->Unit){TextButton(onClick=onClick,modifier=Modifier.fillMaxWidth()){Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.SpaceBetween){Text(text,color=TextPrimary);Text("●",color=color)}}}
 
 @Composable
