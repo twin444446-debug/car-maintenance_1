@@ -26,7 +26,6 @@ fun AppScreen() {
     var works by remember { mutableStateOf(loadWorks(context)) }
     var records by remember { mutableStateOf(loadServiceRecords(context)) }
     var parts by remember { mutableStateOf(loadPartCatalog(context)) }
-    
     var selectedCarId by remember {
         mutableStateOf(
             context.getSharedPreferences("car_maintenance", android.content.Context.MODE_PRIVATE)
@@ -50,7 +49,7 @@ fun AppScreen() {
     var partsScreen by remember { mutableStateOf(false) }
     var selectedStatusFilter by remember { mutableStateOf<WorkStatus?>(null) }
     
-    // Состояния для просмотра и удаления выполненных работ
+    // Новые состояния для деталей и удаления
     var selectedCompletedWork by remember { mutableStateOf<Pair<MaintenanceWork, ServiceRecord>?>(null) }
     var workToDelete by remember { mutableStateOf<Pair<MaintenanceWork, ServiceRecord>?>(null) }
 
@@ -97,7 +96,7 @@ fun AppScreen() {
     ) {
         val record = ServiceRecord(
             carId = w.carId, 
-            workId = w.id, // Привязка к работе
+            workId = w.id, // <--- ПРИВЯЗКА К РАБОТЕ
             date = date, 
             mileage = km, 
             reason = note,
@@ -195,8 +194,6 @@ fun AppScreen() {
         }
     }
 
-    // --- БЛОК ДИАЛОГОВ ---
-
     if (carDialog) {
         AddCarDialog(editingCar, { carDialog = false }) { newCar ->
             cars = if (cars.any { it.id == newCar.id }) {
@@ -269,7 +266,7 @@ fun AppScreen() {
             editingRegulation = null
         }
     }
-
+    
     // Окно просмотра выполненной работы
     if (selectedCompletedWork != null) {
         val (work, record) = selectedCompletedWork!!
@@ -452,23 +449,39 @@ private fun WorkListScreen(
         }
         Spacer(Modifier.height(8.dp))
         
-        // Фильтруем работы
-        val worksToShow = if (filter != null) {
-            works.filter { it.carId == car.id && getWorkStatus(it, car, records) == filter }
-        } else {
-            // Показываем все работы, у которых есть хотя бы одна выполненная запись
-            works.filter { it.carId == car.id && records.any { rec -> rec.workId == it.id } }
-        }
-
-        if (worksToShow.isEmpty()) {
-            Text(
-                if (filter != null) "Нет работ с этим статусом" else "Пока нет выполненных работ",
-                color = TextSecondary
-            )
+        if (filter != null) {
+            val filteredWorks = works.filter { it.carId == car.id && getWorkStatus(it, car, records) == filter }
+            
+            if (filteredWorks.isEmpty()) {
+                Text("Нет работ с этим статусом", color = TextSecondary)
+            } else {
+                LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    items(filteredWorks) { work ->
+                        WorkCard(work, car, records) { onWorkClick(work) }
+                    }
+                }
+            }
         } else {
             LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                items(worksToShow) { work ->
-                    WorkCard(work, car, records) { onWorkClick(work) }
+                items(records.filter { it.carId == car.id }.sortedByDescending { it.date }) { record ->
+                    Card(
+                        Modifier.fillMaxWidth().clickable { onEdit(record) },
+                        colors = CardDefaults.cardColors(containerColor = CardColor)
+                    ) {
+                        Column(Modifier.padding(14.dp)) {
+                            Text(formatDate(record.date), color = ColorBlue)
+                            Text(record.servicePlace.ifBlank { "Самостоятельно" }, color = TextSecondary)
+                            Text(record.reason.ifBlank { "Обслуживание" }, color = TextPrimary, fontWeight = FontWeight.Bold)
+                            Text("Пробег: ${record.mileage} км", color = TextSecondary)
+                            record.lines.forEach { line ->
+                                Text(
+                                    "• ${line.name}${if (line.article.isNotBlank()) " [${line.article}]" else ""} — ${formatMoney(line.cost)} ${line.currency}",
+                                    color = TextPrimary, fontSize = 13.sp
+                                )
+                            }
+                            Text("Итого: ${formatTotals(record)}", color = ColorGreen, fontWeight = FontWeight.Bold)
+                        }
+                    }
                 }
             }
         }
@@ -608,7 +621,7 @@ private fun PartCatalogDialog(carId: String, onDismiss: () -> Unit, onSave: (Par
     var article by remember { mutableStateOf("") }
     var category by remember { mutableStateOf("Запчасть") }
     var cost by remember { mutableStateOf("") }
-    var currency by remember { mutableStateOf("RUB") }
+    var currency by remember { mutableStateOf("EUR") }
 
     AlertDialog(
         onDismissRequest = onDismiss,
