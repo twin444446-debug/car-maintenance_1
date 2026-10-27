@@ -72,7 +72,7 @@ fun ServiceRecordDialog(
     initial: ServiceRecord? = null, 
     suggestedName: String = "", 
     parts: List<PartCatalogItem>, 
-    works: List<MaintenanceWork>, // <--- Новый параметр
+    works: List<MaintenanceWork>, 
     onDismiss: () -> Unit, 
     onSave: (ServiceRecord) -> Unit
 ) {
@@ -83,12 +83,11 @@ fun ServiceRecordDialog(
     var notes by remember { mutableStateOf(initial?.notes ?: "") }
     var lines by remember { mutableStateOf(initial?.lines ?: listOf(ServiceLine(name = suggestedName))) }
     
-    var mode by remember { mutableStateOf(0) } // 0 - Свободная, 1 - Из регламента
+    var mode by remember { mutableStateOf(0) } // 0 - Ремонт, 1 - По регламенту
     var selectedWork by remember { mutableStateOf<MaintenanceWork?>(null) }
     
     val context = androidx.compose.ui.platform.LocalContext.current
 
-    // Сортировка по приоритету
     val availableWorks = works.filter { it.carId == car.id }.sortedBy {
         when (getWorkStatus(it, car, listOfNotNull(initial))) {
             WorkStatus.SKIPPED -> 0
@@ -107,25 +106,26 @@ fun ServiceRecordDialog(
                 Modifier.heightIn(max = 450.dp).verticalScroll(rememberScrollState()),
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                // Переключатель режима
                 if (initial == null) {
                     SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
                         SegmentedButton(
                             selected = mode == 0,
                             onClick = { mode = 0 },
                             shape = SegmentedButtonDefaults.itemShape(index = 0, count = 2),
-                            colors = SegmentedButtonDefaults.colors(activeContainerColor = ColorGreen.copy(alpha = 0.2f), activeContentColor = ColorGreen)
-                        ) { Text("Свободная запись") }
+                            colors = SegmentedButtonDefaults.colors(activeContainerColor = ColorGreen.copy(alpha = 0.2f), activeContentColor = ColorGreen),
+                            modifier = Modifier.weight(1f) // <--- РАВНЫЙ РАЗМЕР
+                        ) { Text("Ремонт", maxLines = 1) }
+                        
                         SegmentedButton(
                             selected = mode == 1,
                             onClick = { mode = 1 },
                             shape = SegmentedButtonDefaults.itemShape(index = 1, count = 2),
-                            colors = SegmentedButtonDefaults.colors(activeContainerColor = ColorGreen.copy(alpha = 0.2f), activeContentColor = ColorGreen)
-                        ) { Text("Из регламента") }
+                            colors = SegmentedButtonDefaults.colors(activeContainerColor = ColorGreen.copy(alpha = 0.2f), activeContentColor = ColorGreen),
+                            modifier = Modifier.weight(1f) // <--- РАВНЫЙ РАЗМЕР
+                        ) { Text("По регламенту", maxLines = 1) }
                     }
                 }
 
-                // Выпадающий список регламентных работ
                 if (mode == 1 && availableWorks.isNotEmpty()) {
                     var expanded by remember { mutableStateOf(false) }
                     ExposedDropdownMenuBox(
@@ -176,7 +176,6 @@ fun ServiceRecordDialog(
                     }
                 }
 
-                // Остальные поля
                 Text("Дата: ${formatDate(date)}", color = TextPrimary)
                 Button(
                     onClick = {
@@ -391,7 +390,6 @@ fun RegulationWorkDialog(carId:String, existing:MaintenanceWork?, templates:List
     }},confirmButton={TextButton(onClick={if(name.isNotBlank())onSave(MaintenanceWork(id=existing?.id?:java.util.UUID.randomUUID().toString(),carId=carId,templateId=existing?.templateId?:(templates.firstOrNull{it.name==name}?.id?:""),name=name,category=category,intervalKm=km.toIntOrNull()?:0,intervalMonths=months.toIntOrNull()?:0,warningKm=warningKm.toIntOrNull()?:0,warningMonths=warningMonths.toIntOrNull()?:0,lastMileage=existing?.lastMileage?:0,lastDate=existing?.lastDate?:0L,hasLastExecution=existing?.hasLastExecution?:false,skipped=existing?.skipped?:false,preventive=preventive,notes=existing?.notes?:""))}){Text("Сохранить",color=ColorGreen)}},dismissButton={TextButton(onClick=onDismiss){Text("Отмена",color=TextSecondary)}})
 }
 
-// Вспомогательная функция для красивого названия статуса
 private fun WorkStatus.title(): String = when(this) {
     WorkStatus.COMPLETED -> "Выполнено"
     WorkStatus.REQUIRED -> "Необходимо"
