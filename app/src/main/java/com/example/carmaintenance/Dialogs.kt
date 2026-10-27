@@ -187,7 +187,7 @@ fun WorkActionsDialog(
                                         cursorColor = ColorGreen
                                     )
                                 )
-                                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
                                     OutlinedTextField(
                                         value = if (line.cost == 0.0) "" else line.cost.toString(),
                                         onValueChange = { 
@@ -207,22 +207,48 @@ fun WorkActionsDialog(
                                             cursorColor = ColorGreen
                                         )
                                     )
-                                    OutlinedTextField(
-                                        value = line.currency,
-                                        onValueChange = { lines[index] = line.copy(currency = it.uppercase()) },
-                                        label = { Text("Вал.", fontSize = 12.sp) },
-                                        modifier = Modifier.weight(1f),
-                                        singleLine = true,
-                                        colors = OutlinedTextFieldDefaults.colors(
-                                            focusedTextColor = TextPrimary,
-                                            unfocusedTextColor = TextPrimary,
-                                            focusedBorderColor = ColorGreen,
-                                            unfocusedBorderColor = TextSecondary,
-                                            focusedLabelColor = ColorGreen,
-                                            unfocusedLabelColor = TextSecondary,
-                                            cursorColor = ColorGreen
+                                    
+                                    // Выпадающий список валют (без EUR)
+                                    var expanded by remember { mutableStateOf(false) }
+                                    val currencies = listOf("RUB", "UAH")
+                                    
+                                    ExposedDropdownMenuBox(
+                                        expanded = expanded,
+                                        onExpandedChange = { expanded = !expanded },
+                                        modifier = Modifier.weight(1f)
+                                    ) {
+                                        OutlinedTextField(
+                                            value = line.currency,
+                                            onValueChange = {},
+                                            readOnly = true,
+                                            label = { Text("Вал.", fontSize = 12.sp) },
+                                            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
+                                            modifier = Modifier.menuAnchor(),
+                                            colors = OutlinedTextFieldDefaults.colors(
+                                                focusedTextColor = TextPrimary,
+                                                unfocusedTextColor = TextPrimary,
+                                                focusedBorderColor = ColorGreen,
+                                                unfocusedBorderColor = TextSecondary,
+                                                focusedLabelColor = ColorGreen,
+                                                unfocusedLabelColor = TextSecondary
+                                            )
                                         )
-                                    )
+                                        ExposedDropdownMenu(
+                                            expanded = expanded,
+                                            onDismissRequest = { expanded = false },
+                                            modifier = Modifier.background(CardColor)
+                                        ) {
+                                            currencies.forEach { selection ->
+                                                DropdownMenuItem(
+                                                    text = { Text(selection, color = TextPrimary) },
+                                                    onClick = {
+                                                        lines[index] = line.copy(currency = selection)
+                                                        expanded = false
+                                                    }
+                                                )
+                                            }
+                                        }
+                                    }
                                 }
                                 if (lines.size > 1) {
                                     TextButton(
