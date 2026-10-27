@@ -22,114 +22,38 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
 @Composable
-fun StatusBlock(title: String, value: Int, color: Color, modifier: Modifier = Modifier) {
-    Card(modifier = modifier, colors = CardDefaults.cardColors(containerColor = color.copy(alpha = .16f)), shape = RoundedCornerShape(14.dp)) {
-        Column(Modifier.padding(14.dp)) {
-            Text(value.toString(), color = color, fontSize = 26.sp, fontWeight = FontWeight.Bold)
-            Text(title, color = TextPrimary, fontSize = 12.sp)
-        }
-    }
-}
-
-@Composable
-fun QuickAction(text: String, icon: @Composable () -> Unit, color: Color, onClick: () -> Unit, modifier: Modifier = Modifier) {
-    Card(modifier = modifier.clickable { onClick() }, colors = CardDefaults.cardColors(containerColor = CardColor), shape = RoundedCornerShape(14.dp)) {
-        Column(Modifier.fillMaxWidth().padding(14.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-            Box(Modifier.size(38.dp).background(color.copy(alpha = .18f), RoundedCornerShape(12.dp)), contentAlignment = Alignment.Center) { icon() }
-            Spacer(Modifier.height(8.dp))
-            Text(text, color = TextPrimary, fontSize = 12.sp)
-        }
-    }
-}
-
-@Composable
 fun WorkCard(work: MaintenanceWork, car: Car, records: List<ServiceRecord>, onClick: () -> Unit) {
     val status = getWorkStatus(work, car, records)
+    val currentMileage = car.mileage.toIntOrNull() ?: 0
     
-    // Вычисляем, что писать под названием
-    val subtitle = buildString {
-        if (work.hasLastExecution) {
-            append("Пробег: ${work.lastMileage} км")
-            if (work.intervalKm > 0) {
-                val remaining = work.intervalKm - (car.mileage.toIntOrNull() ?: 0 - work.lastMileage)
-                if (status == WorkStatus.REQUIRED || status == WorkStatus.PREVENTIVE) {
-                    if (remaining > 0) append(" • Через $remaining км")
-                    else append(" • Просрочено")
-                } else if (status == WorkStatus.COMPLETED) {
-                    append(" • Выполнено ${formatDate(work.lastDate)}")
-                }
-            } else if (status == WorkStatus.COMPLETED) {
-                append(" • Выполнено ${formatDate(work.lastDate)}")
-            }
-        } else {
-            append("Пробег: ${car.mileage} км")
-            if (work.intervalKm > 0) append(" • Через ${work.intervalKm} км")
-        }
-    }
-
-    // Определяем цвета и иконки в зависимости от статуса
+    // Определяем стили
     val style = when (status) {
-        WorkStatus.REQUIRED -> WorkCardStyle(
-            icon = Icons.Default.PriorityHigh, 
-            iconColor = ColorRed, 
-            text = "Требуется", 
-            bg = ColorRed.copy(alpha = 0.15f), 
-            textColor = ColorRed
-        )
-        WorkStatus.PREVENTIVE -> WorkCardStyle(
-            icon = Icons.Default.Schedule,
-            iconColor = ColorYellow, 
-            text = "Скоро", 
-            bg = ColorYellow.copy(alpha = 0.15f), 
-            textColor = ColorYellow
-        )
-        WorkStatus.COMPLETED -> WorkCardStyle(
-            icon = Icons.Default.Check, 
-            iconColor = ColorGreen, 
-            text = "Выполнено", 
-            bg = ColorGreen.copy(alpha = 0.15f), 
-            textColor = ColorGreen
-        )
-        WorkStatus.SKIPPED -> WorkCardStyle(
-            icon = Icons.Default.Close, 
-            iconColor = ColorPurple, 
-            text = "Пропущено", 
-            bg = ColorPurple.copy(alpha = 0.15f), 
-            textColor = ColorPurple
-        )
+        WorkStatus.REQUIRED -> WorkCardStyle(Icons.Default.PriorityHigh, ColorRed, "Требуется", ColorRed.copy(alpha = 0.15f), ColorRed)
+        WorkStatus.PREVENTIVE -> WorkCardStyle(Icons.Default.Schedule, ColorYellow, "Скоро", ColorYellow.copy(alpha = 0.15f), ColorYellow)
+        WorkStatus.COMPLETED -> WorkCardStyle(Icons.Default.Check, ColorGreen, "Выполнено", ColorGreen.copy(alpha = 0.15f), ColorGreen)
+        WorkStatus.SKIPPED -> WorkCardStyle(Icons.Default.Close, ColorPurple, "Пропущено", ColorPurple.copy(alpha = 0.15f), ColorPurple)
     }
 
     Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable { onClick() },
+        modifier = Modifier.fillMaxWidth().clickable { onClick() },
         colors = CardDefaults.cardColors(containerColor = CardColor),
         shape = RoundedCornerShape(16.dp)
     ) {
         Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(12.dp),
+            modifier = Modifier.fillMaxWidth().padding(12.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             // Левая иконка
             Box(
-                modifier = Modifier
-                    .size(40.dp)
-                    .background(style.iconColor.copy(alpha = 0.15f), RoundedCornerShape(50)),
+                modifier = Modifier.size(40.dp).background(style.iconColor.copy(alpha = 0.15f), RoundedCornerShape(50)),
                 contentAlignment = Alignment.Center
             ) {
-                Icon(
-                    imageVector = style.icon,
-                    contentDescription = null,
-                    tint = style.iconColor,
-                    modifier = Modifier.size(24.dp)
-                )
+                Icon(imageVector = style.icon, contentDescription = null, tint = style.iconColor, modifier = Modifier.size(24.dp))
             }
 
             Spacer(Modifier.width(12.dp))
 
-            // Название и подзаголовок
+            // Название и компактная строка с пробегами
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = work.name,
@@ -139,33 +63,65 @@ fun WorkCard(work: MaintenanceWork, car: Car, records: List<ServiceRecord>, onCl
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
-                Spacer(Modifier.height(2.dp))
-                Text(
-                    text = subtitle,
-                    color = TextSecondary,
-                    fontSize = 12.sp,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
+                Spacer(Modifier.height(4.dp))
+                
+                // Строка с пробегами: [выполнено] -> [следующий] (срок)
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    if (work.hasLastExecution) {
+                        Text(
+                            text = "${work.lastMileage} км",
+                            color = ColorGreen,
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                    } else {
+                        Text(
+                            text = "—",
+                            color = ColorGreen,
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                    
+                    Text(
+                        text = " (",
+                        color = TextSecondary,
+                        fontSize = 13.sp
+                    )
+                    
+                    // Вычисляем следующий пробег
+                    val nextMileage = if (work.hasLastExecution) work.lastMileage + work.intervalKm else currentMileage + work.intervalKm
+                    Text(
+                        text = "$nextMileage км",
+                        color = ColorRed,
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                    
+                    if (work.intervalMonths > 0) {
+                        Text(
+                            text = " / ${work.intervalMonths} мес.",
+                            color = ColorRed,
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                    Text(
+                        text = ")",
+                        color = TextSecondary,
+                        fontSize = 13.sp
+                    )
+                }
             }
 
             Spacer(Modifier.width(8.dp))
 
-            // Правая плашка (Бейдж)
+            // Правый бейдж и стрелка
             Box(
-                modifier = Modifier
-                    .background(style.bg, RoundedCornerShape(50))
-                    .padding(horizontal = 12.dp, vertical = 6.dp)
+                modifier = Modifier.background(style.bg, RoundedCornerShape(50)).padding(horizontal = 10.dp, vertical = 6.dp)
             ) {
-                Text(
-                    text = style.text,
-                    color = style.textColor,
-                    fontSize = 12.sp,
-                    fontWeight = FontWeight.Medium
-                )
+                Text(text = style.text, color = style.textColor, fontSize = 12.sp, fontWeight = FontWeight.Medium)
             }
-            
-            // Стрелочка
             Icon(
                 imageVector = Icons.Default.KeyboardArrowRight,
                 contentDescription = null,
@@ -173,22 +129,6 @@ fun WorkCard(work: MaintenanceWork, car: Car, records: List<ServiceRecord>, onCl
                 modifier = Modifier.size(20.dp)
             )
         }
-    }
-}
-
-@Composable
-fun SectionTitle(text: String, action: String? = null, onAction: (() -> Unit)? = null) {
-    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-        Text(text, color = TextPrimary, fontSize = 19.sp, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
-        if (action != null && onAction != null) TextButton(onClick = onAction) { Text(action, color = ColorBlue) }
-    }
-}
-
-@Composable
-fun InfoRow(label: String, value: String) {
-    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-        Text(label, color = TextSecondary)
-        Text(value.ifBlank { "—" }, color = TextPrimary, fontWeight = FontWeight.Medium)
     }
 }
 
