@@ -262,21 +262,53 @@ fun WorkActionsDialog(
             title = { Text(work.name, color = TextPrimary, fontWeight = FontWeight.Bold) },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    // 1. Последняя замена: пробег / дата
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                        Text("Выполнено:", color = TextSecondary)
-                        Text(if (work.hasLastExecution) "${work.lastMileage} км / ${formatDate(work.lastDate)}" else "Не выполнялось", color = ColorGreen, fontWeight = FontWeight.Bold)
+                        Text("Последняя замена:", color = TextSecondary)
+                        Text(
+                            text = if (work.hasLastExecution) "${work.lastMileage} км / ${formatDate(work.lastDate)}" else "Не выполнялось",
+                            color = ColorGreen,
+                            fontWeight = FontWeight.Bold
+                        )
                     }
+                    
                     HorizontalDivider(color = TextSecondary.copy(alpha = 0.2f))
+                    
+                    // 2. Следующая замена, км
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                        Text("Следующая замена:", color = TextSecondary)
+                        Text("Следующая замена, км:", color = TextSecondary)
                         val nextMileage = if (work.hasLastExecution) work.lastMileage + work.intervalKm else (car.mileage.toIntOrNull() ?: 0) + work.intervalKm
-                        val monthsText = if (work.intervalMonths > 0) " / ${work.intervalMonths} мес." else ""
-                        Text("$nextMileage км$monthsText", color = ColorRed, fontWeight = FontWeight.Bold)
+                        Text(
+                            text = "$nextMileage",
+                            color = ColorRed,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                    
+                    // 3. Следующая замена, мес
+                    if (work.intervalMonths > 0) {
+                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                            Text("Следующая замена, мес:", color = TextSecondary)
+                            Text(
+                                text = "${work.intervalMonths}",
+                                color = ColorRed,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
                     }
                 }
             },
-            confirmButton = { Button(onClick = { showCompleteForm = true }, colors = ButtonDefaults.buttonColors(containerColor = ColorGreen)) { Text("Выполнить", color = Color.White, fontWeight = FontWeight.Bold) } },
-            dismissButton = { TextButton(onClick = onDismiss) { Text("Отмена", color = TextSecondary) } }
+            confirmButton = {
+                Button(
+                    onClick = { showCompleteForm = true },
+                    colors = ButtonDefaults.buttonColors(containerColor = ColorGreen)
+                ) {
+                    Text("Выполнить", color = Color.White, fontWeight = FontWeight.Bold)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = onDismiss) { Text("Отмена", color = TextSecondary) }
+            }
         )
     } else {
         AlertDialog(
