@@ -36,7 +36,28 @@ fun AddCarDialog(existingCar: Car?, onDismiss: () -> Unit, onSave: (Car) -> Unit
         dismissButton = { TextButton(onClick = onDismiss) { Text("Отмена", color = TextSecondary) } })
 }
 
-@Composable private fun field(label: String, value: String, type: KeyboardType = KeyboardType.Text, onValue: (String)->Unit) = OutlinedTextField(value,onValue,label={Text(label)},keyboardOptions=KeyboardOptions(keyboardType=type),singleLine=label!="Заметки",colors=OutlinedTextFieldDefaults.colors(focusedTextColor=TextPrimary,unfocusedTextColor=TextPrimary,focusedBorderColor=ColorBlue,unfocusedBorderColor=TextSecondary))
+@Composable 
+private fun field(
+    label: String, 
+    value: String, 
+    type: KeyboardType = KeyboardType.Text, 
+    onValue: (String) -> Unit
+) = OutlinedTextField(
+    value = value,
+    onValueChange = onValue,
+    label = { Text(label) },
+    keyboardOptions = KeyboardOptions(keyboardType = type),
+    singleLine = label != "Заметки",
+    colors = OutlinedTextFieldDefaults.colors(
+        focusedTextColor = TextPrimary,
+        unfocusedTextColor = TextPrimary,
+        focusedBorderColor = ColorBlue,
+        unfocusedBorderColor = TextSecondary,
+        focusedLabelColor = ColorBlue,
+        unfocusedLabelColor = TextSecondary,
+        cursorColor = ColorBlue
+    )
+)
 
 @Composable
 fun MileageDialog(current: String, onDismiss:()->Unit, onSave:(String)->Unit) { var v by remember { mutableStateOf(current) }; AlertDialog(onDismissRequest=onDismiss,containerColor=CardColor,title={Text("Текущий пробег",color=TextPrimary)},text={field("Пробег (км)",v,KeyboardType.Number){v=it}},confirmButton={TextButton(onClick={onSave(v)}){Text("Сохранить",color=ColorGreen)}},dismissButton={TextButton(onClick=onDismiss){Text("Отмена",color=TextSecondary)}}) }
@@ -61,7 +82,6 @@ fun ServiceRecordDialog(car: Car, initial: ServiceRecord? = null, suggestedName:
 
 @Composable private fun LineEditor(line: ServiceLine,onChange:(ServiceLine)->Unit,onDelete:()->Unit){Column(verticalArrangement=Arrangement.spacedBy(6.dp)){field("Название",line.name){onChange(line.copy(name=it))};Row(horizontalArrangement=Arrangement.spacedBy(6.dp)){field("Артикул",line.article){onChange(line.copy(article=it))};field("Стоимость",if(line.cost==0.0)"" else line.cost.toString(),KeyboardType.Decimal){onChange(line.copy(cost=it.toDoubleOrNull()?:0.0))}};Row(horizontalArrangement=Arrangement.spacedBy(6.dp)){field("Валюта",line.currency){onChange(line.copy(currency=it.uppercase()))};field("Тип масла",line.oilType){onChange(line.copy(oilType=it))}};field("Название масла",line.oilName){onChange(line.copy(oilName=it))};TextButton(onClick=onDelete){Text("Удалить строку",color=ColorRed)}}}
 
-// --- ОБНОВЛЕННЫЙ WORK ACTIONS DIALOG ---
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun WorkActionsDialog(
@@ -69,7 +89,7 @@ fun WorkActionsDialog(
     car: Car,
     records: List<ServiceRecord>,
     onDismiss: () -> Unit,
-    onComplete: (km: Int, date: Long, note: String, lines: List<ServiceLine>) -> Unit, // 4 параметра
+    onComplete: (km: Int, date: Long, note: String, lines: List<ServiceLine>) -> Unit,
     onSkip: () -> Unit,
     onEdit: () -> Unit,
     onDelete: () -> Unit,
@@ -79,8 +99,11 @@ fun WorkActionsDialog(
     var km by remember { mutableStateOf(car.mileage.ifBlank { "0" }) }
     var note by remember { mutableStateOf("") }
     
-    // Список строк для многострочного ввода
-    val lines = remember { mutableStateListOf(ServiceLine(name = work.name, type = ServiceLineType.WORK)) }
+    val lines = remember { 
+        mutableStateListOf(
+            ServiceLine(name = work.name, type = ServiceLineType.WORK)
+        ) 
+    }
 
     if (!showCompleteForm) {
         AlertDialog(
@@ -112,7 +135,16 @@ fun WorkActionsDialog(
                         onValueChange = { km = it },
                         label = { Text("Пробег (км)") },
                         modifier = Modifier.fillMaxWidth(),
-                        singleLine = true
+                        singleLine = true,
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedTextColor = TextPrimary,
+                            unfocusedTextColor = TextPrimary,
+                            focusedBorderColor = ColorGreen,
+                            unfocusedBorderColor = TextSecondary,
+                            focusedLabelColor = ColorGreen,
+                            unfocusedLabelColor = TextSecondary,
+                            cursorColor = ColorGreen
+                        )
                     )
                     
                     Text("Работы и материалы", color = TextPrimary, fontWeight = FontWeight.Bold)
@@ -128,14 +160,32 @@ fun WorkActionsDialog(
                                     onValueChange = { lines[index] = line.copy(name = it) },
                                     label = { Text("Наименование", fontSize = 12.sp) },
                                     modifier = Modifier.fillMaxWidth(),
-                                    singleLine = true
+                                    singleLine = true,
+                                    colors = OutlinedTextFieldDefaults.colors(
+                                        focusedTextColor = TextPrimary,
+                                        unfocusedTextColor = TextPrimary,
+                                        focusedBorderColor = ColorGreen,
+                                        unfocusedBorderColor = TextSecondary,
+                                        focusedLabelColor = ColorGreen,
+                                        unfocusedLabelColor = TextSecondary,
+                                        cursorColor = ColorGreen
+                                    )
                                 )
                                 OutlinedTextField(
                                     value = line.article,
                                     onValueChange = { lines[index] = line.copy(article = it) },
                                     label = { Text("Артикул", fontSize = 12.sp) },
                                     modifier = Modifier.fillMaxWidth(),
-                                    singleLine = true
+                                    singleLine = true,
+                                    colors = OutlinedTextFieldDefaults.colors(
+                                        focusedTextColor = TextPrimary,
+                                        unfocusedTextColor = TextPrimary,
+                                        focusedBorderColor = ColorGreen,
+                                        unfocusedBorderColor = TextSecondary,
+                                        focusedLabelColor = ColorGreen,
+                                        unfocusedLabelColor = TextSecondary,
+                                        cursorColor = ColorGreen
+                                    )
                                 )
                                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                                     OutlinedTextField(
@@ -146,14 +196,32 @@ fun WorkActionsDialog(
                                         },
                                         label = { Text("Цена", fontSize = 12.sp) },
                                         modifier = Modifier.weight(1f),
-                                        singleLine = true
+                                        singleLine = true,
+                                        colors = OutlinedTextFieldDefaults.colors(
+                                            focusedTextColor = TextPrimary,
+                                            unfocusedTextColor = TextPrimary,
+                                            focusedBorderColor = ColorGreen,
+                                            unfocusedBorderColor = TextSecondary,
+                                            focusedLabelColor = ColorGreen,
+                                            unfocusedLabelColor = TextSecondary,
+                                            cursorColor = ColorGreen
+                                        )
                                     )
                                     OutlinedTextField(
                                         value = line.currency,
                                         onValueChange = { lines[index] = line.copy(currency = it.uppercase()) },
                                         label = { Text("Вал.", fontSize = 12.sp) },
                                         modifier = Modifier.weight(1f),
-                                        singleLine = true
+                                        singleLine = true,
+                                        colors = OutlinedTextFieldDefaults.colors(
+                                            focusedTextColor = TextPrimary,
+                                            unfocusedTextColor = TextPrimary,
+                                            focusedBorderColor = ColorGreen,
+                                            unfocusedBorderColor = TextSecondary,
+                                            focusedLabelColor = ColorGreen,
+                                            unfocusedLabelColor = TextSecondary,
+                                            cursorColor = ColorGreen
+                                        )
                                     )
                                 }
                                 if (lines.size > 1) {
@@ -183,7 +251,16 @@ fun WorkActionsDialog(
                         onValueChange = { note = it },
                         label = { Text("Примечание ко всей записи") },
                         modifier = Modifier.fillMaxWidth(),
-                        minLines = 2
+                        minLines = 2,
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedTextColor = TextPrimary,
+                            unfocusedTextColor = TextPrimary,
+                            focusedBorderColor = ColorGreen,
+                            unfocusedBorderColor = TextSecondary,
+                            focusedLabelColor = ColorGreen,
+                            unfocusedLabelColor = TextSecondary,
+                            cursorColor = ColorGreen
+                        )
                     )
                 }
             },
@@ -221,11 +298,22 @@ fun RegulationWorkDialog(carId:String, existing:MaintenanceWork?, templates:List
     var warningKm by remember { mutableStateOf(existing?.warningKm?.toString() ?: "") }
     var warningMonths by remember { mutableStateOf(existing?.warningMonths?.toString() ?: "") }
     var preventive by remember { mutableStateOf(existing?.preventive ?: false) }
+    
+    val fieldColors = OutlinedTextFieldDefaults.colors(
+        focusedTextColor = TextPrimary,
+        unfocusedTextColor = TextPrimary,
+        focusedBorderColor = ColorBlue,
+        unfocusedBorderColor = TextSecondary,
+        focusedLabelColor = ColorBlue,
+        unfocusedLabelColor = TextSecondary,
+        cursorColor = ColorBlue
+    )
+
     AlertDialog(onDismissRequest=onDismiss,containerColor=CardColor,title={Text(if(existing==null)"Добавить регламентную работу" else "Изменить регламентную работу",color=TextPrimary)},text={Column(Modifier.verticalScroll(rememberScrollState()),verticalArrangement=Arrangement.spacedBy(8.dp)){
-        OutlinedTextField(name,{name=it},label={Text("Название")},singleLine=true,modifier=Modifier.fillMaxWidth())
+        OutlinedTextField(name,{name=it},label={Text("Название")},singleLine=true,modifier=Modifier.fillMaxWidth(), colors = fieldColors)
         Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.spacedBy(6.dp)){FilterChip(selected=category==WorkCategory.GENERAL,onClick={category=WorkCategory.GENERAL},label={Text("Автомобиль")});FilterChip(selected=category==WorkCategory.LPG,onClick={category=WorkCategory.LPG},label={Text("ГБО")})}
-        Row(horizontalArrangement=Arrangement.spacedBy(6.dp)){OutlinedTextField(km,{km=it},label={Text("Интервал км")},keyboardOptions=KeyboardOptions(keyboardType=KeyboardType.Number),modifier=Modifier.weight(1f));OutlinedTextField(months,{months=it},label={Text("Интервал мес.")},keyboardOptions=KeyboardOptions(keyboardType=KeyboardType.Number),modifier=Modifier.weight(1f))}
-        Row(horizontalArrangement=Arrangement.spacedBy(6.dp)){OutlinedTextField(warningKm,{warningKm=it},label={Text("Предупреждение км")},keyboardOptions=KeyboardOptions(keyboardType=KeyboardType.Number),modifier=Modifier.weight(1f));OutlinedTextField(warningMonths,{warningMonths=it},label={Text("Предупреждение мес.")},keyboardOptions=KeyboardOptions(keyboardType=KeyboardType.Number),modifier=Modifier.weight(1f))}
+        Row(horizontalArrangement=Arrangement.spacedBy(6.dp)){OutlinedTextField(km,{km=it},label={Text("Интервал км")},keyboardOptions=KeyboardOptions(keyboardType=KeyboardType.Number),modifier=Modifier.weight(1f), colors = fieldColors);OutlinedTextField(months,{months=it},label={Text("Интервал мес.")},keyboardOptions=KeyboardOptions(keyboardType=KeyboardType.Number),modifier=Modifier.weight(1f), colors = fieldColors)}
+        Row(horizontalArrangement=Arrangement.spacedBy(6.dp)){OutlinedTextField(warningKm,{warningKm=it},label={Text("Предупреждение км")},keyboardOptions=KeyboardOptions(keyboardType=KeyboardType.Number),modifier=Modifier.weight(1f), colors = fieldColors);OutlinedTextField(warningMonths,{warningMonths=it},label={Text("Предупреждение мес.")},keyboardOptions=KeyboardOptions(keyboardType=KeyboardType.Number),modifier=Modifier.weight(1f), colors = fieldColors)}
         Row(verticalAlignment=Alignment.CenterVertically){Checkbox(preventive,{preventive=it});Text("Профилактическая рекомендация",color=TextPrimary)}
         Text("Можно создать работу без интервала — например, для проверки состояния детали. Её статус будет профилактическим.",color=TextSecondary,fontSize=12.sp)
     }},confirmButton={TextButton(onClick={if(name.isNotBlank())onSave(MaintenanceWork(id=existing?.id?:java.util.UUID.randomUUID().toString(),carId=carId,templateId=existing?.templateId?:(templates.firstOrNull{it.name==name}?.id?:""),name=name,category=category,intervalKm=km.toIntOrNull()?:0,intervalMonths=months.toIntOrNull()?:0,warningKm=warningKm.toIntOrNull()?:0,warningMonths=warningMonths.toIntOrNull()?:0,lastMileage=existing?.lastMileage?:0,lastDate=existing?.lastDate?:0L,hasLastExecution=existing?.hasLastExecution?:false,skipped=existing?.skipped?:false,preventive=preventive,notes=existing?.notes?:""))}){Text("Сохранить",color=ColorGreen)}},dismissButton={TextButton(onClick=onDismiss){Text("Отмена",color=TextSecondary)}})
