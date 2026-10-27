@@ -361,37 +361,72 @@ private fun HomeScreen(
 
 @Composable
 private fun WorkListScreen(
-    car: Car?, records: List<ServiceRecord>, parts: List<PartCatalogItem>,
-    onAdd: () -> Unit, onEdit: (ServiceRecord) -> Unit, onPartSave: (PartCatalogItem) -> Unit
+    car: Car?, 
+    records: List<ServiceRecord>, 
+    parts: List<PartCatalogItem>,
+    filter: WorkStatus? = null,
+    onClearFilter: () -> Unit,
+    onAdd: () -> Unit, 
+    onEdit: (ServiceRecord) -> Unit, 
+    onPartSave: (PartCatalogItem) -> Unit,
+    works: List<MaintenanceWork>,
+    onWorkClick: (MaintenanceWork) -> Unit
 ) {
     if (car == null) {
         Page("Перечень работ") { Text("Сначала добавьте автомобиль", color = TextSecondary) }
         return
     }
+    
     Page("Перечень работ") {
+        // Плашка активного фильтра
+        if (filter != null) {
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                Text("Фильтр: ${filter.title()}", color = ColorBlue, fontWeight = FontWeight.Bold)
+                Spacer(Modifier.weight(1f))
+                TextButton(onClick = onClearFilter) { Text("Сбросить", color = ColorRed) }
+            }
+            Spacer(Modifier.height(4.dp))
+        }
+
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             Button(onClick = onAdd, modifier = Modifier.weight(1f)) { Text("Добавить запись") }
             Text("${records.count { it.carId == car.id }} записей", color = TextSecondary, modifier = Modifier.padding(12.dp))
         }
         Spacer(Modifier.height(8.dp))
-        LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            items(records.filter { it.carId == car.id }.sortedByDescending { it.date }) { record ->
-                Card(
-                    Modifier.fillMaxWidth().clickable { onEdit(record) },
-                    colors = CardDefaults.cardColors(containerColor = CardColor)
-                ) {
-                    Column(Modifier.padding(14.dp)) {
-                        Text(formatDate(record.date), color = ColorBlue)
-                        Text(record.servicePlace.ifBlank { "Самостоятельно" }, color = TextSecondary)
-                        Text(record.reason.ifBlank { "Обслуживание" }, color = TextPrimary, fontWeight = FontWeight.Bold)
-                        Text("Пробег: ${record.mileage} км", color = TextSecondary)
-                        record.lines.forEach { line ->
-                            Text(
-                                "• ${line.name}${if (line.article.isNotBlank()) " [${line.article}]" else ""} — ${formatMoney(line.cost)} ${line.currency}",
-                                color = TextPrimary, fontSize = 13.sp
-                            )
+        
+        // Если фильтр активен — показываем работы, иначе — историю
+        if (filter != null) {
+            val filteredWorks = works.filter { it.carId == car.id && getWorkStatus(it, car, records) == filter }
+            
+            if (filteredWorks.isEmpty()) {
+                Text("Нет работ с этим статусом", color = TextSecondary)
+            } else {
+                LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    items(filteredWorks) { work ->
+                        WorkCard(work, car, records) { onWorkClick(work) }
+                    }
+                }
+            }
+        } else {
+            LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                items(records.filter { it.carId == car.id }.sortedByDescending { it.date }) { record ->
+                    Card(
+                        Modifier.fillMaxWidth().clickable { onEdit(record) },
+                        colors = CardDefaults.cardColors(containerColor = CardColor)
+                    ) {
+                        Column(Modifier.padding(14.dp)) {
+                            Text(formatDate(record.date), color = ColorBlue)
+                            Text(record.servicePlace.ifBlank { "Самостоятельно" }, color = TextSecondary)
+                            Text(record.reason.ifBlank { "Обслуживание" }, color = TextPrimary, fontWeight = FontWeight.Bold)
+                            Text("Пробег: ${record.mileage} км", color = TextSecondary)
+                            record.lines.forEach { line ->
+                                Text(
+                                    "• ${line.name}${if (line.article.isNotBlank()) " [${line.article}]" else ""} — ${formatMoney(line.cost)} ${line.currency}",
+                                    color = TextPrimary, fontSize = 13.sp
+                                )
+                            }
+                            Text("Итого: ${formatTotals(record)}", color = ColorGreen, fontWeight = FontWeight.Bold)
                         }
-                        Text("Итого: ${formatTotals(record)}", color = ColorGreen, fontWeight = FontWeight.Bold)
                     }
                 }
             }
@@ -597,4 +632,12 @@ private fun obdMeaning(code: String): String = when (code.uppercase()) {
     "P0172" -> "P0172 — слишком богатая смесь."
     "P0420" -> "P0420 — эффективность системы нейтрализации ниже порога."
     else -> "Код $code: расшифровка пока отсутствует в локальном справочнике. Можно добавить её позже."
+}
+
+// Вспомогательная функция для красивого названия статуса
+private fun WorkStatus.title(): String = when(this) {
+    WorkStatus.COMPLETED -> "Выполнено"
+    WorkStatus.REQUIRED -> "Необходимо"
+    WorkStatus.PREVENTIVE -> "Рекомендации"
+    WorkStatus.SKIPPED -> "Пропущено"
 }
