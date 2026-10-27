@@ -1,5 +1,6 @@
 package com.example.carmaintenance
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
@@ -42,7 +43,8 @@ fun HomeScreenRedesign(
     onMileage: () -> Unit,
     onOpenCar: () -> Unit,
     onOpenSettings: () -> Unit = {},
-    onOpenRegulations: () -> Unit = {}
+    onOpenRegulations: () -> Unit = {},
+    onStatusClick: (WorkStatus) -> Unit
 ) {
     // Экран пустого состояния (если нет машин)
     if (car == null) {
@@ -253,51 +255,39 @@ fun HomeScreenRedesign(
             }
         }
 
-        // --- 3. СТАТУС (Главная плашка) ---
-        item(key = "main_status") {
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                colors = CardDefaults.cardColors(
-                    containerColor = if (requiredCount > 0) ColorRed.copy(alpha = 0.16f) else ColorGreen.copy(alpha = 0.12f)
-                ),
-                shape = RoundedCornerShape(20.dp)
-            ) {
-                Row(
-                    Modifier.fillMaxWidth().padding(18.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Column(Modifier.weight(1f)) {
-                        Text(
-                            if (requiredCount > 0) "Требуется обслуживание" else "Критичных работ нет",
-                            color = if (requiredCount > 0) ColorRed else ColorGreen,
-                            fontSize = 18.sp,
-                            fontWeight = FontWeight.Bold
-                        )
-                        Spacer(Modifier.height(4.dp))
-                        Text(
-                            if (requiredCount > 0) "Есть работы, которые необходимо выполнить." else "Следите за ближайшими регламентными работами.",
-                            color = TextSecondary,
-                            fontSize = 13.sp
-                        )
-                    }
-                    Text("$requiredCount", color = if (requiredCount > 0) ColorRed else ColorGreen, fontSize = 30.sp, fontWeight = FontWeight.Bold)
-                }
-            }
-        }
-
         // --- 4. СТАТИСТИКА (2x2) ---
-        item(key = "stats_grid") {
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    StatCardCompact("Выполнено", completedCount, ColorGreen, Modifier.weight(1f))
-                    StatCardCompact("Необходимо", requiredCount, ColorRed, Modifier.weight(1f))
-                }
-                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    StatCardCompact("Рекомендации", preventiveCount, ColorYellow, Modifier.weight(1f))
-                    StatCardCompact("Пропущено", skippedCount, ColorPurple, Modifier.weight(1f))
-                }
-            }
+item(key = "stats_grid") {
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            StatCardCompact(
+                title = "Выполнено",
+                count = completedCount,
+                color = ColorGreen,
+                modifier = Modifier.weight(1f).clickable { onStatusClick(WorkStatus.COMPLETED) }
+            )
+            StatCardCompact(
+                title = "Необходимо",
+                count = requiredCount,
+                color = ColorRed,
+                modifier = Modifier.weight(1f).clickable { onStatusClick(WorkStatus.REQUIRED) }
+            )
         }
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            StatCardCompact(
+                title = "Рекомендации",
+                count = preventiveCount,
+                color = ColorYellow,
+                modifier = Modifier.weight(1f).clickable { onStatusClick(WorkStatus.PREVENTIVE) }
+            )
+            StatCardCompact(
+                title = "Пропущено",
+                count = skippedCount,
+                color = ColorPurple,
+                modifier = Modifier.weight(1f).clickable { onStatusClick(WorkStatus.SKIPPED) }
+            )
+        }
+    }
+}
 
         // --- 5. БЫСТРЫЕ ДЕЙСТВИЯ (Сетка 2x2) ---
         item(key = "quick_actions_title") {
