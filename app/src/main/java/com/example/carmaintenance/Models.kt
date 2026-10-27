@@ -57,6 +57,7 @@ data class ServiceLine(
 data class ServiceRecord(
     val id: String = UUID.randomUUID().toString(),
     val carId: String,
+    val workId: String? = null, // <-- ДОБАВЛЕНО ПОЛЕ ДЛЯ СВЯЗИ С РАБОТОЙ
     var date: Long = System.currentTimeMillis(),
     var servicePlace: String = "",
     var reason: String = "",
@@ -78,7 +79,6 @@ data class PartCatalogItem(
     var currency: String = "EUR"
 )
 
-// Backward-compatible legacy journal item. It is migrated into ServiceRecord on first load.
 data class WorkHistory(
     val id: String = UUID.randomUUID().toString(),
     val carId: String,
