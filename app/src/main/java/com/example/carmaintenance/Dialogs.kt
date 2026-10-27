@@ -65,22 +65,159 @@ private fun field(
 @Composable
 fun MileageDialog(current: String, onDismiss:()->Unit, onSave:(String)->Unit) { var v by remember { mutableStateOf(current) }; AlertDialog(onDismissRequest=onDismiss,containerColor=CardColor,title={Text("Текущий пробег",color=TextPrimary)},text={field("Пробег (км)",v,KeyboardType.Number){v=it}},confirmButton={TextButton(onClick={onSave(v)}){Text("Сохранить",color=ColorGreen)}},dismissButton={TextButton(onClick=onDismiss){Text("Отмена",color=TextSecondary)}}) }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun ServiceRecordDialog(car: Car, initial: ServiceRecord? = null, suggestedName: String = "", parts: List<PartCatalogItem>, onDismiss:()->Unit, onSave:(ServiceRecord)->Unit) {
-    var date by remember { mutableStateOf(initial?.date ?: System.currentTimeMillis()) }; var place by remember { mutableStateOf(initial?.servicePlace ?: "") }
-    var reason by remember { mutableStateOf(initial?.reason ?: "") }; var mileage by remember { mutableStateOf((initial?.mileage ?: car.mileage.toIntOrNull() ?: 0).toString()) }; var notes by remember { mutableStateOf(initial?.notes ?: "") }
-    var lines by remember { mutableStateOf(initial?.lines ?: listOf(ServiceLine(name=suggestedName))) }
+fun ServiceRecordDialog(
+    car: Car, 
+    initial: ServiceRecord? = null, 
+    suggestedName: String = "", 
+    parts: List<PartCatalogItem>, 
+    works: List<MaintenanceWork>, // <--- Новый параметр
+    onDismiss: () -> Unit, 
+    onSave: (ServiceRecord) -> Unit
+) {
+    var date by remember { mutableStateOf(initial?.date ?: System.currentTimeMillis()) }
+    var place by remember { mutableStateOf(initial?.servicePlace ?: "") }
+    var reason by remember { mutableStateOf(initial?.reason ?: "") }
+    var mileage by remember { mutableStateOf((initial?.mileage ?: car.mileage.toIntOrNull() ?: 0).toString()) }
+    var notes by remember { mutableStateOf(initial?.notes ?: "") }
+    var lines by remember { mutableStateOf(initial?.lines ?: listOf(ServiceLine(name = suggestedName))) }
+    
+    var mode by remember { mutableStateOf(0) } // 0 - Свободная, 1 - Из регламента
+    var selectedWork by remember { mutableStateOf<MaintenanceWork?>(null) }
+    
     val context = androidx.compose.ui.platform.LocalContext.current
-    AlertDialog(onDismissRequest=onDismiss,containerColor=CardColor,title={Text(if(initial==null)"Новая запись обслуживания" else "Изменить запись",color=TextPrimary)},text={
-        Column(Modifier.heightIn(max = 400.dp).verticalScroll(rememberScrollState()),verticalArrangement=Arrangement.spacedBy(8.dp)) {
-            Text("Дата: ${formatDate(date)}",color=TextPrimary); Button(onClick={val c=Calendar.getInstance().apply{timeInMillis=date};DatePickerDialog(context,{_,y,m,d->date=Calendar.getInstance().apply{set(y,m,d,12,0,0)}.timeInMillis},c.get(Calendar.YEAR),c.get(Calendar.MONTH),c.get(Calendar.DAY_OF_MONTH)).show()},colors=ButtonDefaults.buttonColors(containerColor=NavColor)){Text("Изменить дату")}
-            field("СТО / магазин",place){place=it}; field("Причина",reason){reason=it}; field("Пробег (км)",mileage,KeyboardType.Number){mileage=it}; field("Примечания",notes){notes=it}
-            Text("Работы и запчасти",color=TextPrimary)
-            lines.forEachIndexed { i,l -> LineEditor(l,onChange={x->lines=lines.toMutableList().also{it[i]=x}},onDelete={lines=lines.toMutableList().also{it.removeAt(i)}}) }
-            TextButton(onClick={lines=lines+ServiceLine(name="")}){Text("+ Добавить работу / запчасть",color=ColorGreen)}
-            if(parts.isNotEmpty()) Text("Сохранённые запчасти можно повторно выбрать в перечне работ.",color=TextSecondary)
+
+    // Сортировка по приоритету
+    val availableWorks = works.filter { it.carId == car.id }.sortedBy {
+        when (getWorkStatus(it, car, listOfNotNull(initial))) {
+            WorkStatus.SKIPPED -> 0
+            WorkStatus.REQUIRED -> 1
+            WorkStatus.PREVENTIVE -> 2
+            else -> 3
         }
-    },confirmButton={TextButton(onClick={onSave(ServiceRecord(id=initial?.id ?: java.util.UUID.randomUUID().toString(),carId=car.id,workId=initial?.workId,date=date,servicePlace=place,reason=reason,mileage=mileage.toIntOrNull()?:0,lines=lines.filter{it.name.isNotBlank()},notes=notes))}){Text("Сохранить",color=ColorGreen)}},dismissButton={TextButton(onClick=onDismiss){Text("Отмена",color=TextSecondary)}})
+    }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        containerColor = CardColor,
+        title = { Text(if (initial == null) "Новая запись обслуживания" else "Изменить запись", color = TextPrimary) },
+        text = {
+            Column(
+                Modifier.heightIn(max = 450.dp).verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                // Переключатель режима
+                if (initial == null) {
+                    SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
+                        SegmentedButton(
+                            selected = mode == 0,
+                            onClick = { mode = 0 },
+                            shape = SegmentedButtonDefaults.itemShape(index = 0, count = 2),
+                            colors = SegmentedButtonDefaults.colors(activeContainerColor = ColorGreen.copy(alpha = 0.2f), activeContentColor = ColorGreen)
+                        ) { Text("Свободная запись") }
+                        SegmentedButton(
+                            selected = mode == 1,
+                            onClick = { mode = 1 },
+                            shape = SegmentedButtonDefaults.itemShape(index = 1, count = 2),
+                            colors = SegmentedButtonDefaults.colors(activeContainerColor = ColorGreen.copy(alpha = 0.2f), activeContentColor = ColorGreen)
+                        ) { Text("Из регламента") }
+                    }
+                }
+
+                // Выпадающий список регламентных работ
+                if (mode == 1 && availableWorks.isNotEmpty()) {
+                    var expanded by remember { mutableStateOf(false) }
+                    ExposedDropdownMenuBox(
+                        expanded = expanded,
+                        onExpandedChange = { expanded = !expanded },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        OutlinedTextField(
+                            value = selectedWork?.name ?: "Выберите работу...",
+                            onValueChange = {},
+                            readOnly = true,
+                            label = { Text("Регламентная работа") },
+                            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
+                            modifier = Modifier.menuAnchor(),
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedTextColor = TextPrimary,
+                                unfocusedTextColor = TextPrimary,
+                                focusedBorderColor = ColorGreen,
+                                unfocusedBorderColor = TextSecondary
+                            )
+                        )
+                        ExposedDropdownMenu(
+                            expanded = expanded,
+                            onDismissRequest = { expanded = false },
+                            modifier = Modifier.background(CardColor)
+                        ) {
+                            availableWorks.forEach { work ->
+                                DropdownMenuItem(
+                                    text = { 
+                                        Column {
+                                            Text(work.name, color = TextPrimary)
+                                            Text("Статус: ${getWorkStatus(work, car, listOfNotNull(initial)).title()}", color = TextSecondary, fontSize = 12.sp)
+                                        }
+                                    },
+                                    onClick = {
+                                        selectedWork = work
+                                        if (lines.isEmpty()) {
+                                            lines = listOf(ServiceLine(name = work.name))
+                                        } else {
+                                            lines = lines.toMutableList().also { it[0] = it[0].copy(name = work.name) }
+                                        }
+                                        reason = work.name
+                                        expanded = false
+                                    }
+                                )
+                            }
+                        }
+                    }
+                }
+
+                // Остальные поля
+                Text("Дата: ${formatDate(date)}", color = TextPrimary)
+                Button(
+                    onClick = {
+                        val c = Calendar.getInstance().apply { timeInMillis = date }
+                        DatePickerDialog(context, { _, y, m, d -> date = Calendar.getInstance().apply { set(y, m, d, 12, 0, 0) }.timeInMillis }, c.get(Calendar.YEAR), c.get(Calendar.MONTH), c.get(Calendar.DAY_OF_MONTH)).show()
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = NavColor)
+                ) { Text("Изменить дату") }
+                
+                field("СТО / магазин", place) { place = it }
+                field("Причина", reason) { reason = it }
+                field("Пробег (км)", mileage, KeyboardType.Number) { mileage = it }
+                field("Примечания", notes) { notes = it }
+                
+                Text("Работы и запчасти", color = TextPrimary)
+                lines.forEachIndexed { i, l -> 
+                    LineEditor(l, onChange = { x -> lines = lines.toMutableList().also { it[i] = x } }, onDelete = { lines = lines.toMutableList().also { it.removeAt(i) } }) 
+                }
+                TextButton(onClick = { lines = lines + ServiceLine(name = "") }) { Text("+ Добавить работу / запчасть", color = ColorGreen) }
+                if (parts.isNotEmpty()) Text("Сохранённые запчасти можно повторно выбрать в перечне работ.", color = TextSecondary)
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = {
+                onSave(
+                    ServiceRecord(
+                        id = initial?.id ?: java.util.UUID.randomUUID().toString(),
+                        carId = car.id,
+                        workId = selectedWork?.id ?: initial?.workId,
+                        date = date,
+                        servicePlace = place,
+                        reason = reason,
+                        mileage = mileage.toIntOrNull() ?: 0,
+                        lines = lines.filter { it.name.isNotBlank() },
+                        notes = notes
+                    )
+                )
+            }) { Text("Сохранить", color = ColorGreen) }
+        },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Отмена", color = TextSecondary) } }
+    )
 }
 
 @Composable 
@@ -95,7 +232,6 @@ private fun LineEditor(line: ServiceLine, onChange: (ServiceLine)->Unit, onDelet
             field("Валюта", line.currency, modifier = Modifier.weight(1f)) { onChange(line.copy(currency = it.uppercase())) }
             field("Тип масла", line.oilType, modifier = Modifier.weight(1f)) { onChange(line.copy(oilType = it)) }
         }
-        // ЗДЕСЬ ИЗМЕНЕНО НА "Название"
         field("Название", line.oilName) { onChange(line.copy(oilName = it)) }
         TextButton(onClick = onDelete) { Text("Удалить строку", color = ColorRed) }
     }
@@ -253,4 +389,12 @@ fun RegulationWorkDialog(carId:String, existing:MaintenanceWork?, templates:List
         Row(verticalAlignment=Alignment.CenterVertically){Checkbox(preventive,{preventive=it});Text("Профилактическая рекомендация",color=TextPrimary)}
         Text("Можно создать работу без интервала — например, для проверки состояния детали. Её статус будет профилактическим.",color=TextSecondary,fontSize=12.sp)
     }},confirmButton={TextButton(onClick={if(name.isNotBlank())onSave(MaintenanceWork(id=existing?.id?:java.util.UUID.randomUUID().toString(),carId=carId,templateId=existing?.templateId?:(templates.firstOrNull{it.name==name}?.id?:""),name=name,category=category,intervalKm=km.toIntOrNull()?:0,intervalMonths=months.toIntOrNull()?:0,warningKm=warningKm.toIntOrNull()?:0,warningMonths=warningMonths.toIntOrNull()?:0,lastMileage=existing?.lastMileage?:0,lastDate=existing?.lastDate?:0L,hasLastExecution=existing?.hasLastExecution?:false,skipped=existing?.skipped?:false,preventive=preventive,notes=existing?.notes?:""))}){Text("Сохранить",color=ColorGreen)}},dismissButton={TextButton(onClick=onDismiss){Text("Отмена",color=TextSecondary)}})
+}
+
+// Вспомогательная функция для красивого названия статуса
+private fun WorkStatus.title(): String = when(this) {
+    WorkStatus.COMPLETED -> "Выполнено"
+    WorkStatus.REQUIRED -> "Необходимо"
+    WorkStatus.PREVENTIVE -> "Рекомендации"
+    WorkStatus.SKIPPED -> "Пропущено"
 }
