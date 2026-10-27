@@ -26,6 +26,7 @@ fun AppScreen() {
     var works by remember { mutableStateOf(loadWorks(context)) }
     var records by remember { mutableStateOf(loadServiceRecords(context)) }
     var parts by remember { mutableStateOf(loadPartCatalog(context)) }
+    
     var selectedCarId by remember {
         mutableStateOf(
             context.getSharedPreferences("car_maintenance", android.content.Context.MODE_PRIVATE)
@@ -49,7 +50,7 @@ fun AppScreen() {
     var partsScreen by remember { mutableStateOf(false) }
     var selectedStatusFilter by remember { mutableStateOf<WorkStatus?>(null) }
     
-    // Для окна деталей выполненной работы
+    // Состояния для просмотра и удаления выполненных работ
     var selectedCompletedWork by remember { mutableStateOf<Pair<MaintenanceWork, ServiceRecord>?>(null) }
     var workToDelete by remember { mutableStateOf<Pair<MaintenanceWork, ServiceRecord>?>(null) }
 
@@ -96,7 +97,7 @@ fun AppScreen() {
     ) {
         val record = ServiceRecord(
             carId = w.carId, 
-            workId = w.id,
+            workId = w.id, // Привязка к работе
             date = date, 
             mileage = km, 
             reason = note,
@@ -154,7 +155,6 @@ fun AppScreen() {
                         onPartSave = { parts = parts + it; savePartCatalog(context, parts) },
                         works = works,
                         onWorkClick = { work ->
-                            // Ищем последнюю запись для этой работы по workId
                             val record = records.lastOrNull { it.workId == work.id }
                             if (record != null) {
                                 selectedCompletedWork = work to record
@@ -194,6 +194,8 @@ fun AppScreen() {
             }
         }
     }
+
+    // --- БЛОК ДИАЛОГОВ ---
 
     if (carDialog) {
         AddCarDialog(editingCar, { carDialog = false }) { newCar ->
@@ -267,7 +269,7 @@ fun AppScreen() {
             editingRegulation = null
         }
     }
-    
+
     // Окно просмотра выполненной работы
     if (selectedCompletedWork != null) {
         val (work, record) = selectedCompletedWork!!
@@ -450,14 +452,22 @@ private fun WorkListScreen(
         }
         Spacer(Modifier.height(8.dp))
         
-        // Показываем выполненные работы в виде плашек
-        val completedWorks = works.filter { it.carId == car.id && getWorkStatus(it, car, records) == WorkStatus.COMPLETED }
-        
-        if (completedWorks.isEmpty()) {
-            Text("Нет выполненных работ", color = TextSecondary)
+        // Фильтруем работы
+        val worksToShow = if (filter != null) {
+            works.filter { it.carId == car.id && getWorkStatus(it, car, records) == filter }
+        } else {
+            // Показываем все работы, у которых есть хотя бы одна выполненная запись
+            works.filter { it.carId == car.id && records.any { rec -> rec.workId == it.id } }
+        }
+
+        if (worksToShow.isEmpty()) {
+            Text(
+                if (filter != null) "Нет работ с этим статусом" else "Пока нет выполненных работ",
+                color = TextSecondary
+            )
         } else {
             LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                items(completedWorks) { work ->
+                items(worksToShow) { work ->
                     WorkCard(work, car, records) { onWorkClick(work) }
                 }
             }
@@ -598,7 +608,7 @@ private fun PartCatalogDialog(carId: String, onDismiss: () -> Unit, onSave: (Par
     var article by remember { mutableStateOf("") }
     var category by remember { mutableStateOf("Запчасть") }
     var cost by remember { mutableStateOf("") }
-    var currency by remember { mutableStateOf("EUR") }
+    var currency by remember { mutableStateOf("RUB") }
 
     AlertDialog(
         onDismissRequest = onDismiss,
