@@ -261,40 +261,32 @@ fun WorkActionsDialog(
             containerColor = CardColor,
             title = { Text(work.name, color = TextPrimary, fontWeight = FontWeight.Bold) },
             text = {
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    // 1. Последняя замена: пробег / дата
-                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                        Text("Последняя замена:", color = TextSecondary)
-                        Text(
-                            text = if (work.hasLastExecution) "${work.lastMileage} км / ${formatDate(work.lastDate)}" else "Не выполнялось",
-                            color = ColorGreen,
-                            fontWeight = FontWeight.Bold
-                        )
-                    }
+                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    // 1. Последняя замена, км
+                    InfoRow(
+                        label = "Последняя замена, км:",
+                        value = if (work.hasLastExecution) "${work.lastMileage}" else "—"
+                    )
                     
-                    HorizontalDivider(color = TextSecondary.copy(alpha = 0.2f))
+                    // 2. Дата последней замены
+                    InfoRow(
+                        label = "Дата последней замены:",
+                        value = if (work.hasLastExecution) formatDate(work.lastDate) else "—"
+                    )
                     
-                    // 2. Следующая замена, км
-                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                        Text("Следующая замена, км:", color = TextSecondary)
-                        val nextMileage = if (work.hasLastExecution) work.lastMileage + work.intervalKm else (car.mileage.toIntOrNull() ?: 0) + work.intervalKm
-                        Text(
-                            text = "$nextMileage",
-                            color = ColorRed,
-                            fontWeight = FontWeight.Bold
-                        )
-                    }
+                    // 3. Следующая замена, км
+                    val nextMileage = if (work.hasLastExecution) work.lastMileage + work.intervalKm else (car.mileage.toIntOrNull() ?: 0) + work.intervalKm
+                    InfoRow(
+                        label = "Следующая замена, км:",
+                        value = "$nextMileage"
+                    )
                     
-                    // 3. Следующая замена, мес
+                    // 4. Следующая замена, мес
                     if (work.intervalMonths > 0) {
-                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                            Text("Следующая замена, мес:", color = TextSecondary)
-                            Text(
-                                text = "${work.intervalMonths}",
-                                color = ColorRed,
-                                fontWeight = FontWeight.Bold
-                            )
-                        }
+                        InfoRow(
+                            label = "Следующая замена, мес:",
+                            value = "${work.intervalMonths}"
+                        )
                     }
                 }
             },
@@ -359,6 +351,19 @@ fun WorkActionsDialog(
             confirmButton = { TextButton(onClick = { onComplete(km.toIntOrNull() ?: 0, System.currentTimeMillis(), note, lines.toList()) }) { Text("Сохранить", color = ColorGreen, fontWeight = FontWeight.Bold) } },
             dismissButton = { TextButton(onClick = { showCompleteForm = false }) { Text("Назад", color = TextSecondary) } }
         )
+    }
+}
+
+// Вспомогательная функция для ровного вывода пар "подпись: значение"
+@Composable
+private fun InfoRow(label: String, value: String) {
+    Row(
+        modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(label, color = TextSecondary, fontSize = 14.sp)
+        Text(value, color = TextPrimary, fontSize = 14.sp, fontWeight = FontWeight.Bold)
     }
 }
 
