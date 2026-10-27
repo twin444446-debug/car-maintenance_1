@@ -106,14 +106,42 @@ fun WorkActionsDialog(
     }
 
     if (!showCompleteForm) {
+        // Окно с информацией о работе (без "Выберите действие")
         AlertDialog(
             onDismissRequest = onDismiss,
             containerColor = CardColor,
-            title = { Text(work.name, color = TextPrimary) },
-            text = { Text("Выберите действие", color = TextSecondary) },
+            title = { Text(work.name, color = TextPrimary, fontWeight = FontWeight.Bold) },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    // Выполнено
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                        Text("Выполнено:", color = TextSecondary)
+                        Text(
+                            text = if (work.hasLastExecution) "${work.lastMileage} км / ${formatDate(work.lastDate)}" else "Не выполнялось",
+                            color = ColorGreen,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                    HorizontalDivider(color = TextSecondary.copy(alpha = 0.2f))
+                    // Следующая замена
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                        Text("Следующая замена:", color = TextSecondary)
+                        val nextMileage = if (work.hasLastExecution) work.lastMileage + work.intervalKm else (car.mileage.toIntOrNull() ?: 0) + work.intervalKm
+                        val monthsText = if (work.intervalMonths > 0) " / ${work.intervalMonths} мес." else ""
+                        Text(
+                            text = "$nextMileage км$monthsText",
+                            color = ColorRed,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                }
+            },
             confirmButton = {
-                TextButton(onClick = { showCompleteForm = true }) {
-                    Text("Выполнить", color = ColorGreen, fontWeight = FontWeight.Bold)
+                Button(
+                    onClick = { showCompleteForm = true },
+                    colors = ButtonDefaults.buttonColors(containerColor = ColorGreen)
+                ) {
+                    Text("Выполнить", color = Color.White, fontWeight = FontWeight.Bold)
                 }
             },
             dismissButton = {
@@ -121,6 +149,7 @@ fun WorkActionsDialog(
             }
         )
     } else {
+        // Форма выполнения (остается без изменений, как была)
         AlertDialog(
             onDismissRequest = { showCompleteForm = false },
             containerColor = CardColor,
