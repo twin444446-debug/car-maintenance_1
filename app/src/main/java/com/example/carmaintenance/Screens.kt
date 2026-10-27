@@ -19,6 +19,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.platform.LocalContext
+import kotlinx.coroutines.launch
 
 @Composable
 fun AppScreen() {
@@ -52,14 +53,13 @@ fun AppScreen() {
     var partsScreen by remember { mutableStateOf(false) }
     var selectedStatusFilter by remember { mutableStateOf<WorkStatus?>(null) }
     
-    // Состояния для просмотра и удаления выполненных работ
     var selectedCompletedWork by remember { mutableStateOf<Pair<MaintenanceWork, ServiceRecord>?>(null) }
     var workToDelete by remember { mutableStateOf<Pair<MaintenanceWork, ServiceRecord>?>(null) }
-    
-    // Состояние для удаления автомобиля (запрос подтверждения)
     var carToDelete by remember { mutableStateOf<Car?>(null) }
 
     val car = cars.firstOrNull { it.id == selectedCarId }
+    val drawerState = rememberDrawerState(DrawerValue.Closed)
+    val scope = rememberCoroutineScope()
 
     fun saveAndRefreshWorks(newWorks: List<MaintenanceWork>) {
         works = newWorks
@@ -92,7 +92,7 @@ fun AppScreen() {
     ) {
         val record = ServiceRecord(
             carId = w.carId, 
-            workId = w.id, // Привязка записи к работе
+            workId = w.id,
             date = date, mileage = km, reason = note, lines = lines, notes = note
         )
         records = records + record
@@ -102,49 +102,72 @@ fun AppScreen() {
         })
     }
 
-    Scaffold(containerColor = BgColor, bottomBar = { BottomNav(screen) { screen = it } }) { pad ->
-        Box(Modifier.fillMaxSize().padding(pad)) {
-            when {
-                templateEditor -> TemplateEditorScreen(templates = templates, onBack = { templateEditor = false }, onSave = { templates = it; saveTemplates(context, templates) })
-                errorDecoder -> ErrorDecoderScreen(onBack = { errorDecoder = false })
-                partsScreen -> PartsCatalogScreen(car, parts, onBack = { partsScreen = false }, onAdd = { p -> parts = parts + p; savePartCatalog(context, parts) })
-                else -> when (screen) {
-                    "Главная" -> HomeScreenRedesign(
-                        car, cars, works, records,
-                        onCarSelect = { selectedCarId = it; context.getSharedPreferences("car_maintenance", android.content.Context.MODE_PRIVATE).edit().putString("selected_car_id", it).apply() },
-                        onAddCar = { editingCar = null; carDialog = true },
-                        onAddWork = { suggestedWork = ""; serviceInitial = null; serviceDialog = true },
-                        onWork = { actionWork = it },
-                        onMileage = { mileageDialog = true },
-                        onOpenCar = { screen = "Автомобиль" },
-                        onStatusClick = { status -> selectedStatusFilter = status; screen = "Перечень работ" }
-                    )
-                    "Перечень работ" -> WorkListScreen(
-                        car, records, parts,
-                        filter = selectedStatusFilter,
-                        onClearFilter = { selectedStatusFilter = null },
-                        onFilterChange = { selectedStatusFilter = it },
-                        onAdd = { suggestedWork = ""; serviceInitial = null; serviceDialog = true },
-                        onEdit = { selectedRecord = it; serviceInitial = it; serviceDialog = true },
-                        onPartSave = { parts = parts + it; savePartCatalog(context, parts) },
-                        works = works,
-                        onWorkClick = { work, record -> selectedCompletedWork = work to record }
-                    )
-                    "Регламент" -> RegulationScreen(car, works.filter { it.carId == car?.id }, records, onWork = { actionWork = it }, onAdd = { editingRegulation = null; regulationDialog = true }, onFill = { if (car != null) createDefaultForCar(car) })
-                    "Статистика" -> StatisticsScreen(car, records)
-                    "Ещё" -> MoreScreen(onTemplate = { templateEditor = true }, onDecoder = { errorDecoder = true }, onParts = { partsScreen = true })
-                    "Автомобиль" -> CarDetailScreen(
-                        car,
-                        onBack = { screen = "Главная" },
-                        onEdit = { editingCar = car; carDialog = true },
-                        onMileage = { mileageDialog = true },
-                        onDelete = { carToDelete = car } // <--- Вызываем подтверждение
-                    )
+    ModalNavigationDrawer(
+        drawerState = drawerState,
+        drawerContent = {
+            ModalDrawerSheet(drawerContainerColor = CardColor) {
+                Spacer(Modifier.height(24.dp))
+                Text("Учёт автомобильного ТО", modifier = Modifier.padding(16.dp), color = TextPrimary, fontSize = 20.sp, fontWeight = FontWeight.Bold)
+                HorizontalDivider(color = TextSecondary.copy(alpha = 0.2f))
+                NavigationDrawerItem(
+                    label = { Text("Добавить автомобиль", color = TextPrimary) },
+                    icon = { Icon(Icons.Default.Add, contentDescription = null, tint = ColorGreen) },
+                    selected = false,
+                    onClick = {
+                        editingCar = null
+                        carDialog = true
+                        scope.launch { drawerState.close() }
+                    },
+                    modifier = Modifier.padding(NavigationDrawerItemDefaults.ItemPadding)
+                )
+            }
+        }
+    ) {
+        Scaffold(containerColor = BgColor, bottomBar = { BottomNav(screen) { screen = it } }) { pad ->
+            Box(Modifier.fillMaxSize().padding(pad)) {
+                when {
+                    templateEditor -> TemplateEditorScreen(templates = templates, onBack = { templateEditor = false }, onSave = { templates = it; saveTemplates(context, templates) })
+                    errorDecoder -> ErrorDecoderScreen(onBack = { errorDecoder = false })
+                    partsScreen -> PartsCatalogScreen(car, parts, onBack = { partsScreen = false }, onAdd = { p -> parts = parts + p; savePartCatalog(context, parts) })
+                    else -> when (screen) {
+                        "Главная" -> HomeScreenRedesign(
+                            car, cars, works, records,
+                            onCarSelect = { selectedCarId = it; context.getSharedPreferences("car_maintenance", android.content.Context.MODE_PRIVATE).edit().putString("selected_car_id", it).apply() },
+                            onAddCar = { editingCar = null; carDialog = true },
+                            onAddWork = { suggestedWork = ""; serviceInitial = null; serviceDialog = true },
+                            onWork = { actionWork = it },
+                            onMileage = { mileageDialog = true },
+                            onOpenCar = { scope.launch { drawerState.open() } }, // Открываем меню
+                            onStatusClick = { status -> selectedStatusFilter = status; screen = "Перечень работ" }
+                        )
+                        "Перечень работ" -> WorkListScreen(
+                            car, records, parts,
+                            filter = selectedStatusFilter,
+                            onClearFilter = { selectedStatusFilter = null },
+                            onFilterChange = { selectedStatusFilter = it },
+                            onAdd = { suggestedWork = ""; serviceInitial = null; serviceDialog = true },
+                            onEdit = { selectedRecord = it; serviceInitial = it; serviceDialog = true },
+                            onPartSave = { parts = parts + it; savePartCatalog(context, parts) },
+                            works = works,
+                            onWorkClick = { work, record -> selectedCompletedWork = work to record }
+                        )
+                        "Регламент" -> RegulationScreen(car, works.filter { it.carId == car?.id }, records, onWork = { actionWork = it }, onAdd = { editingRegulation = null; regulationDialog = true }, onFill = { if (car != null) createDefaultForCar(car) })
+                        "Статистика" -> StatisticsScreen(car, records)
+                        "Ещё" -> MoreScreen(onTemplate = { templateEditor = true }, onDecoder = { errorDecoder = true }, onParts = { partsScreen = true })
+                        "Автомобиль" -> CarDetailScreen(
+                            car,
+                            onBack = { screen = "Главная" },
+                            onEdit = { editingCar = car; carDialog = true },
+                            onMileage = { mileageDialog = true },
+                            onDelete = { carToDelete = car } // Подтверждение
+                        )
+                    }
                 }
             }
         }
     }
 
+    // Диалоги
     if (carDialog) {
         AddCarDialog(editingCar, { carDialog = false }) { newCar ->
             cars = if (cars.any { it.id == newCar.id }) cars.map { if (it.id == newCar.id) newCar else it } else cars + newCar
@@ -164,14 +187,7 @@ fun AppScreen() {
     }
 
     if (serviceDialog && car != null) {
-        ServiceRecordDialog(
-            car = car, 
-            initial = serviceInitial, 
-            suggestedName = suggestedWork, 
-            parts = parts, 
-            works = works, 
-            onDismiss = { serviceDialog = false; serviceInitial = null }
-        ) { record ->
+        ServiceRecordDialog(car, serviceInitial, suggestedWork, parts, works, { serviceDialog = false; serviceInitial = null }) { record ->
             records = if (records.any { it.id == record.id }) records.map { if (it.id == record.id) record else it } else records + record
             saveServiceRecords(context, records); serviceDialog = false; serviceInitial = null
         }
@@ -197,7 +213,6 @@ fun AppScreen() {
         }
     }
 
-    // Окно деталей выполненной работы
     if (selectedCompletedWork != null) {
         val (work, record) = selectedCompletedWork!!
         CompletedWorkInfoDialog(
@@ -208,7 +223,6 @@ fun AppScreen() {
         )
     }
 
-    // Окно подтверждения удаления записи
     if (workToDelete != null) {
         val (work, record) = workToDelete!!
         AlertDialog(
@@ -221,7 +235,6 @@ fun AppScreen() {
         )
     }
 
-    // Окно подтверждения удаления автомобиля
     if (carToDelete != null) {
         val carToRemove = carToDelete!!
         AlertDialog(
@@ -233,7 +246,6 @@ fun AppScreen() {
                 TextButton(onClick = { 
                     cars = cars.filter { it.id != carToRemove.id }
                     saveCars(context, cars)
-                    // Удаляем связанные записи и работы
                     works = works.filter { it.carId != carToRemove.id }
                     saveWorks(context, works)
                     records = records.filter { it.carId != carToRemove.id }
@@ -291,7 +303,6 @@ private fun WorkListScreen(
     var searchQuery by remember { mutableStateOf("") }
     
     Page("Перечень работ") {
-        // Поиск
         Row( modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp) ) {
             OutlinedTextField(
                 value = searchQuery, onValueChange = { searchQuery = it }, modifier = Modifier.weight(1f),
@@ -305,7 +316,6 @@ private fun WorkListScreen(
         
         Spacer(Modifier.height(8.dp))
 
-        // Фильтры
         Row( modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp) ) {
             FilterChip(selected = filter == null, onClick = { onFilterChange(null) }, label = { Text("Все") }, colors = FilterChipDefaults.filterChipColors(selectedContainerColor = ColorGreen.copy(alpha = 0.2f), selectedLabelColor = ColorGreen, labelColor = TextPrimary))
             FilterChip(selected = filter == WorkStatus.COMPLETED, onClick = { onFilterChange(WorkStatus.COMPLETED) }, label = { Text("Выполнено") }, colors = FilterChipDefaults.filterChipColors(selectedContainerColor = ColorGreen.copy(alpha = 0.2f), selectedLabelColor = ColorGreen, labelColor = TextPrimary))
@@ -322,7 +332,6 @@ private fun WorkListScreen(
         }
         Spacer(Modifier.height(8.dp))
         
-        // Логика
         val carRecords = records.filter { it.carId == car.id }.sortedByDescending { it.date }
         
         val filteredItems = carRecords.filter { record ->
