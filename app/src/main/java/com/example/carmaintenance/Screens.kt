@@ -124,24 +124,32 @@ fun AppScreen() {
                 )
                 else -> when (screen) {
                     "Главная" -> HomeScreenRedesign(
-                        car, cars, works, records,
-                        onCarSelect = {
-                            selectedCarId = it
-                            context.getSharedPreferences("car_maintenance", android.content.Context.MODE_PRIVATE)
-                                .edit().putString("selected_car_id", it).apply()
-                        },
-                        onAddCar = { editingCar = null; carDialog = true },
-                        onAddWork = { suggestedWork = ""; serviceInitial = null; serviceDialog = true },
-                        onWork = { actionWork = it },
-                        onMileage = { mileageDialog = true },
-                        onOpenCar = { screen = "Автомобиль" }
-                    )
+    car, cars, works, records,
+    onCarSelect = {
+        selectedCarId = it
+        context.getSharedPreferences("car_maintenance", android.content.Context.MODE_PRIVATE)
+            .edit().putString("selected_car_id", it).apply()
+    },
+    onAddCar = { editingCar = null; carDialog = true },
+    onAddWork = { suggestedWork = ""; serviceInitial = null; serviceDialog = true },
+    onWork = { actionWork = it },
+    onMileage = { mileageDialog = true },
+    onOpenCar = { screen = "Автомобиль" },
+    onStatusClick = { status ->
+        selectedStatusFilter = status
+        screen = "Перечень работ"
+    }
+)
                     "Перечень работ" -> WorkListScreen(
-                        car, records, parts,
-                        onAdd = { suggestedWork = ""; serviceInitial = null; serviceDialog = true },
-                        onEdit = { selectedRecord = it; serviceInitial = it; serviceDialog = true },
-                        onPartSave = { parts = parts + it; savePartCatalog(context, parts) }
-                    )
+    car, records, parts,
+    filter = selectedStatusFilter,
+    onClearFilter = { selectedStatusFilter = null },
+    onAdd = { suggestedWork = ""; serviceInitial = null; serviceDialog = true },
+    onEdit = { selectedRecord = it; serviceInitial = it; serviceDialog = true },
+    onPartSave = { parts = parts + it; savePartCatalog(context, parts) },
+    works = works,
+    onWorkClick = { actionWork = it }
+)
                     "Регламент" -> RegulationScreen(
                         car, works.filter { it.carId == car?.id }, records,
                         onWork = { actionWork = it },
