@@ -21,7 +21,6 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
-// --- НОВАЯ КАРТОЧКА РАБОТЫ ---
 @Composable
 fun WorkCard(work: MaintenanceWork, car: Car, records: List<ServiceRecord>, onClick: () -> Unit) {
     val status = getWorkStatus(work, car, records)
@@ -43,7 +42,6 @@ fun WorkCard(work: MaintenanceWork, car: Car, records: List<ServiceRecord>, onCl
             modifier = Modifier.fillMaxWidth().padding(12.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // Левая иконка
             Box(
                 modifier = Modifier.size(40.dp).background(style.iconColor.copy(alpha = 0.15f), RoundedCornerShape(50)),
                 contentAlignment = Alignment.Center
@@ -53,7 +51,6 @@ fun WorkCard(work: MaintenanceWork, car: Car, records: List<ServiceRecord>, onCl
 
             Spacer(Modifier.width(12.dp))
 
-            // Название и строка с СЛЕДУЮЩИМ пробегом
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = work.name,
@@ -65,50 +62,27 @@ fun WorkCard(work: MaintenanceWork, car: Car, records: List<ServiceRecord>, onCl
                 )
                 Spacer(Modifier.height(4.dp))
                 
-                // Показываем только следующую замену
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     val nextMileage = if (work.hasLastExecution) work.lastMileage + work.intervalKm else currentMileage + work.intervalKm
                     
                     if (work.hasLastExecution) {
-                        Text(
-                            text = "$nextMileage км",
-                            color = ColorRed,
-                            fontSize = 13.sp,
-                            fontWeight = FontWeight.Bold
-                        )
+                        Text("$nextMileage км", color = ColorRed, fontSize = 13.sp, fontWeight = FontWeight.Bold)
                     } else {
-                        Text(
-                            text = "— ($nextMileage км",
-                            color = TextSecondary,
-                            fontSize = 13.sp
-                        )
+                        Text("— ($nextMileage км", color = TextSecondary, fontSize = 13.sp)
                     }
                     
                     if (work.intervalMonths > 0) {
-                        Text(
-                            text = " / ${work.intervalMonths} мес.",
-                            color = ColorRed,
-                            fontSize = 13.sp,
-                            fontWeight = FontWeight.Bold
-                        )
+                        Text(" / ${work.intervalMonths} мес.", color = ColorRed, fontSize = 13.sp, fontWeight = FontWeight.Bold)
                     }
                     
-                    Text(
-                        text = if (work.hasLastExecution) "" else ")",
-                        color = TextSecondary,
-                        fontSize = 13.sp
-                    )
+                    Text(if (work.hasLastExecution) "" else ")", color = TextSecondary, fontSize = 13.sp)
                 }
             }
 
             Spacer(Modifier.width(8.dp))
 
-            // Правый бейдж фиксированной ширины
             Box(
-                modifier = Modifier
-                    .width(90.dp)
-                    .background(style.bg, RoundedCornerShape(50))
-                    .padding(vertical = 6.dp),
+                modifier = Modifier.width(90.dp).background(style.bg, RoundedCornerShape(50)).padding(vertical = 6.dp),
                 contentAlignment = Alignment.Center
             ) {
                 Text(
@@ -129,8 +103,6 @@ fun WorkCard(work: MaintenanceWork, car: Car, records: List<ServiceRecord>, onCl
         }
     }
 }
-
-// --- ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ ---
 
 @Composable
 fun QuickAction(title: String, icon: @Composable () -> Unit, color: Color, onClick: () -> Unit, modifier: Modifier = Modifier) {
@@ -171,27 +143,17 @@ fun StatusBlock(title: String, count: Int, color: Color, modifier: Modifier = Mo
 
 @Composable
 fun SectionTitle(text: String) {
-    Text(
-        text = text,
-        color = TextPrimary,
-        fontSize = 18.sp,
-        fontWeight = FontWeight.Bold,
-        modifier = Modifier.padding(vertical = 8.dp)
-    )
+    Text(text, color = TextPrimary, fontSize = 18.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(vertical = 8.dp))
 }
 
 @Composable
 fun InfoRow(label: String, value: String) {
-    Row(
-        modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
-        horizontalArrangement = Arrangement.SpaceBetween
-    ) {
+    Row(modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp), horizontalArrangement = Arrangement.SpaceBetween) {
         Text(label, color = TextSecondary, fontSize = 14.sp)
         Text(value, color = TextPrimary, fontSize = 14.sp, fontWeight = FontWeight.Medium)
     }
 }
 
-// Вспомогательный data-класс
 data class WorkCardStyle(
     val icon: ImageVector,
     val iconColor: Color,
