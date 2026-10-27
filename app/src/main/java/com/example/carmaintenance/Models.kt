@@ -48,7 +48,7 @@ data class ServiceLine(
     var name: String,
     var article: String = "",
     var cost: Double = 0.0,
-    var currency: String = "RUB", // По умолчанию рубли
+    var currency: String = "EUR",
     var oilType: String = "",
     var oilName: String = "",
     var notes: String = ""
@@ -57,7 +57,7 @@ data class ServiceLine(
 data class ServiceRecord(
     val id: String = UUID.randomUUID().toString(),
     val carId: String,
-    val workId: String? = null, // <--- ДОБАВЛЕНО: привязка к MaintenanceWork
+    val workId: String? = null, // <-- ДОБАВЛЕНО ПОЛЕ ДЛЯ СВЯЗИ С РАБОТОЙ
     var date: Long = System.currentTimeMillis(),
     var servicePlace: String = "",
     var reason: String = "",
@@ -65,7 +65,7 @@ data class ServiceRecord(
     var lines: List<ServiceLine> = emptyList(),
     var notes: String = ""
 ) {
-    fun totalByCurrency(): Map<String, Double> = lines.groupBy { it.currency.ifBlank { "RUB" } }
+    fun totalByCurrency(): Map<String, Double> = lines.groupBy { it.currency.ifBlank { "EUR" } }
         .mapValues { (_, rows) -> rows.sumOf { it.cost } }
 }
 
@@ -76,7 +76,7 @@ data class PartCatalogItem(
     var article: String = "",
     var category: String = "Запчасть",
     var lastCost: Double = 0.0,
-    var currency: String = "RUB"
+    var currency: String = "EUR"
 )
 
 data class WorkHistory(
