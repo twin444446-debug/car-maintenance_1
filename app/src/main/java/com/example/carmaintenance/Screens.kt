@@ -49,7 +49,7 @@ fun AppScreen() {
     var partsScreen by remember { mutableStateOf(false) }
     var selectedStatusFilter by remember { mutableStateOf<WorkStatus?>(null) }
     
-    // Новые состояния для деталей и удаления
+    // Для окна деталей выполненной работы
     var selectedCompletedWork by remember { mutableStateOf<Pair<MaintenanceWork, ServiceRecord>?>(null) }
     var workToDelete by remember { mutableStateOf<Pair<MaintenanceWork, ServiceRecord>?>(null) }
 
@@ -96,7 +96,7 @@ fun AppScreen() {
     ) {
         val record = ServiceRecord(
             carId = w.carId, 
-            workId = w.id, // <--- ПРИВЯЗКА К РАБОТЕ
+            workId = w.id,
             date = date, 
             mileage = km, 
             reason = note,
@@ -154,6 +154,7 @@ fun AppScreen() {
                         onPartSave = { parts = parts + it; savePartCatalog(context, parts) },
                         works = works,
                         onWorkClick = { work ->
+                            // Ищем последнюю запись для этой работы по workId
                             val record = records.lastOrNull { it.workId == work.id }
                             if (record != null) {
                                 selectedCompletedWork = work to record
@@ -449,39 +450,15 @@ private fun WorkListScreen(
         }
         Spacer(Modifier.height(8.dp))
         
-        if (filter != null) {
-            val filteredWorks = works.filter { it.carId == car.id && getWorkStatus(it, car, records) == filter }
-            
-            if (filteredWorks.isEmpty()) {
-                Text("Нет работ с этим статусом", color = TextSecondary)
-            } else {
-                LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    items(filteredWorks) { work ->
-                        WorkCard(work, car, records) { onWorkClick(work) }
-                    }
-                }
-            }
+        // Показываем выполненные работы в виде плашек
+        val completedWorks = works.filter { it.carId == car.id && getWorkStatus(it, car, records) == WorkStatus.COMPLETED }
+        
+        if (completedWorks.isEmpty()) {
+            Text("Нет выполненных работ", color = TextSecondary)
         } else {
             LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                items(records.filter { it.carId == car.id }.sortedByDescending { it.date }) { record ->
-                    Card(
-                        Modifier.fillMaxWidth().clickable { onEdit(record) },
-                        colors = CardDefaults.cardColors(containerColor = CardColor)
-                    ) {
-                        Column(Modifier.padding(14.dp)) {
-                            Text(formatDate(record.date), color = ColorBlue)
-                            Text(record.servicePlace.ifBlank { "Самостоятельно" }, color = TextSecondary)
-                            Text(record.reason.ifBlank { "Обслуживание" }, color = TextPrimary, fontWeight = FontWeight.Bold)
-                            Text("Пробег: ${record.mileage} км", color = TextSecondary)
-                            record.lines.forEach { line ->
-                                Text(
-                                    "• ${line.name}${if (line.article.isNotBlank()) " [${line.article}]" else ""} — ${formatMoney(line.cost)} ${line.currency}",
-                                    color = TextPrimary, fontSize = 13.sp
-                                )
-                            }
-                            Text("Итого: ${formatTotals(record)}", color = ColorGreen, fontWeight = FontWeight.Bold)
-                        }
-                    }
+                items(completedWorks) { work ->
+                    WorkCard(work, car, records) { onWorkClick(work) }
                 }
             }
         }
