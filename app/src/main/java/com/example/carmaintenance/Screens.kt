@@ -122,12 +122,7 @@ fun AppScreen() {
                         onEdit = { selectedRecord = it; serviceInitial = it; serviceDialog = true },
                         onPartSave = { parts = parts + it; savePartCatalog(context, parts) },
                         works = works,
-                        onWorkClick = { work ->
-                            val record = records.lastOrNull { 
-                                it.workId == work.id || (it.workId == null && it.lines.any { l -> l.name == work.name }) 
-                            }
-                            if (record != null) selectedCompletedWork = work to record
-                        }
+                        onWorkClick = { work, record -> selectedCompletedWork = work to record }
                     )
                     "Регламент" -> RegulationScreen(car, works.filter { it.carId == car?.id }, records, onWork = { actionWork = it }, onAdd = { editingRegulation = null; regulationDialog = true }, onFill = { if (car != null) createDefaultForCar(car) })
                     "Статистика" -> StatisticsScreen(car, records)
@@ -248,7 +243,7 @@ private fun WorkListScreen(
     onEdit: (ServiceRecord) -> Unit, 
     onPartSave: (PartCatalogItem) -> Unit,
     works: List<MaintenanceWork>,
-    onWorkClick: (MaintenanceWork) -> Unit
+    onWorkClick: (MaintenanceWork, ServiceRecord) -> Unit
 ) {
     if (car == null) { Page("Перечень работ") { Text("Сначала добавьте автомобиль", color = TextSecondary) }; return }
     
@@ -268,22 +263,43 @@ private fun WorkListScreen(
         }
         Spacer(Modifier.height(8.dp))
         
-        val worksToShow = if (filter != null) {
-            works.filter { it.carId == car.id && getWorkStatus(it, car, records) == filter }
-        } else {
-            // Показываем все работы, у которых есть выполненные записи (по workId или по названию)
-            works.filter { work ->
-                work.carId == car.id && records.any { rec ->
-                    rec.workId == work.id || (rec.workId == null && rec.lines.any { it.name == work.name })
+        if (filter != null) {
+            // Показываем работы по статусу (для фильтров)
+            val filteredWorks = works.filter { it.carId == car.id && getWorkStatus(it, car, records) == filter }
+            if (filteredWorks.isEmpty()) {
+                Text("Нет работ с этим статусом", color = TextSecondary)
+            } else {
+                LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    items(filteredWorks) { work ->
+                        val record = records.lastOrNull { it.workId == work.id || (it.workId == null && it.lines.any { l -> l.name == work.name }) }
+                        WorkCard(work, car, records) {
+                            if (record != null) onWorkClick(work, record)
+                            else {
+                                val dummy = ServiceRecord(carId = car.id, lines = listOf(ServiceLine(name = work.name)), mileage = car.mileage.toIntOrNull() ?: 0)
+                                onWorkClick(work, dummy)
+                            }
+                        }
+                    }
                 }
             }
-        }
-
-        if (worksToShow.isEmpty()) {
-            Text(if (filter != null) "Нет работ с этим статусом" else "Пока нет выполненных работ", color = TextSecondary)
         } else {
-            LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                items(worksToShow) { work -> WorkCard(work, car, records) { onWorkClick(work) } }
+            // Показываем ВСЕ записи (историю)
+            val carRecords = records.filter { it.carId == car.id }.sortedByDescending { it.date }
+            if (carRecords.isEmpty()) {
+                Text("Пока нет выполненных работ", color = TextSecondary)
+            } else {
+                LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    items(carRecords) { record ->
+                        // Находим подходящую работу для отображения, или создаем временную
+                        val work = works.firstOrNull { it.id == record.workId } 
+                            ?: works.firstOrNull { w -> record.lines.any { it.name == w.name } }
+                            ?: MaintenanceWork(carId = car.id, name = record.lines.firstOrNull()?.name ?: "Обслуживание", intervalKm = 0, intervalMonths = 0)
+                        
+                        WorkCard(work, car, records) {
+                            onWorkClick(work, record)
+                        }
+                    }
+                }
             }
         }
     }
