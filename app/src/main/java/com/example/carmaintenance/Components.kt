@@ -43,6 +43,7 @@ fun WorkCard(work: MaintenanceWork, car: Car, records: List<ServiceRecord>, onCl
             modifier = Modifier.fillMaxWidth().padding(12.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
+            // Левая иконка
             Box(
                 modifier = Modifier.size(40.dp).background(style.iconColor.copy(alpha = 0.15f), RoundedCornerShape(50)),
                 contentAlignment = Alignment.Center
@@ -52,6 +53,7 @@ fun WorkCard(work: MaintenanceWork, car: Car, records: List<ServiceRecord>, onCl
 
             Spacer(Modifier.width(12.dp))
 
+            // Название и строка с СЛЕДУЮЩИМ пробегом
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = work.name,
@@ -63,31 +65,60 @@ fun WorkCard(work: MaintenanceWork, car: Car, records: List<ServiceRecord>, onCl
                 )
                 Spacer(Modifier.height(4.dp))
                 
+                // Показываем только следующую замену
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    if (work.hasLastExecution) {
-                        Text("${work.lastMileage} км", color = ColorGreen, fontSize = 13.sp, fontWeight = FontWeight.Bold)
-                    } else {
-                        Text("—", color = ColorGreen, fontSize = 13.sp, fontWeight = FontWeight.Bold)
-                    }
-                    
-                    Text(" (", color = TextSecondary, fontSize = 13.sp)
-                    
                     val nextMileage = if (work.hasLastExecution) work.lastMileage + work.intervalKm else currentMileage + work.intervalKm
-                    Text("$nextMileage км", color = ColorRed, fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                    
+                    if (work.hasLastExecution) {
+                        Text(
+                            text = "$nextMileage км",
+                            color = ColorRed,
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                    } else {
+                        Text(
+                            text = "— ($nextMileage км",
+                            color = TextSecondary,
+                            fontSize = 13.sp
+                        )
+                    }
                     
                     if (work.intervalMonths > 0) {
-                        Text(" / ${work.intervalMonths} мес.", color = ColorRed, fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                        Text(
+                            text = " / ${work.intervalMonths} мес.",
+                            color = ColorRed,
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.Bold
+                        )
                     }
-                    Text(")", color = TextSecondary, fontSize = 13.sp)
+                    
+                    Text(
+                        text = if (work.hasLastExecution) "" else ")",
+                        color = TextSecondary,
+                        fontSize = 13.sp
+                    )
                 }
             }
 
             Spacer(Modifier.width(8.dp))
 
+            // Правый бейдж фиксированной ширины
             Box(
-                modifier = Modifier.background(style.bg, RoundedCornerShape(50)).padding(horizontal = 10.dp, vertical = 6.dp)
+                modifier = Modifier
+                    .width(90.dp)
+                    .background(style.bg, RoundedCornerShape(50))
+                    .padding(vertical = 6.dp),
+                contentAlignment = Alignment.Center
             ) {
-                Text(text = style.text, color = style.textColor, fontSize = 12.sp, fontWeight = FontWeight.Medium)
+                Text(
+                    text = style.text,
+                    color = style.textColor,
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Medium,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
             }
             Icon(
                 imageVector = Icons.Default.KeyboardArrowRight,
@@ -99,7 +130,7 @@ fun WorkCard(work: MaintenanceWork, car: Car, records: List<ServiceRecord>, onCl
     }
 }
 
-// --- ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ, КОТОРЫЕ БЫЛИ УДАЛЕНЫ ---
+// --- ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ ---
 
 @Composable
 fun QuickAction(title: String, icon: @Composable () -> Unit, color: Color, onClick: () -> Unit, modifier: Modifier = Modifier) {
