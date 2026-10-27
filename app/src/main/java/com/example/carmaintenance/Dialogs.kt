@@ -83,7 +83,7 @@ fun ServiceRecordDialog(
     var notes by remember { mutableStateOf(initial?.notes ?: "") }
     var lines by remember { mutableStateOf(initial?.lines ?: listOf(ServiceLine(name = suggestedName))) }
     
-    var mode by remember { mutableStateOf(0) } // 0 - Ремонт, 1 - По регламенту
+    var mode by remember { mutableStateOf(0) }
     var selectedWork by remember { mutableStateOf<MaintenanceWork?>(null) }
     
     val context = androidx.compose.ui.platform.LocalContext.current
@@ -113,7 +113,7 @@ fun ServiceRecordDialog(
                             onClick = { mode = 0 },
                             shape = SegmentedButtonDefaults.itemShape(index = 0, count = 2),
                             colors = SegmentedButtonDefaults.colors(activeContainerColor = ColorGreen.copy(alpha = 0.2f), activeContentColor = ColorGreen),
-                            modifier = Modifier.weight(1f) // <--- РАВНЫЙ РАЗМЕР
+                            modifier = Modifier.weight(1f)
                         ) { Text("Ремонт", maxLines = 1) }
                         
                         SegmentedButton(
@@ -121,7 +121,7 @@ fun ServiceRecordDialog(
                             onClick = { mode = 1 },
                             shape = SegmentedButtonDefaults.itemShape(index = 1, count = 2),
                             colors = SegmentedButtonDefaults.colors(activeContainerColor = ColorGreen.copy(alpha = 0.2f), activeContentColor = ColorGreen),
-                            modifier = Modifier.weight(1f) // <--- РАВНЫЙ РАЗМЕР
+                            modifier = Modifier.weight(1f)
                         ) { Text("По регламенту", maxLines = 1) }
                     }
                 }
