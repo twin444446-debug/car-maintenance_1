@@ -20,6 +20,7 @@ import androidx.compose.ui.platform.LocalContext
 
 @Composable
 fun AppScreen() {
+    var selectedStatusFilter by remember { mutableStateOf<WorkStatus?>(null) }
     val context = LocalContext.current
     var cars by remember { mutableStateOf(loadCars(context)) }
     var templates by remember { mutableStateOf(loadTemplates(context).ifEmpty { defaultTemplates().also { saveTemplates(context, it) } }) }
@@ -47,11 +48,6 @@ fun AppScreen() {
     var errorDecoder by remember { mutableStateOf(false) }
     var selectedRecord by remember { mutableStateOf<ServiceRecord?>(null) }
     var partsScreen by remember { mutableStateOf(false) }
-    var selectedStatusFilter by remember { mutableStateOf<WorkStatus?>(null) }
-    
-    // Новые состояния для деталей и удаления
-    var selectedCompletedWork by remember { mutableStateOf<Pair<MaintenanceWork, ServiceRecord>?>(null) }
-    var workToDelete by remember { mutableStateOf<Pair<MaintenanceWork, ServiceRecord>?>(null) }
 
     val car = cars.firstOrNull { it.id == selectedCarId }
 
@@ -88,30 +84,29 @@ fun AppScreen() {
     }
 
     fun completeWork(
-        w: MaintenanceWork, 
-        km: Int, 
-        date: Long, 
-        note: String,
-        lines: List<ServiceLine>
-    ) {
-        val record = ServiceRecord(
-            carId = w.carId, 
-            workId = w.id, // <--- ПРИВЯЗКА К РАБОТЕ
-            date = date, 
-            mileage = km, 
-            reason = note,
-            lines = lines, 
-            notes = note
-        )
-        
-        records = records + record
-        saveServiceRecords(context, records)
-        
-        saveAndRefreshWorks(works.map {
-            if (it.id == w.id) it.copy(lastMileage = km, lastDate = date, hasLastExecution = true, skipped = false)
-            else it
-        })
-    }
+    w: MaintenanceWork, 
+    km: Int, 
+    date: Long, 
+    note: String,
+    lines: List<ServiceLine> // <--- Здесь должен быть List<ServiceLine>, а не String!
+) {
+    val record = ServiceRecord(
+        carId = w.carId, 
+        date = date, 
+        mileage = km, 
+        reason = note,
+        lines = lines, // <--- И здесь передаем lines
+        notes = note
+    )
+    
+    records = records + record
+    saveServiceRecords(context, records)
+    
+    saveAndRefreshWorks(works.map {
+        if (it.id == w.id) it.copy(lastMileage = km, lastDate = date, hasLastExecution = true, skipped = false)
+        else it
+    })
+}
 
     Scaffold(containerColor = BgColor, bottomBar = { BottomNav(screen) { screen = it } }) { pad ->
         Box(Modifier.fillMaxSize().padding(pad)) {
@@ -129,37 +124,32 @@ fun AppScreen() {
                 )
                 else -> when (screen) {
                     "Главная" -> HomeScreenRedesign(
-                        car, cars, works, records,
-                        onCarSelect = {
-                            selectedCarId = it
-                            context.getSharedPreferences("car_maintenance", android.content.Context.MODE_PRIVATE)
-                                .edit().putString("selected_car_id", it).apply()
-                        },
-                        onAddCar = { editingCar = null; carDialog = true },
-                        onAddWork = { suggestedWork = ""; serviceInitial = null; serviceDialog = true },
-                        onWork = { actionWork = it },
-                        onMileage = { mileageDialog = true },
-                        onOpenCar = { screen = "Автомобиль" },
-                        onStatusClick = { status ->
-                            selectedStatusFilter = status
-                            screen = "Перечень работ"
-                        }
-                    )
+    car, cars, works, records,
+    onCarSelect = {
+        selectedCarId = it
+        context.getSharedPreferences("car_maintenance", android.content.Context.MODE_PRIVATE)
+            .edit().putString("selected_car_id", it).apply()
+    },
+    onAddCar = { editingCar = null; carDialog = true },
+    onAddWork = { suggestedWork = ""; serviceInitial = null; serviceDialog = true },
+    onWork = { actionWork = it },
+    onMileage = { mileageDialog = true },
+    onOpenCar = { screen = "Автомобиль" },
+    onStatusClick = { status ->
+        selectedStatusFilter = status
+        screen = "Перечень работ"
+    }
+)
                     "Перечень работ" -> WorkListScreen(
-                        car, records, parts,
-                        filter = selectedStatusFilter,
-                        onClearFilter = { selectedStatusFilter = null },
-                        onAdd = { suggestedWork = ""; serviceInitial = null; serviceDialog = true },
-                        onEdit = { selectedRecord = it; serviceInitial = it; serviceDialog = true },
-                        onPartSave = { parts = parts + it; savePartCatalog(context, parts) },
-                        works = works,
-                        onWorkClick = { work ->
-                            val record = records.lastOrNull { it.workId == work.id }
-                            if (record != null) {
-                                selectedCompletedWork = work to record
-                            }
-                        }
-                    )
+    car, records, parts,
+    filter = selectedStatusFilter,
+    onClearFilter = { selectedStatusFilter = null },
+    onAdd = { suggestedWork = ""; serviceInitial = null; serviceDialog = true },
+    onEdit = { selectedRecord = it; serviceInitial = it; serviceDialog = true },
+    onPartSave = { parts = parts + it; savePartCatalog(context, parts) },
+    works = works,
+    onWorkClick = { actionWork = it }
+)
                     "Регламент" -> RegulationScreen(
                         car, works.filter { it.carId == car?.id }, records,
                         onWork = { actionWork = it },
@@ -237,9 +227,9 @@ fun AppScreen() {
             currentWork, car, records,
             onDismiss = { actionWork = null },
             onComplete = { km, date, note, lines -> 
-                completeWork(currentWork, km, date, note, lines)
-                actionWork = null 
-            },
+    completeWork(currentWork, km, date, note, lines)
+    actionWork = null 
+},
             onSkip = {
                 saveAndRefreshWorks(works.map { if (it.id == currentWork.id) it.copy(skipped = true) else it })
                 actionWork = null
@@ -265,52 +255,6 @@ fun AppScreen() {
             regulationDialog = false
             editingRegulation = null
         }
-    }
-    
-    // Окно просмотра выполненной работы
-    if (selectedCompletedWork != null) {
-        val (work, record) = selectedCompletedWork!!
-        CompletedWorkInfoDialog(
-            work = work,
-            car = car!!,
-            record = record,
-            onDismiss = { selectedCompletedWork = null },
-            onEdit = {
-                selectedRecord = record
-                serviceInitial = record
-                serviceDialog = true
-                selectedCompletedWork = null
-            },
-            onDelete = {
-                workToDelete = work to record
-                selectedCompletedWork = null
-            }
-        )
-    }
-
-    // Окно подтверждения удаления
-    if (workToDelete != null) {
-        val (work, record) = workToDelete!!
-        AlertDialog(
-            onDismissRequest = { workToDelete = null },
-            containerColor = CardColor,
-            title = { Text("Удалить запись?", color = TextPrimary) },
-            text = { Text("Вы уверены, что хотите удалить запись о выполнении работы \"${work.name}\"? Это действие нельзя отменить.", color = TextSecondary) },
-            confirmButton = {
-                TextButton(onClick = {
-                    records = records.filter { it.id != record.id }
-                    saveServiceRecords(context, records)
-                    workToDelete = null
-                }) {
-                    Text("Удалить", color = ColorRed, fontWeight = FontWeight.Bold)
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { workToDelete = null }) {
-                    Text("Отмена", color = TextSecondary)
-                }
-            }
-        )
     }
 }
 
@@ -434,6 +378,7 @@ private fun WorkListScreen(
     }
     
     Page("Перечень работ") {
+        // Плашка активного фильтра
         if (filter != null) {
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                 Text("Фильтр: ${filter.title()}", color = ColorBlue, fontWeight = FontWeight.Bold)
@@ -449,6 +394,7 @@ private fun WorkListScreen(
         }
         Spacer(Modifier.height(8.dp))
         
+        // Если фильтр активен — показываем работы, иначе — историю
         if (filter != null) {
             val filteredWorks = works.filter { it.carId == car.id && getWorkStatus(it, car, records) == filter }
             
