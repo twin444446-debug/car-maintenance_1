@@ -354,19 +354,6 @@ fun WorkActionsDialog(
     }
 }
 
-// Вспомогательная функция для ровного вывода пар "подпись: значение"
-@Composable
-private fun InfoRow(label: String, value: String) {
-    Row(
-        modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Text(label, color = TextSecondary, fontSize = 14.sp)
-        Text(value, color = TextPrimary, fontSize = 14.sp, fontWeight = FontWeight.Bold)
-    }
-}
-
 @Composable
 fun CompletedWorkInfoDialog(
     work: MaintenanceWork,
