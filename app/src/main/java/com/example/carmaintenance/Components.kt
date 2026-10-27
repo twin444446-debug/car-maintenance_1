@@ -21,7 +21,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
-// --- НОВАЯ КАРТОЧКА РАБОТЫ ---
+// --- КАРТОЧКА РАБОТЫ ---
 @Composable
 fun WorkCard(work: MaintenanceWork, car: Car, records: List<ServiceRecord>, onClick: () -> Unit) {
     val status = getWorkStatus(work, car, records)
@@ -65,7 +65,6 @@ fun WorkCard(work: MaintenanceWork, car: Car, records: List<ServiceRecord>, onCl
                 )
                 Spacer(Modifier.height(4.dp))
                 
-                // Показываем только следующую замену
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     val nextMileage = if (work.hasLastExecution) work.lastMileage + work.intervalKm else currentMileage + work.intervalKm
                     
