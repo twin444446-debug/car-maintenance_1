@@ -21,7 +21,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
-// --- КАРТОЧКА РАБОТЫ (ОБНОВЛЕННАЯ) ---
+// --- НОВАЯ КАРТОЧКА РАБОТЫ ---
 @Composable
 fun WorkCard(work: MaintenanceWork, car: Car, records: List<ServiceRecord>, onClick: () -> Unit) {
     val status = getWorkStatus(work, car, records)
@@ -43,7 +43,7 @@ fun WorkCard(work: MaintenanceWork, car: Car, records: List<ServiceRecord>, onCl
             modifier = Modifier.fillMaxWidth().padding(12.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // 1. Левая иконка статуса
+            // Левая иконка
             Box(
                 modifier = Modifier.size(40.dp).background(style.iconColor.copy(alpha = 0.15f), RoundedCornerShape(50)),
                 contentAlignment = Alignment.Center
@@ -53,7 +53,7 @@ fun WorkCard(work: MaintenanceWork, car: Car, records: List<ServiceRecord>, onCl
 
             Spacer(Modifier.width(12.dp))
 
-            // 2. Название и информация о следующей замене
+            // Название и строка с СЛЕДУЮЩИМ пробегом
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = work.name,
@@ -65,6 +65,7 @@ fun WorkCard(work: MaintenanceWork, car: Car, records: List<ServiceRecord>, onCl
                 )
                 Spacer(Modifier.height(4.dp))
                 
+                // Показываем только следующую замену
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     val nextMileage = if (work.hasLastExecution) work.lastMileage + work.intervalKm else currentMileage + work.intervalKm
                     
@@ -102,7 +103,7 @@ fun WorkCard(work: MaintenanceWork, car: Car, records: List<ServiceRecord>, onCl
 
             Spacer(Modifier.width(8.dp))
 
-            // 3. Правый бейдж с фиксированной шириной (чтобы не было прыжков)
+            // Правый бейдж фиксированной ширины
             Box(
                 modifier = Modifier
                     .width(90.dp)
@@ -190,6 +191,7 @@ fun InfoRow(label: String, value: String) {
     }
 }
 
+// Вспомогательный data-класс
 data class WorkCardStyle(
     val icon: ImageVector,
     val iconColor: Color,
