@@ -87,7 +87,7 @@ fun AppScreen() {
     ) {
         val record = ServiceRecord(
             carId = w.carId, 
-            workId = w.id, // <--- Привязка записи к работе
+            workId = w.id, // Привязка записи к работе
             date = date, mileage = km, reason = note, lines = lines, notes = note
         )
         records = records + record
@@ -123,7 +123,9 @@ fun AppScreen() {
                         onPartSave = { parts = parts + it; savePartCatalog(context, parts) },
                         works = works,
                         onWorkClick = { work ->
-                            val record = records.lastOrNull { it.workId == work.id }
+                            val record = records.lastOrNull { 
+                                it.workId == work.id || (it.workId == null && it.lines.any { l -> l.name == work.name }) 
+                            }
                             if (record != null) selectedCompletedWork = work to record
                         }
                     )
@@ -269,8 +271,12 @@ private fun WorkListScreen(
         val worksToShow = if (filter != null) {
             works.filter { it.carId == car.id && getWorkStatus(it, car, records) == filter }
         } else {
-            // Показываем все работы, у которых есть выполненные записи
-            works.filter { it.carId == car.id && records.any { rec -> rec.workId == it.id } }
+            // Показываем все работы, у которых есть выполненные записи (по workId или по названию)
+            works.filter { work ->
+                work.carId == car.id && records.any { rec ->
+                    rec.workId == work.id || (rec.workId == null && rec.lines.any { it.name == work.name })
+                }
+            }
         }
 
         if (worksToShow.isEmpty()) {
