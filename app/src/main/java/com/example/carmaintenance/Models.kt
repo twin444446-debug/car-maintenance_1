@@ -57,7 +57,7 @@ data class ServiceLine(
 data class ServiceRecord(
     val id: String = UUID.randomUUID().toString(),
     val carId: String,
-    val workId: String? = null, // Связь с MaintenanceWork
+    val workId: String? = null,
     var date: Long = System.currentTimeMillis(),
     var servicePlace: String = "",
     var reason: String = "",
