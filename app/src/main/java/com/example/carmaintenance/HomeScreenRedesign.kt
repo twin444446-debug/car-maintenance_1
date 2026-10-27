@@ -1,8 +1,8 @@
 package com.example.carmaintenance
 
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -10,13 +10,7 @@ import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Build
-import androidx.compose.material.icons.filled.DirectionsCar
-import androidx.compose.material.icons.filled.Edit
-import androidx.compose.material.icons.filled.List
-import androidx.compose.material.icons.filled.Menu
-import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -43,7 +37,6 @@ fun HomeScreenRedesign(
     onMileage: () -> Unit,
     onOpenCar: () -> Unit,
     onOpenSettings: () -> Unit = {},
-    onOpenRegulations: () -> Unit = {},
     onStatusClick: (WorkStatus) -> Unit
 ) {
     // Экран пустого состояния (если нет машин)
@@ -61,24 +54,11 @@ fun HomeScreenRedesign(
                     modifier = Modifier.padding(24.dp),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    Text(
-                        "Учёт автомобильного ТО",
-                        color = TextPrimary,
-                        fontSize = 24.sp,
-                        fontWeight = FontWeight.Bold
-                    )
+                    Text("Учёт автомобильного ТО", color = TextPrimary, fontSize = 24.sp, fontWeight = FontWeight.Bold)
                     Spacer(Modifier.height(10.dp))
-                    Text(
-                        "Добавьте автомобиль, чтобы начать учёт обслуживания.",
-                        color = TextSecondary,
-                        textAlign = TextAlign.Center,
-                        fontSize = 14.sp
-                    )
+                    Text("Добавьте автомобиль, чтобы начать учёт обслуживания.", color = TextSecondary, textAlign = TextAlign.Center, fontSize = 14.sp)
                     Spacer(Modifier.height(18.dp))
-                    Button(
-                        onClick = onAddCar,
-                        colors = ButtonDefaults.buttonColors(containerColor = ColorGreen)
-                    ) {
+                    Button(onClick = onAddCar, colors = ButtonDefaults.buttonColors(containerColor = ColorGreen)) {
                         Icon(Icons.Default.Add, contentDescription = null)
                         Spacer(Modifier.width(6.dp))
                         Text("Добавить автомобиль")
@@ -89,7 +69,6 @@ fun HomeScreenRedesign(
         return
     }
 
-    // Подсчет статистики
     val carWorks = works.filter { it.carId == car.id }
     val statuses = carWorks.map { getWorkStatus(it, car, records) }
     val requiredCount = statuses.count { it == WorkStatus.REQUIRED }
@@ -112,14 +91,14 @@ fun HomeScreenRedesign(
         contentPadding = PaddingValues(start = 14.dp, end = 14.dp, top = 12.dp, bottom = 24.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        // --- 1. ВЕРХНЯЯ ПАНЕЛЬ ---
+        // 1. ВЕРХНЯЯ ПАНЕЛЬ (Меню и Настройки)
         item(key = "home_header") {
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 IconButton(onClick = onOpenCar) {
-                    Icon(Icons.Default.Menu, contentDescription = "Меню автомобилей", tint = TextPrimary)
+                    Icon(Icons.Default.Menu, contentDescription = "Меню", tint = TextPrimary)
                 }
                 Column(Modifier.weight(1f)) {
                     Text("Главная", color = TextPrimary, fontSize = 26.sp, fontWeight = FontWeight.Bold)
@@ -131,7 +110,7 @@ fun HomeScreenRedesign(
             }
         }
 
-        // --- 2. КАРУСЕЛЬ АВТОМОБИЛЕЙ (HorizontalPager) ---
+        // 2. КАРУСЕЛЬ АВТОМОБИЛЕЙ
         item(key = "car_pager_section") {
             val initialIndex = cars.indexOfFirst { it.id == car.id }.coerceAtLeast(0)
             val pagerState = rememberPagerState(initialPage = initialIndex, pageCount = { cars.size })
@@ -149,19 +128,14 @@ fun HomeScreenRedesign(
                     modifier = Modifier.fillMaxWidth()
                 ) { page ->
                     val currentCar = cars[page]
-                    
                     Card(
                         modifier = Modifier.fillMaxWidth(),
                         colors = CardDefaults.cardColors(containerColor = CardColor),
                         shape = RoundedCornerShape(22.dp)
                     ) {
                         Column {
-                            // 1. Верхний блок с картинкой (заглушкой)
                             Box(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .height(130.dp)
-                                    .background(Color(0xFF1E293B))
+                                modifier = Modifier.fillMaxWidth().height(130.dp).background(Color(0xFF1E293B))
                             ) {
                                 Icon(
                                     imageVector = Icons.Default.DirectionsCar,
@@ -171,32 +145,15 @@ fun HomeScreenRedesign(
                                 )
                                 IconButton(
                                     onClick = onOpenCar,
-                                    modifier = Modifier
-                                        .align(Alignment.TopEnd)
-                                        .padding(8.dp)
-                                        .background(Color.Black.copy(alpha = 0.5f), RoundedCornerShape(50))
+                                    modifier = Modifier.align(Alignment.TopEnd).padding(8.dp).background(Color.Black.copy(alpha = 0.5f), RoundedCornerShape(50))
                                 ) {
                                     Icon(Icons.Default.Edit, contentDescription = "Редактировать", tint = Color.White)
                                 }
                             }
 
-                            // 2. Текстовый блок
                             Column(Modifier.padding(16.dp)) {
-                                Text(
-                                    "${currentCar.brand} ${currentCar.model}",
-                                    color = TextPrimary,
-                                    fontSize = 22.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis
-                                )
-                                Text(
-                                    "${currentCar.year.ifBlank { "Год не указан" }} • ${currentCar.engine.ifBlank { "Двигатель не указан" }}",
-                                    color = TextSecondary,
-                                    fontSize = 13.sp,
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis
-                                )
+                                Text("${currentCar.brand} ${currentCar.model}", color = TextPrimary, fontSize = 22.sp, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                Text("${currentCar.year.ifBlank { "Год не указан" }} • ${currentCar.engine.ifBlank { "Двигатель не указан" }}", color = TextSecondary, fontSize = 13.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
 
                                 Spacer(Modifier.height(12.dp))
                                 HorizontalDivider(color = TextSecondary.copy(alpha = 0.18f))
@@ -204,33 +161,18 @@ fun HomeScreenRedesign(
 
                                 Text("ТЕКУЩИЙ ПРОБЕГ", color = TextSecondary, fontSize = 11.sp, fontWeight = FontWeight.Bold)
                                 Row(verticalAlignment = Alignment.CenterVertically) {
-                                    Text(
-                                        "${currentCar.mileage.ifBlank { "0" }} км",
-                                        color = ColorBlue,
-                                        fontSize = 26.sp,
-                                        fontWeight = FontWeight.Bold,
-                                        modifier = Modifier.weight(1f)
-                                    )
-                                    TextButton(onClick = onMileage) {
-                                        Text("Изменить", color = ColorYellow)
-                                    }
+                                    Text("${currentCar.mileage.ifBlank { "0" }} км", color = ColorBlue, fontSize = 26.sp, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
+                                    TextButton(onClick = onMileage) { Text("Изменить", color = ColorYellow) }
                                 }
                                 
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.SpaceBetween
-                                ) {
+                                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                                     Column {
                                         Text("VIN", color = TextSecondary, fontSize = 11.sp)
                                         Text(currentCar.vin.ifBlank { "не указан" }, color = TextPrimary, fontSize = 13.sp)
                                     }
                                     Column(horizontalAlignment = Alignment.End) {
                                         Text("Топливо", color = TextSecondary, fontSize = 11.sp)
-                                        Text(
-                                            "${currentCar.fuel.ifBlank { "не указано" }}${if (currentCar.hasLpg) " • ГБО" else ""}",
-                                            color = TextPrimary, 
-                                            fontSize = 13.sp
-                                        )
+                                        Text("${currentCar.fuel.ifBlank { "не указано" }}${if (currentCar.hasLpg) " • ГБО" else ""}", color = TextPrimary, fontSize = 13.sp)
                                     }
                                 }
                             }
@@ -238,7 +180,7 @@ fun HomeScreenRedesign(
                     }
                 }
 
-                // Индикаторы (точки)
+                // Точки-индикаторы
                 if (cars.size > 1) {
                     Spacer(Modifier.height(8.dp))
                     Row(horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically) {
@@ -255,88 +197,37 @@ fun HomeScreenRedesign(
             }
         }
 
-        // --- 4. СТАТИСТИКА (2x2) ---
-item(key = "stats_grid") {
-    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            StatCardCompact(
-                title = "Выполнено",
-                count = completedCount,
-                color = ColorGreen,
-                modifier = Modifier.weight(1f).clickable { onStatusClick(WorkStatus.COMPLETED) }
-            )
-            StatCardCompact(
-                title = "Необходимо",
-                count = requiredCount,
-                color = ColorRed,
-                modifier = Modifier.weight(1f).clickable { onStatusClick(WorkStatus.REQUIRED) }
-            )
-        }
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            StatCardCompact(
-                title = "Рекомендации",
-                count = preventiveCount,
-                color = ColorYellow,
-                modifier = Modifier.weight(1f).clickable { onStatusClick(WorkStatus.PREVENTIVE) }
-            )
-            StatCardCompact(
-                title = "Пропущено",
-                count = skippedCount,
-                color = ColorPurple,
-                modifier = Modifier.weight(1f).clickable { onStatusClick(WorkStatus.SKIPPED) }
-            )
-        }
-    }
-}
-
-        // --- 5. БЫСТРЫЕ ДЕЙСТВИЯ (Сетка 2x2) ---
-        item(key = "quick_actions_title") {
-            Text("Быстрые действия", color = TextPrimary, fontSize = 18.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(start = 4.dp, top = 4.dp))
+        // 3. СТАТИСТИКА (2x2)
+        item(key = "stats_grid") {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    StatCardCompact(title = "Выполнено", count = completedCount, color = ColorGreen, modifier = Modifier.weight(1f).clickable { onStatusClick(WorkStatus.COMPLETED) })
+                    StatCardCompact(title = "Необходимо", count = requiredCount, color = ColorRed, modifier = Modifier.weight(1f).clickable { onStatusClick(WorkStatus.REQUIRED) })
+                }
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    StatCardCompact(title = "Рекомендации", count = preventiveCount, color = ColorYellow, modifier = Modifier.weight(1f).clickable { onStatusClick(WorkStatus.PREVENTIVE) })
+                    StatCardCompact(title = "Пропущено", count = skippedCount, color = ColorPurple, modifier = Modifier.weight(1f).clickable { onStatusClick(WorkStatus.SKIPPED) })
+                }
+            }
         }
 
-        item(key = "quick_actions_grid") {
-    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            QuickAction(
-                title = "Добавить\nзапись", // <--- БЫЛО text, стало title
-                icon = { Icon(Icons.Default.Add, contentDescription = null, tint = ColorGreen) },
-                color = ColorGreen,
+        // 4. КНОПКА "ДОБАВИТЬ РАБОТУ" (широкая)
+        item(key = "add_record_button") {
+            Button(
                 onClick = onAddWork,
-                modifier = Modifier.weight(1f)
-            )
-            QuickAction(
-                title = "Перечень\nработ", // <--- БЫЛО text, стало title
-                icon = { Icon(Icons.Default.List, contentDescription = null, tint = ColorBlue) },
-                color = ColorBlue,
-                onClick = { /* Навигация через нижнее меню */ },
-                modifier = Modifier.weight(1f)
-            )
-        }
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            QuickAction(
-                title = "Добавить\nавто", // <--- БЫЛО text, стало title
-                icon = { Icon(Icons.Default.DirectionsCar, contentDescription = null, tint = ColorGreen) },
-                color = ColorGreen,
-                onClick = onAddCar,
-                modifier = Modifier.weight(1f)
-            )
-            QuickAction(
-                title = "Регламент", // <--- БЫЛО text, стало title
-                icon = { Icon(Icons.Default.Build, contentDescription = null, tint = ColorGreen) },
-                color = ColorGreen,
-                onClick = onOpenRegulations,
-                modifier = Modifier.weight(1f)
-            )
-        }
-    }
-}
-
-        // --- 6. БЛИЖАЙШИЕ РАБОТЫ ---
-        item(key = "nearest_works_header") {
-            Row(
-                Modifier.fillMaxWidth().padding(start = 4.dp, top = 6.dp),
-                verticalAlignment = Alignment.CenterVertically
+                modifier = Modifier.fillMaxWidth().height(56.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = ColorGreen),
+                shape = RoundedCornerShape(16.dp)
             ) {
+                Icon(Icons.Default.Add, contentDescription = null, tint = Color.White)
+                Spacer(Modifier.width(8.dp))
+                Text("Добавить работу", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 16.sp)
+            }
+        }
+
+        // 5. БЛИЖАЙШИЕ РАБОТЫ
+        item(key = "nearest_works_header") {
+            Row(Modifier.fillMaxWidth().padding(start = 4.dp, top = 6.dp), verticalAlignment = Alignment.CenterVertically) {
                 Text("Ближайшие работы", color = TextPrimary, fontSize = 19.sp, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
                 Text("${carWorks.size} всего", color = TextSecondary, fontSize = 12.sp)
             }
@@ -360,7 +251,6 @@ item(key = "stats_grid") {
     }
 }
 
-// Новая функция для компактной статистики
 @Composable
 fun StatCardCompact(title: String, count: Int, color: Color, modifier: Modifier = Modifier) {
     Card(
