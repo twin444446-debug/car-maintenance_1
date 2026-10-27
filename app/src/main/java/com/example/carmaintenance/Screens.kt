@@ -205,7 +205,7 @@ fun AppScreen() {
                 // 8. Настройки
                 NavigationDrawerItem(
                     label = { Text("Настройки", color = TextPrimary) },
-                    icon = { Icon(Icons.Default.Settings, contentDescription = null, tint = ColorGray) },
+                    icon = { Icon(Icons.Default.Settings, contentDescription = null, tint = Color.Gray) },
                     selected = showSettingsDialog,
                     onClick = {
                         showSettingsDialog = true
