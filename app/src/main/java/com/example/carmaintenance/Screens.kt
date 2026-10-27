@@ -55,6 +55,9 @@ fun AppScreen() {
     // Состояния для просмотра и удаления выполненных работ
     var selectedCompletedWork by remember { mutableStateOf<Pair<MaintenanceWork, ServiceRecord>?>(null) }
     var workToDelete by remember { mutableStateOf<Pair<MaintenanceWork, ServiceRecord>?>(null) }
+    
+    // Состояние для удаления автомобиля (запрос подтверждения)
+    var carToDelete by remember { mutableStateOf<Car?>(null) }
 
     val car = cars.firstOrNull { it.id == selectedCarId }
 
@@ -135,15 +138,7 @@ fun AppScreen() {
                         onBack = { screen = "Главная" },
                         onEdit = { editingCar = car; carDialog = true },
                         onMileage = { mileageDialog = true },
-                        onDelete = {
-                            if (car != null) {
-                                cars = cars.filter { it.id != car.id }
-                                saveCars(context, cars)
-                                selectedCarId = cars.firstOrNull()?.id
-                                context.getSharedPreferences("car_maintenance", android.content.Context.MODE_PRIVATE).edit().putString("selected_car_id", selectedCarId ?: "").apply()
-                                screen = "Главная"
-                            }
-                        }
+                        onDelete = { carToDelete = car } // <--- Вызываем подтверждение
                     )
                 }
             }
@@ -213,7 +208,7 @@ fun AppScreen() {
         )
     }
 
-    // Окно подтверждения удаления
+    // Окно подтверждения удаления записи
     if (workToDelete != null) {
         val (work, record) = workToDelete!!
         AlertDialog(
@@ -223,6 +218,34 @@ fun AppScreen() {
             text = { Text("Вы уверены, что хотите удалить запись о выполнении работы \"${work.name}\"? Это действие нельзя отменить.", color = TextSecondary) },
             confirmButton = { TextButton(onClick = { records = records.filter { it.id != record.id }; saveServiceRecords(context, records); workToDelete = null }) { Text("Удалить", color = ColorRed, fontWeight = FontWeight.Bold) } },
             dismissButton = { TextButton(onClick = { workToDelete = null }) { Text("Отмена", color = TextSecondary) } }
+        )
+    }
+
+    // Окно подтверждения удаления автомобиля
+    if (carToDelete != null) {
+        val carToRemove = carToDelete!!
+        AlertDialog(
+            onDismissRequest = { carToDelete = null },
+            containerColor = CardColor,
+            title = { Text("Удалить автомобиль?", color = TextPrimary) },
+            text = { Text("Вы уверены, что хотите удалить автомобиль \"${carToRemove.brand} ${carToRemove.model}\"? Все записи об обслуживании этого автомобиля также будут удалены. Это действие нельзя отменить.", color = TextSecondary) },
+            confirmButton = { 
+                TextButton(onClick = { 
+                    cars = cars.filter { it.id != carToRemove.id }
+                    saveCars(context, cars)
+                    // Удаляем связанные записи и работы
+                    works = works.filter { it.carId != carToRemove.id }
+                    saveWorks(context, works)
+                    records = records.filter { it.carId != carToRemove.id }
+                    saveServiceRecords(context, records)
+                    
+                    selectedCarId = cars.firstOrNull()?.id
+                    context.getSharedPreferences("car_maintenance", android.content.Context.MODE_PRIVATE).edit().putString("selected_car_id", selectedCarId ?: "").apply()
+                    screen = "Главная"
+                    carToDelete = null 
+                }) { Text("Удалить", color = ColorRed, fontWeight = FontWeight.Bold) } 
+            },
+            dismissButton = { TextButton(onClick = { carToDelete = null }) { Text("Отмена", color = TextSecondary) } }
         )
     }
 }
