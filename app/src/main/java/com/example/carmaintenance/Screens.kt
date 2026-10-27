@@ -2,11 +2,11 @@ package com.example.carmaintenance
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.horizontalScroll // <-- ДОБАВЛЕНО
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.rememberScrollState // <-- ДОБАВЛЕНО
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
@@ -89,7 +89,7 @@ fun AppScreen() {
     ) {
         val record = ServiceRecord(
             carId = w.carId, 
-            workId = w.id,
+            workId = w.id, // Привязка записи к работе
             date = date, mileage = km, reason = note, lines = lines, notes = note
         )
         records = records + record
@@ -120,7 +120,7 @@ fun AppScreen() {
                         car, records, parts,
                         filter = selectedStatusFilter,
                         onClearFilter = { selectedStatusFilter = null },
-                        onFilterChange = { selectedStatusFilter = it }, // <--- НОВЫЙ ПАРАМЕТР
+                        onFilterChange = { selectedStatusFilter = it },
                         onAdd = { suggestedWork = ""; serviceInitial = null; serviceDialog = true },
                         onEdit = { selectedRecord = it; serviceInitial = it; serviceDialog = true },
                         onPartSave = { parts = parts + it; savePartCatalog(context, parts) },
@@ -130,15 +130,21 @@ fun AppScreen() {
                     "Регламент" -> RegulationScreen(car, works.filter { it.carId == car?.id }, records, onWork = { actionWork = it }, onAdd = { editingRegulation = null; regulationDialog = true }, onFill = { if (car != null) createDefaultForCar(car) })
                     "Статистика" -> StatisticsScreen(car, records)
                     "Ещё" -> MoreScreen(onTemplate = { templateEditor = true }, onDecoder = { errorDecoder = true }, onParts = { partsScreen = true })
-                    "Автомобиль" -> CarDetailScreen(car, onBack = { screen = "Главная" }, onEdit = { editingCar = car; carDialog = true }, onMileage = { mileageDialog = true }, onFill = { if (car != null) createDefaultForCar(car) }, onDelete = {
-                        if (car != null) {
-                            cars = cars.filter { it.id != car.id }
-                            saveCars(context, cars)
-                            selectedCarId = cars.firstOrNull()?.id
-                            context.getSharedPreferences("car_maintenance", android.content.Context.MODE_PRIVATE).edit().putString("selected_car_id", selectedCarId ?: "").apply()
-                            screen = "Главная"
+                    "Автомобиль" -> CarDetailScreen(
+                        car,
+                        onBack = { screen = "Главная" },
+                        onEdit = { editingCar = car; carDialog = true },
+                        onMileage = { mileageDialog = true },
+                        onDelete = {
+                            if (car != null) {
+                                cars = cars.filter { it.id != car.id }
+                                saveCars(context, cars)
+                                selectedCarId = cars.firstOrNull()?.id
+                                context.getSharedPreferences("car_maintenance", android.content.Context.MODE_PRIVATE).edit().putString("selected_car_id", selectedCarId ?: "").apply()
+                                screen = "Главная"
+                            }
                         }
-                    })
+                    )
                 }
             }
         }
@@ -163,7 +169,14 @@ fun AppScreen() {
     }
 
     if (serviceDialog && car != null) {
-        ServiceRecordDialog(car, serviceInitial, suggestedWork, parts, { serviceDialog = false; serviceInitial = null }) { record ->
+        ServiceRecordDialog(
+            car = car, 
+            initial = serviceInitial, 
+            suggestedName = suggestedWork, 
+            parts = parts, 
+            works = works, 
+            onDismiss = { serviceDialog = false; serviceInitial = null }
+        ) { record ->
             records = if (records.any { it.id == record.id }) records.map { if (it.id == record.id) record else it } else records + record
             saveServiceRecords(context, records); serviceDialog = false; serviceInitial = null
         }
@@ -243,7 +256,7 @@ private fun WorkListScreen(
     parts: List<PartCatalogItem>,
     filter: WorkStatus? = null,
     onClearFilter: () -> Unit,
-    onFilterChange: (WorkStatus?) -> Unit, // <--- НОВЫЙ ПАРАМЕТР
+    onFilterChange: (WorkStatus?) -> Unit,
     onAdd: () -> Unit, 
     onEdit: (ServiceRecord) -> Unit, 
     onPartSave: (PartCatalogItem) -> Unit,
@@ -255,112 +268,46 @@ private fun WorkListScreen(
     var searchQuery by remember { mutableStateOf("") }
     
     Page("Перечень работ") {
-        // Блок поиска
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
+        // Поиск
+        Row( modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp) ) {
             OutlinedTextField(
-                value = searchQuery,
-                onValueChange = { searchQuery = it },
-                modifier = Modifier.weight(1f),
-                placeholder = { Text("Поиск по названию...", color = TextSecondary) },
-                singleLine = true,
-                colors = OutlinedTextFieldDefaults.colors(
-                    focusedTextColor = TextPrimary,
-                    unfocusedTextColor = TextPrimary,
-                    focusedBorderColor = ColorGreen,
-                    unfocusedBorderColor = TextSecondary,
-                    cursorColor = ColorGreen
-                )
+                value = searchQuery, onValueChange = { searchQuery = it }, modifier = Modifier.weight(1f),
+                placeholder = { Text("Поиск по названию...", color = TextSecondary) }, singleLine = true,
+                colors = OutlinedTextFieldDefaults.colors(focusedTextColor = TextPrimary, unfocusedTextColor = TextPrimary, focusedBorderColor = ColorGreen, unfocusedBorderColor = TextSecondary, cursorColor = ColorGreen)
             )
             if (searchQuery.isNotEmpty()) {
-                IconButton(onClick = { searchQuery = "" }) {
-                    Icon(Icons.Default.Clear, contentDescription = "Очистить", tint = TextSecondary)
-                }
+                IconButton(onClick = { searchQuery = "" }) { Icon(Icons.Default.Clear, contentDescription = "Очистить", tint = TextSecondary) }
             }
         }
         
         Spacer(Modifier.height(8.dp))
 
-        // Блок фильтров (Chips)
-        Row(
-            modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            FilterChip(
-                selected = filter == null,
-                onClick = { onFilterChange(null) },
-                label = { Text("Все") },
-                colors = FilterChipDefaults.filterChipColors(
-                    selectedContainerColor = ColorGreen.copy(alpha = 0.2f),
-                    selectedLabelColor = ColorGreen,
-                    labelColor = TextPrimary
-                )
-            )
-            FilterChip(
-                selected = filter == WorkStatus.COMPLETED,
-                onClick = { onFilterChange(WorkStatus.COMPLETED) },
-                label = { Text("Выполнено") },
-                colors = FilterChipDefaults.filterChipColors(
-                    selectedContainerColor = ColorGreen.copy(alpha = 0.2f),
-                    selectedLabelColor = ColorGreen,
-                    labelColor = TextPrimary
-                )
-            )
-            FilterChip(
-                selected = filter == WorkStatus.PREVENTIVE,
-                onClick = { onFilterChange(WorkStatus.PREVENTIVE) },
-                label = { Text("Рекомендации") },
-                colors = FilterChipDefaults.filterChipColors(
-                    selectedContainerColor = ColorYellow.copy(alpha = 0.2f),
-                    selectedLabelColor = ColorYellow,
-                    labelColor = TextPrimary
-                )
-            )
-            FilterChip(
-                selected = filter == WorkStatus.REQUIRED,
-                onClick = { onFilterChange(WorkStatus.REQUIRED) },
-                label = { Text("Необходимо") },
-                colors = FilterChipDefaults.filterChipColors(
-                    selectedContainerColor = ColorRed.copy(alpha = 0.2f),
-                    selectedLabelColor = ColorRed,
-                    labelColor = TextPrimary
-                )
-            )
-            FilterChip(
-                selected = filter == WorkStatus.SKIPPED,
-                onClick = { onFilterChange(WorkStatus.SKIPPED) },
-                label = { Text("Пропущено") },
-                colors = FilterChipDefaults.filterChipColors(
-                    selectedContainerColor = ColorPurple.copy(alpha = 0.2f),
-                    selectedLabelColor = ColorPurple,
-                    labelColor = TextPrimary
-                )
-            )
+        // Фильтры
+        Row( modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp) ) {
+            FilterChip(selected = filter == null, onClick = { onFilterChange(null) }, label = { Text("Все") }, colors = FilterChipDefaults.filterChipColors(selectedContainerColor = ColorGreen.copy(alpha = 0.2f), selectedLabelColor = ColorGreen, labelColor = TextPrimary))
+            FilterChip(selected = filter == WorkStatus.COMPLETED, onClick = { onFilterChange(WorkStatus.COMPLETED) }, label = { Text("Выполнено") }, colors = FilterChipDefaults.filterChipColors(selectedContainerColor = ColorGreen.copy(alpha = 0.2f), selectedLabelColor = ColorGreen, labelColor = TextPrimary))
+            FilterChip(selected = filter == WorkStatus.PREVENTIVE, onClick = { onFilterChange(WorkStatus.PREVENTIVE) }, label = { Text("Рекомендации") }, colors = FilterChipDefaults.filterChipColors(selectedContainerColor = ColorYellow.copy(alpha = 0.2f), selectedLabelColor = ColorYellow, labelColor = TextPrimary))
+            FilterChip(selected = filter == WorkStatus.REQUIRED, onClick = { onFilterChange(WorkStatus.REQUIRED) }, label = { Text("Необходимо") }, colors = FilterChipDefaults.filterChipColors(selectedContainerColor = ColorRed.copy(alpha = 0.2f), selectedLabelColor = ColorRed, labelColor = TextPrimary))
+            FilterChip(selected = filter == WorkStatus.SKIPPED, onClick = { onFilterChange(WorkStatus.SKIPPED) }, label = { Text("Пропущено") }, colors = FilterChipDefaults.filterChipColors(selectedContainerColor = ColorPurple.copy(alpha = 0.2f), selectedLabelColor = ColorPurple, labelColor = TextPrimary))
         }
 
         Spacer(Modifier.height(8.dp))
 
-        // Кнопка добавления и счетчик
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             Button(onClick = onAdd, modifier = Modifier.weight(1f)) { Text("Добавить запись") }
             Text("${records.count { it.carId == car.id }} записей", color = TextSecondary, modifier = Modifier.padding(12.dp))
         }
         Spacer(Modifier.height(8.dp))
         
-        // Логика фильтрации списка
+        // Логика
         val carRecords = records.filter { it.carId == car.id }.sortedByDescending { it.date }
         
         val filteredItems = carRecords.filter { record ->
-            // 1. Проверка поиска по названию
             val matchesSearch = if (searchQuery.isBlank()) true else {
                 record.lines.any { it.name.contains(searchQuery, ignoreCase = true) } || 
                 record.reason.contains(searchQuery, ignoreCase = true)
             }
             
-            // 2. Проверка по статусу
             val work = works.firstOrNull { it.id == record.workId } 
                 ?: works.firstOrNull { w -> record.lines.any { it.name == w.name } }
                 ?: MaintenanceWork(carId = car.id, name = record.lines.firstOrNull()?.name ?: "Обслуживание", intervalKm = 0, intervalMonths = 0)
@@ -379,9 +326,7 @@ private fun WorkListScreen(
                         ?: works.firstOrNull { w -> record.lines.any { it.name == w.name } }
                         ?: MaintenanceWork(carId = car.id, name = record.lines.firstOrNull()?.name ?: "Обслуживание", intervalKm = 0, intervalMonths = 0)
                     
-                    WorkCard(work, car, records) {
-                        onWorkClick(work, record)
-                    }
+                    WorkCard(work, car, records) { onWorkClick(work, record) }
                 }
             }
         }
@@ -439,7 +384,13 @@ private fun MoreScreen(onTemplate: () -> Unit, onDecoder: () -> Unit, onParts: (
 }
 
 @Composable
-private fun CarDetailScreen(car: Car?, onBack: () -> Unit, onEdit: () -> Unit, onMileage: () -> Unit, onFill: () -> Unit, onDelete: () -> Unit) {
+private fun CarDetailScreen(
+    car: Car?, 
+    onBack: () -> Unit, 
+    onEdit: () -> Unit, 
+    onMileage: () -> Unit, 
+    onDelete: () -> Unit
+) {
     if (car == null) { onBack(); return }
     Page("Автомобиль") {
         TextButton(onClick = onBack) { Text("← Назад", color = ColorBlue) }
@@ -452,7 +403,6 @@ private fun CarDetailScreen(car: Car?, onBack: () -> Unit, onEdit: () -> Unit, o
         }
         Spacer(Modifier.height(12.dp))
         Button(onClick = onMileage, modifier = Modifier.fillMaxWidth()) { Text("Изменить пробег") }
-        Button(onClick = onFill, modifier = Modifier.fillMaxWidth()) { Text("Заполнить регламент") }
         Button(onClick = onEdit, modifier = Modifier.fillMaxWidth()) { Text("Редактировать") }
         TextButton(onClick = onDelete) { Text("Удалить автомобиль", color = ColorRed) }
     }
