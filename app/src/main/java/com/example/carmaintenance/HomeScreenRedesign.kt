@@ -74,7 +74,6 @@ fun HomeScreenRedesign(
         contentPadding = PaddingValues(start = 14.dp, end = 14.dp, top = 12.dp, bottom = 24.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        // ВЕРХНЯЯ ПАНЕЛЬ
         item(key = "home_header") {
             Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                 IconButton(onClick = onOpenCar) { Icon(Icons.Default.Menu, contentDescription = "Меню", tint = TextPrimary) }
@@ -86,10 +85,17 @@ fun HomeScreenRedesign(
             }
         }
 
-        // КАРУСЕЛЬ АВТОМОБИЛЕЙ
         item(key = "car_pager_section") {
             val initialIndex = cars.indexOfFirst { it.id == car.id }.coerceAtLeast(0)
             val pagerState = rememberPagerState(initialPage = initialIndex, pageCount = { cars.size })
+
+            // Синхронизация: если selectedCarId изменился извне, перематываем карусель
+            LaunchedEffect(car.id) {
+                val newIndex = cars.indexOfFirst { it.id == car.id }
+                if (newIndex >= 0 && pagerState.currentPage != newIndex) {
+                    pagerState.scrollToPage(newIndex)
+                }
+            }
 
             LaunchedEffect(pagerState.currentPage) {
                 val selectedCar = cars[pagerState.currentPage]
@@ -140,7 +146,6 @@ fun HomeScreenRedesign(
             }
         }
 
-        // СТАТИСТИКА (2x2)
         item(key = "stats_grid") {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -154,7 +159,6 @@ fun HomeScreenRedesign(
             }
         }
 
-        // КНОПКА "ДОБАВИТЬ РАБОТУ"
         item(key = "add_record_button") {
             Button(
                 onClick = onAddWork,
@@ -168,7 +172,6 @@ fun HomeScreenRedesign(
             }
         }
 
-        // БЛИЖАЙШИЕ РАБОТЫ
         item(key = "nearest_works_header") {
             Row(Modifier.fillMaxWidth().padding(start = 4.dp, top = 6.dp), verticalAlignment = Alignment.CenterVertically) {
                 Text("Ближайшие работы", color = TextPrimary, fontSize = 19.sp, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
@@ -192,11 +195,10 @@ fun HomeScreenRedesign(
     }
 }
 
-// ОБНОВЛЕННАЯ ФУНКЦИЯ КАРТОЧКИ СТАТИСТИКИ (тоньше)
 @Composable
 fun StatCardCompact(title: String, count: Int, color: Color, modifier: Modifier = Modifier) {
     Card(
-        modifier = modifier.height(56.dp), // <--- Сделали тоньше (было 80)
+        modifier = modifier.height(56.dp),
         colors = CardDefaults.cardColors(containerColor = color.copy(alpha = 0.15f)),
         shape = RoundedCornerShape(16.dp)
     ) {
@@ -206,7 +208,7 @@ fun StatCardCompact(title: String, count: Int, color: Color, modifier: Modifier 
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
             Text(title, color = TextPrimary, fontSize = 13.sp, fontWeight = FontWeight.Medium, maxLines = 1)
-            Text("$count", color = color, fontSize = 22.sp, fontWeight = FontWeight.Bold) // Чуть уменьшили цифру
+            Text("$count", color = color, fontSize = 22.sp, fontWeight = FontWeight.Bold)
         }
     }
 }
