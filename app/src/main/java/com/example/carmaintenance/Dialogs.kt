@@ -42,6 +42,7 @@ private fun field(
     label: String, 
     value: String, 
     type: KeyboardType = KeyboardType.Text, 
+    modifier: Modifier = Modifier,
     onValue: (String) -> Unit
 ) = OutlinedTextField(
     value = value,
@@ -49,6 +50,7 @@ private fun field(
     label = { Text(label) },
     keyboardOptions = KeyboardOptions(keyboardType = type),
     singleLine = label != "Заметки",
+    modifier = modifier,
     colors = OutlinedTextFieldDefaults.colors(
         focusedTextColor = TextPrimary,
         unfocusedTextColor = TextPrimary,
@@ -70,7 +72,7 @@ fun ServiceRecordDialog(car: Car, initial: ServiceRecord? = null, suggestedName:
     var lines by remember { mutableStateOf(initial?.lines ?: listOf(ServiceLine(name=suggestedName))) }
     val context = androidx.compose.ui.platform.LocalContext.current
     AlertDialog(onDismissRequest=onDismiss,containerColor=CardColor,title={Text(if(initial==null)"Новая запись обслуживания" else "Изменить запись",color=TextPrimary)},text={
-        Column(Modifier.verticalScroll(rememberScrollState()),verticalArrangement=Arrangement.spacedBy(8.dp)) {
+        Column(Modifier.heightIn(max = 400.dp).verticalScroll(rememberScrollState()),verticalArrangement=Arrangement.spacedBy(8.dp)) {
             Text("Дата: ${formatDate(date)}",color=TextPrimary); Button(onClick={val c=Calendar.getInstance().apply{timeInMillis=date};DatePickerDialog(context,{_,y,m,d->date=Calendar.getInstance().apply{set(y,m,d,12,0,0)}.timeInMillis},c.get(Calendar.YEAR),c.get(Calendar.MONTH),c.get(Calendar.DAY_OF_MONTH)).show()},colors=ButtonDefaults.buttonColors(containerColor=NavColor)){Text("Изменить дату")}
             field("СТО / магазин",place){place=it}; field("Причина",reason){reason=it}; field("Пробег (км)",mileage,KeyboardType.Number){mileage=it}; field("Примечания",notes){notes=it}
             Text("Работы и запчасти",color=TextPrimary)
@@ -81,7 +83,23 @@ fun ServiceRecordDialog(car: Car, initial: ServiceRecord? = null, suggestedName:
     },confirmButton={TextButton(onClick={onSave(ServiceRecord(id=initial?.id ?: java.util.UUID.randomUUID().toString(),carId=car.id,workId=initial?.workId,date=date,servicePlace=place,reason=reason,mileage=mileage.toIntOrNull()?:0,lines=lines.filter{it.name.isNotBlank()},notes=notes))}){Text("Сохранить",color=ColorGreen)}},dismissButton={TextButton(onClick=onDismiss){Text("Отмена",color=TextSecondary)}})
 }
 
-@Composable private fun LineEditor(line: ServiceLine,onChange:(ServiceLine)->Unit,onDelete:()->Unit){Column(verticalArrangement=Arrangement.spacedBy(6.dp)){field("Название",line.name){onChange(line.copy(name=it))};Row(horizontalArrangement=Arrangement.spacedBy(6.dp)){field("Артикул",line.article){onChange(line.copy(article=it))};field("Стоимость",if(line.cost==0.0)"" else line.cost.toString(),KeyboardType.Decimal){onChange(line.copy(cost=it.toDoubleOrNull()?:0.0))}};Row(horizontalArrangement=Arrangement.spacedBy(6.dp)){field("Валюта",line.currency){onChange(line.copy(currency=it.uppercase()))};field("Тип масла",line.oilType){onChange(line.copy(oilType=it))}};field("Название масла",line.oilName){onChange(line.copy(oilName=it))};TextButton(onClick=onDelete){Text("Удалить строку",color=ColorRed)}}}
+@Composable 
+private fun LineEditor(line: ServiceLine, onChange: (ServiceLine)->Unit, onDelete: ()->Unit) {
+    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        field("Название", line.name) { onChange(line.copy(name = it)) }
+        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            field("Артикул", line.article, modifier = Modifier.weight(1f)) { onChange(line.copy(article = it)) }
+            field("Стоимость", if(line.cost == 0.0) "" else line.cost.toString(), KeyboardType.Decimal, modifier = Modifier.weight(1f)) { onChange(line.copy(cost = it.toDoubleOrNull() ?: 0.0)) }
+        }
+        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            field("Валюта", line.currency, modifier = Modifier.weight(1f)) { onChange(line.copy(currency = it.uppercase())) }
+            field("Тип масла", line.oilType, modifier = Modifier.weight(1f)) { onChange(line.copy(oilType = it)) }
+        }
+        // ЗДЕСЬ ИЗМЕНЕНО НА "Название"
+        field("Название", line.oilName) { onChange(line.copy(oilName = it)) }
+        TextButton(onClick = onDelete) { Text("Удалить строку", color = ColorRed) }
+    }
+}
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -131,7 +149,7 @@ fun WorkActionsDialog(
             containerColor = CardColor,
             title = { Text("Выполнение: ${work.name}", color = TextPrimary, fontSize = 18.sp) },
             text = {
-                Column(verticalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.fillMaxWidth().verticalScroll(rememberScrollState())) {
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.heightIn(max = 400.dp).verticalScroll(rememberScrollState())) {
                     OutlinedTextField(
                         value = km, onValueChange = { km = it }, label = { Text("Пробег (км)") },
                         modifier = Modifier.fillMaxWidth(), singleLine = true,
@@ -191,7 +209,7 @@ fun CompletedWorkInfoDialog(
         containerColor = CardColor,
         title = { Text(work.name, color = TextPrimary, fontWeight = FontWeight.Bold) },
         text = {
-            Column(modifier = Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Column(modifier = Modifier.heightIn(max = 400.dp).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                     Text("Выполнено:", color = TextSecondary)
                     Text("${record.mileage} км / ${formatDate(record.date)}", color = ColorGreen, fontWeight = FontWeight.Bold)
@@ -227,7 +245,7 @@ fun RegulationWorkDialog(carId:String, existing:MaintenanceWork?, templates:List
     var warningMonths by remember { mutableStateOf(existing?.warningMonths?.toString() ?: "") }
     var preventive by remember { mutableStateOf(existing?.preventive ?: false) }
     val fieldColors = OutlinedTextFieldDefaults.colors(focusedTextColor = TextPrimary, unfocusedTextColor = TextPrimary, focusedBorderColor = ColorBlue, unfocusedBorderColor = TextSecondary, focusedLabelColor = ColorBlue, unfocusedLabelColor = TextSecondary, cursorColor = ColorBlue)
-    AlertDialog(onDismissRequest=onDismiss,containerColor=CardColor,title={Text(if(existing==null)"Добавить регламентную работу" else "Изменить регламентную работу",color=TextPrimary)},text={Column(Modifier.verticalScroll(rememberScrollState()),verticalArrangement=Arrangement.spacedBy(8.dp)){
+    AlertDialog(onDismissRequest=onDismiss,containerColor=CardColor,title={Text(if(existing==null)"Добавить регламентную работу" else "Изменить регламентную работу",color=TextPrimary)},text={Column(Modifier.heightIn(max = 400.dp).verticalScroll(rememberScrollState()),verticalArrangement=Arrangement.spacedBy(8.dp)){
         OutlinedTextField(name,{name=it},label={Text("Название")},singleLine=true,modifier=Modifier.fillMaxWidth(), colors = fieldColors)
         Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.spacedBy(6.dp)){FilterChip(selected=category==WorkCategory.GENERAL,onClick={category=WorkCategory.GENERAL},label={Text("Автомобиль")});FilterChip(selected=category==WorkCategory.LPG,onClick={category=WorkCategory.LPG},label={Text("ГБО")})}
         Row(horizontalArrangement=Arrangement.spacedBy(6.dp)){OutlinedTextField(km,{km=it},label={Text("Интервал км")},keyboardOptions=KeyboardOptions(keyboardType=KeyboardType.Number),modifier=Modifier.weight(1f), colors = fieldColors);OutlinedTextField(months,{months=it},label={Text("Интервал мес.")},keyboardOptions=KeyboardOptions(keyboardType=KeyboardType.Number),modifier=Modifier.weight(1f), colors = fieldColors)}
