@@ -20,6 +20,7 @@ import androidx.compose.ui.platform.LocalContext
 
 @Composable
 fun AppScreen() {
+    var selectedStatusFilter by remember { mutableStateOf<WorkStatus?>(null) }
     val context = LocalContext.current
     var cars by remember { mutableStateOf(loadCars(context)) }
     var templates by remember { mutableStateOf(loadTemplates(context).ifEmpty { defaultTemplates().also { saveTemplates(context, it) } }) }
