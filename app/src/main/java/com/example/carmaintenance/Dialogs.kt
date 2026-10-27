@@ -15,6 +15,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import java.util.Calendar
@@ -77,7 +78,7 @@ fun ServiceRecordDialog(car: Car, initial: ServiceRecord? = null, suggestedName:
             TextButton(onClick={lines=lines+ServiceLine(name="")}){Text("+ Добавить работу / запчасть",color=ColorGreen)}
             if(parts.isNotEmpty()) Text("Сохранённые запчасти можно повторно выбрать в перечне работ.",color=TextSecondary)
         }
-    },confirmButton={TextButton(onClick={onSave(ServiceRecord(id=initial?.id ?: java.util.UUID.randomUUID().toString(),carId=car.id,date=date,servicePlace=place,reason=reason,mileage=mileage.toIntOrNull()?:0,lines=lines.filter{it.name.isNotBlank()},notes=notes))}){Text("Сохранить",color=ColorGreen)}},dismissButton={TextButton(onClick=onDismiss){Text("Отмена",color=TextSecondary)}})
+    },confirmButton={TextButton(onClick={onSave(ServiceRecord(id=initial?.id ?: java.util.UUID.randomUUID().toString(),carId=car.id,workId=initial?.workId,date=date,servicePlace=place,reason=reason,mileage=mileage.toIntOrNull()?:0,lines=lines.filter{it.name.isNotBlank()},notes=notes))}){Text("Сохранить",color=ColorGreen)}},dismissButton={TextButton(onClick=onDismiss){Text("Отмена",color=TextSecondary)}})
 }
 
 @Composable private fun LineEditor(line: ServiceLine,onChange:(ServiceLine)->Unit,onDelete:()->Unit){Column(verticalArrangement=Arrangement.spacedBy(6.dp)){field("Название",line.name){onChange(line.copy(name=it))};Row(horizontalArrangement=Arrangement.spacedBy(6.dp)){field("Артикул",line.article){onChange(line.copy(article=it))};field("Стоимость",if(line.cost==0.0)"" else line.cost.toString(),KeyboardType.Decimal){onChange(line.copy(cost=it.toDoubleOrNull()?:0.0))}};Row(horizontalArrangement=Arrangement.spacedBy(6.dp)){field("Валюта",line.currency){onChange(line.copy(currency=it.uppercase()))};field("Тип масла",line.oilType){onChange(line.copy(oilType=it))}};field("Название масла",line.oilName){onChange(line.copy(oilName=it))};TextButton(onClick=onDelete){Text("Удалить строку",color=ColorRed)}}}
@@ -106,14 +107,12 @@ fun WorkActionsDialog(
     }
 
     if (!showCompleteForm) {
-        // Окно с информацией о работе (без "Выберите действие")
         AlertDialog(
             onDismissRequest = onDismiss,
             containerColor = CardColor,
             title = { Text(work.name, color = TextPrimary, fontWeight = FontWeight.Bold) },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    // Выполнено
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                         Text("Выполнено:", color = TextSecondary)
                         Text(
@@ -123,7 +122,6 @@ fun WorkActionsDialog(
                         )
                     }
                     HorizontalDivider(color = TextSecondary.copy(alpha = 0.2f))
-                    // Следующая замена
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                         Text("Следующая замена:", color = TextSecondary)
                         val nextMileage = if (work.hasLastExecution) work.lastMileage + work.intervalKm else (car.mileage.toIntOrNull() ?: 0) + work.intervalKm
@@ -149,7 +147,6 @@ fun WorkActionsDialog(
             }
         )
     } else {
-        // Форма выполнения (остается без изменений, как была)
         AlertDialog(
             onDismissRequest = { showCompleteForm = false },
             containerColor = CardColor,
@@ -237,7 +234,6 @@ fun WorkActionsDialog(
                                         )
                                     )
                                     
-                                    // Выпадающий список валют (без EUR)
                                     var expanded by remember { mutableStateOf(false) }
                                     val currencies = listOf("RUB", "UAH")
                                     
@@ -340,6 +336,82 @@ fun WorkActionsDialog(
             }
         )
     }
+}
+
+@Composable
+fun CompletedWorkInfoDialog(
+    work: MaintenanceWork,
+    car: Car,
+    record: ServiceRecord,
+    onDismiss: () -> Unit,
+    onEdit: () -> Unit,
+    onDelete: () -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        containerColor = CardColor,
+        title = { Text(work.name, color = TextPrimary, fontWeight = FontWeight.Bold) },
+        text = {
+            Column(
+                modifier = Modifier.verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                    Text("Выполнено:", color = TextSecondary)
+                    Text("${record.mileage} км / ${formatDate(record.date)}", color = ColorGreen, fontWeight = FontWeight.Bold)
+                }
+                HorizontalDivider(color = TextSecondary.copy(alpha = 0.2f))
+                
+                Text("Работы и материалы:", color = TextPrimary, fontWeight = FontWeight.Bold)
+                record.lines.forEach { line ->
+                    Row(
+                        modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Text(
+                            text = line.name,
+                            color = TextPrimary,
+                            fontSize = 14.sp,
+                            modifier = Modifier.weight(1f),
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                        if (line.article.isNotBlank()) {
+                            Text(
+                                text = "[${line.article}]",
+                                color = TextSecondary,
+                                fontSize = 12.sp,
+                                modifier = Modifier.padding(horizontal = 4.dp),
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                        }
+                        Text(
+                            text = "${formatMoney(line.cost)} ${line.currency}",
+                            color = ColorBlue,
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onEdit) {
+                Text("Изменить", color = ColorYellow, fontWeight = FontWeight.Bold)
+            }
+        },
+        dismissButton = {
+            Row {
+                TextButton(onClick = onDelete) {
+                    Text("Удалить", color = ColorRed)
+                }
+                TextButton(onClick = onDismiss) {
+                    Text("Закрыть", color = TextSecondary)
+                }
+            }
+        }
+    )
 }
 
 @Composable private fun ActionRow(text:String,color:Color,onClick:()->Unit){TextButton(onClick=onClick,modifier=Modifier.fillMaxWidth()){Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.SpaceBetween){Text(text,color=TextPrimary);Text("●",color=color)}}}
