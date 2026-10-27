@@ -295,41 +295,41 @@ item(key = "stats_grid") {
         }
 
         item(key = "quick_actions_grid") {
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    QuickAction(
-                        text = "Добавить\nзапись",
-                        icon = { Icon(Icons.Default.Add, contentDescription = null, tint = ColorGreen) },
-                        color = ColorGreen,
-                        onClick = onAddWork,
-                        modifier = Modifier.weight(1f)
-                    )
-                    QuickAction(
-                        text = "Перечень\nработ",
-                        icon = { Icon(Icons.Default.List, contentDescription = null, tint = ColorBlue) },
-                        color = ColorBlue,
-                        onClick = { /* Навигация через нижнее меню */ },
-                        modifier = Modifier.weight(1f)
-                    )
-                }
-                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    QuickAction(
-                        text = "Добавить\nавто",
-                        icon = { Icon(Icons.Default.DirectionsCar, contentDescription = null, tint = ColorGreen) },
-                        color = ColorGreen,
-                        onClick = onAddCar,
-                        modifier = Modifier.weight(1f)
-                    )
-                    QuickAction(
-                        text = "Регламент",
-                        icon = { Icon(Icons.Default.Build, contentDescription = null, tint = ColorGreen) },
-                        color = ColorGreen,
-                        onClick = onOpenRegulations,
-                        modifier = Modifier.weight(1f)
-                    )
-                }
-            }
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            QuickAction(
+                title = "Добавить\nзапись", // <--- БЫЛО text, стало title
+                icon = { Icon(Icons.Default.Add, contentDescription = null, tint = ColorGreen) },
+                color = ColorGreen,
+                onClick = onAddWork,
+                modifier = Modifier.weight(1f)
+            )
+            QuickAction(
+                title = "Перечень\nработ", // <--- БЫЛО text, стало title
+                icon = { Icon(Icons.Default.List, contentDescription = null, tint = ColorBlue) },
+                color = ColorBlue,
+                onClick = { /* Навигация через нижнее меню */ },
+                modifier = Modifier.weight(1f)
+            )
         }
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            QuickAction(
+                title = "Добавить\nавто", // <--- БЫЛО text, стало title
+                icon = { Icon(Icons.Default.DirectionsCar, contentDescription = null, tint = ColorGreen) },
+                color = ColorGreen,
+                onClick = onAddCar,
+                modifier = Modifier.weight(1f)
+            )
+            QuickAction(
+                title = "Регламент", // <--- БЫЛО text, стало title
+                icon = { Icon(Icons.Default.Build, contentDescription = null, tint = ColorGreen) },
+                color = ColorGreen,
+                onClick = onOpenRegulations,
+                modifier = Modifier.weight(1f)
+            )
+        }
+    }
+}
 
         // --- 6. БЛИЖАЙШИЕ РАБОТЫ ---
         item(key = "nearest_works_header") {
