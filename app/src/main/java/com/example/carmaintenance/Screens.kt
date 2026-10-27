@@ -87,7 +87,7 @@ fun AppScreen() {
     ) {
         val record = ServiceRecord(
             carId = w.carId, 
-            workId = w.id, // Привязка записи к работе
+            workId = w.id,
             date = date, mileage = km, reason = note, lines = lines, notes = note
         )
         records = records + record
@@ -118,6 +118,7 @@ fun AppScreen() {
                         car, records, parts,
                         filter = selectedStatusFilter,
                         onClearFilter = { selectedStatusFilter = null },
+                        onFilterChange = { selectedStatusFilter = it }, // <--- НОВЫЙ ПАРАМЕТР
                         onAdd = { suggestedWork = ""; serviceInitial = null; serviceDialog = true },
                         onEdit = { selectedRecord = it; serviceInitial = it; serviceDialog = true },
                         onPartSave = { parts = parts + it; savePartCatalog(context, parts) },
@@ -232,6 +233,7 @@ private fun Page(title: String, content: @Composable ColumnScope.() -> Unit) {
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun WorkListScreen(
     car: Car?, 
@@ -239,6 +241,7 @@ private fun WorkListScreen(
     parts: List<PartCatalogItem>,
     filter: WorkStatus? = null,
     onClearFilter: () -> Unit,
+    onFilterChange: (WorkStatus?) -> Unit, // <--- НОВЫЙ ПАРАМЕТР
     onAdd: () -> Unit, 
     onEdit: (ServiceRecord) -> Unit, 
     onPartSave: (PartCatalogItem) -> Unit,
@@ -247,57 +250,135 @@ private fun WorkListScreen(
 ) {
     if (car == null) { Page("Перечень работ") { Text("Сначала добавьте автомобиль", color = TextSecondary) }; return }
     
+    var searchQuery by remember { mutableStateOf("") }
+    
     Page("Перечень работ") {
-        if (filter != null) {
-            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                Text("Фильтр: ${filter.title()}", color = ColorBlue, fontWeight = FontWeight.Bold)
-                Spacer(Modifier.weight(1f))
-                TextButton(onClick = onClearFilter) { Text("Сбросить", color = ColorRed) }
+        // Блок поиска
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            OutlinedTextField(
+                value = searchQuery,
+                onValueChange = { searchQuery = it },
+                modifier = Modifier.weight(1f),
+                placeholder = { Text("Поиск по названию...", color = TextSecondary) },
+                singleLine = true,
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedTextColor = TextPrimary,
+                    unfocusedTextColor = TextPrimary,
+                    focusedBorderColor = ColorGreen,
+                    unfocusedBorderColor = TextSecondary,
+                    cursorColor = ColorGreen
+                )
+            )
+            if (searchQuery.isNotEmpty()) {
+                IconButton(onClick = { searchQuery = "" }) {
+                    Icon(Icons.Default.Clear, contentDescription = "Очистить", tint = TextSecondary)
+                }
             }
-            Spacer(Modifier.height(4.dp))
+        }
+        
+        Spacer(Modifier.height(8.dp))
+
+        // Блок фильтров (Chips)
+        Row(
+            modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            FilterChip(
+                selected = filter == null,
+                onClick = { onFilterChange(null) },
+                label = { Text("Все") },
+                colors = FilterChipDefaults.filterChipColors(
+                    selectedContainerColor = ColorGreen.copy(alpha = 0.2f),
+                    selectedLabelColor = ColorGreen,
+                    labelColor = TextPrimary
+                )
+            )
+            FilterChip(
+                selected = filter == WorkStatus.COMPLETED,
+                onClick = { onFilterChange(WorkStatus.COMPLETED) },
+                label = { Text("Выполнено") },
+                colors = FilterChipDefaults.filterChipColors(
+                    selectedContainerColor = ColorGreen.copy(alpha = 0.2f),
+                    selectedLabelColor = ColorGreen,
+                    labelColor = TextPrimary
+                )
+            )
+            FilterChip(
+                selected = filter == WorkStatus.PREVENTIVE,
+                onClick = { onFilterChange(WorkStatus.PREVENTIVE) },
+                label = { Text("Рекомендации") },
+                colors = FilterChipDefaults.filterChipColors(
+                    selectedContainerColor = ColorYellow.copy(alpha = 0.2f),
+                    selectedLabelColor = ColorYellow,
+                    labelColor = TextPrimary
+                )
+            )
+            FilterChip(
+                selected = filter == WorkStatus.REQUIRED,
+                onClick = { onFilterChange(WorkStatus.REQUIRED) },
+                label = { Text("Необходимо") },
+                colors = FilterChipDefaults.filterChipColors(
+                    selectedContainerColor = ColorRed.copy(alpha = 0.2f),
+                    selectedLabelColor = ColorRed,
+                    labelColor = TextPrimary
+                )
+            )
+            FilterChip(
+                selected = filter == WorkStatus.SKIPPED,
+                onClick = { onFilterChange(WorkStatus.SKIPPED) },
+                label = { Text("Пропущено") },
+                colors = FilterChipDefaults.filterChipColors(
+                    selectedContainerColor = ColorPurple.copy(alpha = 0.2f),
+                    selectedLabelColor = ColorPurple,
+                    labelColor = TextPrimary
+                )
+            )
         }
 
+        Spacer(Modifier.height(8.dp))
+
+        // Кнопка добавления и счетчик
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             Button(onClick = onAdd, modifier = Modifier.weight(1f)) { Text("Добавить запись") }
             Text("${records.count { it.carId == car.id }} записей", color = TextSecondary, modifier = Modifier.padding(12.dp))
         }
         Spacer(Modifier.height(8.dp))
         
-        if (filter != null) {
-            // Показываем работы по статусу (для фильтров)
-            val filteredWorks = works.filter { it.carId == car.id && getWorkStatus(it, car, records) == filter }
-            if (filteredWorks.isEmpty()) {
-                Text("Нет работ с этим статусом", color = TextSecondary)
-            } else {
-                LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    items(filteredWorks) { work ->
-                        val record = records.lastOrNull { it.workId == work.id || (it.workId == null && it.lines.any { l -> l.name == work.name }) }
-                        WorkCard(work, car, records) {
-                            if (record != null) onWorkClick(work, record)
-                            else {
-                                val dummy = ServiceRecord(carId = car.id, lines = listOf(ServiceLine(name = work.name)), mileage = car.mileage.toIntOrNull() ?: 0)
-                                onWorkClick(work, dummy)
-                            }
-                        }
-                    }
-                }
+        // Логика фильтрации списка
+        val carRecords = records.filter { it.carId == car.id }.sortedByDescending { it.date }
+        
+        val filteredItems = carRecords.filter { record ->
+            // 1. Проверка поиска по названию
+            val matchesSearch = if (searchQuery.isBlank()) true else {
+                record.lines.any { it.name.contains(searchQuery, ignoreCase = true) } || 
+                record.reason.contains(searchQuery, ignoreCase = true)
             }
+            
+            // 2. Проверка по статусу
+            val work = works.firstOrNull { it.id == record.workId } 
+                ?: works.firstOrNull { w -> record.lines.any { it.name == w.name } }
+                ?: MaintenanceWork(carId = car.id, name = record.lines.firstOrNull()?.name ?: "Обслуживание", intervalKm = 0, intervalMonths = 0)
+            
+            val matchesFilter = if (filter == null) true else getWorkStatus(work, car, records) == filter
+            
+            matchesSearch && matchesFilter
+        }
+
+        if (filteredItems.isEmpty()) {
+            Text(if (searchQuery.isNotBlank()) "Ничего не найдено" else "Пока нет выполненных работ", color = TextSecondary)
         } else {
-            // Показываем ВСЕ записи (историю)
-            val carRecords = records.filter { it.carId == car.id }.sortedByDescending { it.date }
-            if (carRecords.isEmpty()) {
-                Text("Пока нет выполненных работ", color = TextSecondary)
-            } else {
-                LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    items(carRecords) { record ->
-                        // Находим подходящую работу для отображения, или создаем временную
-                        val work = works.firstOrNull { it.id == record.workId } 
-                            ?: works.firstOrNull { w -> record.lines.any { it.name == w.name } }
-                            ?: MaintenanceWork(carId = car.id, name = record.lines.firstOrNull()?.name ?: "Обслуживание", intervalKm = 0, intervalMonths = 0)
-                        
-                        WorkCard(work, car, records) {
-                            onWorkClick(work, record)
-                        }
+            LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                items(filteredItems) { record ->
+                    val work = works.firstOrNull { it.id == record.workId } 
+                        ?: works.firstOrNull { w -> record.lines.any { it.name == w.name } }
+                        ?: MaintenanceWork(carId = car.id, name = record.lines.firstOrNull()?.name ?: "Обслуживание", intervalKm = 0, intervalMonths = 0)
+                    
+                    WorkCard(work, car, records) {
+                        onWorkClick(work, record)
                     }
                 }
             }
