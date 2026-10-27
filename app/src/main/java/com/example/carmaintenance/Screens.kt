@@ -57,7 +57,6 @@ fun AppScreen() {
     var workToDelete by remember { mutableStateOf<Pair<MaintenanceWork, ServiceRecord>?>(null) }
     var carToDelete by remember { mutableStateOf<Car?>(null) }
     
-    // Состояния для диалогов меню
     var showAboutDialog by remember { mutableStateOf(false) }
     var showBackupDialog by remember { mutableStateOf(false) }
     var showSettingsDialog by remember { mutableStateOf(false) }
@@ -110,121 +109,86 @@ fun AppScreen() {
     ModalNavigationDrawer(
         drawerState = drawerState,
         drawerContent = {
-            ModalDrawerSheet(drawerContainerColor = CardColor) {
+            ModalDrawerSheet(
+                drawerContainerColor = CardColor, // Тёмный фон панели
+                drawerContentColor = TextPrimary // Белый текст по умолчанию
+            ) {
                 Spacer(Modifier.height(24.dp))
                 Text("Учёт автомобильного ТО", modifier = Modifier.padding(16.dp), color = TextPrimary, fontSize = 20.sp, fontWeight = FontWeight.Bold)
                 HorizontalDivider(color = TextSecondary.copy(alpha = 0.2f))
                 
+                // Локальная функция для пунктов меню (убираем белый фон)
+                @Composable
+                fun DrawerItem(label: String, icon: androidx.compose.ui.graphics.vector.ImageVector, tint: Color, selected: Boolean, onClick: () -> Unit) {
+                    NavigationDrawerItem(
+                        label = { Text(label, color = TextPrimary) },
+                        icon = { Icon(icon, contentDescription = null, tint = tint) },
+                        selected = selected,
+                        onClick = onClick,
+                        colors = NavigationDrawerItemDefaults.colors(
+                            unselectedContainerColor = Color.Transparent,
+                            selectedContainerColor = Color.Transparent
+                        ),
+                        modifier = Modifier.padding(NavigationDrawerItemDefaults.ItemPadding)
+                    )
+                }
+
                 // 1. Мои автомобили
-                NavigationDrawerItem(
-                    label = { Text("Мои автомобили", color = TextPrimary) },
-                    icon = { Icon(Icons.Default.DirectionsCar, contentDescription = null, tint = ColorBlue) },
-                    selected = screen == "Автомобиль",
-                    onClick = {
-                        screen = "Автомобиль"
-                        scope.launch { drawerState.close() }
-                    },
-                    modifier = Modifier.padding(NavigationDrawerItemDefaults.ItemPadding)
-                )
+                DrawerItem("Мои автомобили", Icons.Default.DirectionsCar, ColorBlue, screen == "Автомобиль") {
+                    screen = "Автомобиль"
+                    scope.launch { drawerState.close() }
+                }
 
                 // 2. Добавить автомобиль
-                NavigationDrawerItem(
-                    label = { Text("Добавить автомобиль", color = TextPrimary) },
-                    icon = { Icon(Icons.Default.Add, contentDescription = null, tint = ColorGreen) },
-                    selected = false,
-                    onClick = {
-                        editingCar = null
-                        carDialog = true
-                        scope.launch { drawerState.close() }
-                    },
-                    modifier = Modifier.padding(NavigationDrawerItemDefaults.ItemPadding)
-                )
+                DrawerItem("Добавить автомобиль", Icons.Default.Add, ColorGreen, false) {
+                    editingCar = null
+                    carDialog = true
+                    scope.launch { drawerState.close() }
+                }
 
                 // 3. Статистика
-                NavigationDrawerItem(
-                    label = { Text("Статистика", color = TextPrimary) },
-                    icon = { Icon(Icons.Default.Info, contentDescription = null, tint = ColorYellow) },
-                    selected = screen == "Статистика",
-                    onClick = {
-                        screen = "Статистика"
-                        scope.launch { drawerState.close() }
-                    },
-                    modifier = Modifier.padding(NavigationDrawerItemDefaults.ItemPadding)
-                )
+                DrawerItem("Статистика", Icons.Default.Info, ColorYellow, screen == "Статистика") {
+                    screen = "Статистика"
+                    scope.launch { drawerState.close() }
+                }
 
                 // 4. Шаблоны регламента
-                NavigationDrawerItem(
-                    label = { Text("Шаблоны регламента", color = TextPrimary) },
-                    icon = { Icon(Icons.Default.List, contentDescription = null, tint = ColorGreen) },
-                    selected = templateEditor,
-                    onClick = {
-                        templateEditor = true
-                        scope.launch { drawerState.close() }
-                    },
-                    modifier = Modifier.padding(NavigationDrawerItemDefaults.ItemPadding)
-                )
+                DrawerItem("Шаблоны регламента", Icons.Default.List, ColorGreen, templateEditor) {
+                    templateEditor = true
+                    scope.launch { drawerState.close() }
+                }
 
                 // 5. Запчасти и расходники
-                NavigationDrawerItem(
-                    label = { Text("Запчасти и расходники", color = TextPrimary) },
-                    icon = { Icon(Icons.Default.Build, contentDescription = null, tint = ColorBlue) },
-                    selected = partsScreen,
-                    onClick = {
-                        partsScreen = true
-                        scope.launch { drawerState.close() }
-                    },
-                    modifier = Modifier.padding(NavigationDrawerItemDefaults.ItemPadding)
-                )
+                DrawerItem("Запчасти и расходники", Icons.Default.Build, ColorBlue, partsScreen) {
+                    partsScreen = true
+                    scope.launch { drawerState.close() }
+                }
 
                 // 6. Коды ошибок
-                NavigationDrawerItem(
-                    label = { Text("Коды ошибок", color = TextPrimary) },
-                    icon = { Icon(Icons.Default.Search, contentDescription = null, tint = ColorPurple) },
-                    selected = errorDecoder,
-                    onClick = {
-                        errorDecoder = true
-                        scope.launch { drawerState.close() }
-                    },
-                    modifier = Modifier.padding(NavigationDrawerItemDefaults.ItemPadding)
-                )
+                DrawerItem("Коды ошибок", Icons.Default.Search, ColorPurple, errorDecoder) {
+                    errorDecoder = true
+                    scope.launch { drawerState.close() }
+                }
 
                 HorizontalDivider(color = TextSecondary.copy(alpha = 0.2f), modifier = Modifier.padding(vertical = 8.dp))
 
                 // 7. О приложении
-                NavigationDrawerItem(
-                    label = { Text("О приложении", color = TextPrimary) },
-                    icon = { Icon(Icons.Default.Info, contentDescription = null, tint = ColorBlue) },
-                    selected = showAboutDialog,
-                    onClick = {
-                        showAboutDialog = true
-                        scope.launch { drawerState.close() }
-                    },
-                    modifier = Modifier.padding(NavigationDrawerItemDefaults.ItemPadding)
-                )
+                DrawerItem("О приложении", Icons.Default.Info, ColorBlue, showAboutDialog) {
+                    showAboutDialog = true
+                    scope.launch { drawerState.close() }
+                }
 
                 // 8. Настройки
-                NavigationDrawerItem(
-                    label = { Text("Настройки", color = TextPrimary) },
-                    icon = { Icon(Icons.Default.Settings, contentDescription = null, tint = Color.Gray) },
-                    selected = showSettingsDialog,
-                    onClick = {
-                        showSettingsDialog = true
-                        scope.launch { drawerState.close() }
-                    },
-                    modifier = Modifier.padding(NavigationDrawerItemDefaults.ItemPadding)
-                )
+                DrawerItem("Настройки", Icons.Default.Settings, Color.Gray, showSettingsDialog) {
+                    showSettingsDialog = true
+                    scope.launch { drawerState.close() }
+                }
 
                 // 9. Резервная копия
-                NavigationDrawerItem(
-                    label = { Text("Резервная копия", color = TextPrimary) },
-                    icon = { Icon(Icons.Default.CloudUpload, contentDescription = null, tint = ColorGreen) },
-                    selected = showBackupDialog,
-                    onClick = {
-                        showBackupDialog = true
-                        scope.launch { drawerState.close() }
-                    },
-                    modifier = Modifier.padding(NavigationDrawerItemDefaults.ItemPadding)
-                )
+                DrawerItem("Резервная копия", Icons.Default.CloudUpload, ColorGreen, showBackupDialog) {
+                    showBackupDialog = true
+                    scope.launch { drawerState.close() }
+                }
             }
         }
     ) {
@@ -366,7 +330,6 @@ fun AppScreen() {
         )
     }
 
-    // Диалог "О приложении"
     if (showAboutDialog) {
         AlertDialog(
             onDismissRequest = { showAboutDialog = false },
@@ -386,7 +349,6 @@ fun AppScreen() {
         )
     }
 
-    // Диалог "Настройки"
     if (showSettingsDialog) {
         AlertDialog(
             onDismissRequest = { showSettingsDialog = false },
@@ -403,7 +365,6 @@ fun AppScreen() {
         )
     }
 
-    // Диалог "Резервная копия"
     if (showBackupDialog) {
         AlertDialog(
             onDismissRequest = { showBackupDialog = false },
