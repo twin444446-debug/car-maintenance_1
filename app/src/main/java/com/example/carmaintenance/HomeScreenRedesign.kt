@@ -1,5 +1,7 @@
 package com.example.carmaintenance
 
+import androidx.compose.animation.animateContentSize
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -12,10 +14,10 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
@@ -37,11 +39,14 @@ fun HomeScreenRedesign(
     onAddWork: () -> Unit,
     onWork: (MaintenanceWork) -> Unit,
     onMileage: () -> Unit,
-    onOpenCar: () -> Unit,   // Меню (три полоски)
-    onEditCar: () -> Unit,   // Редактирование (карандаш)
+    onOpenCar: () -> Unit,
+    onEditCar: () -> Unit,
     onOpenSettings: () -> Unit = {},
     onStatusClick: (WorkStatus) -> Unit
 ) {
+    // Состояние для увеличенного фото (по индексу автомобиля)
+    var expandedImageIndex by remember { mutableStateOf(-1) }
+
     if (car == null) {
         Box(modifier = Modifier.fillMaxSize().background(BgColor), contentAlignment = Alignment.Center) {
             Card(modifier = Modifier.fillMaxWidth().padding(20.dp), colors = CardDefaults.cardColors(containerColor = CardColor), shape = RoundedCornerShape(22.dp)) {
@@ -107,21 +112,34 @@ fun HomeScreenRedesign(
                     state = pagerState, contentPadding = PaddingValues(horizontal = 14.dp), pageSpacing = 10.dp, modifier = Modifier.fillMaxWidth()
                 ) { page ->
                     val currentCar = cars[page]
+                    val isImageExpanded = expandedImageIndex == page
+                    val imageHeight = if (isImageExpanded) 280.dp else 130.dp
+                    val imageContentScale = if (isImageExpanded) ContentScale.Fit else ContentScale.Crop
+
                     Card(modifier = Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = CardColor), shape = RoundedCornerShape(22.dp)) {
                         Column {
-                            Box(modifier = Modifier.fillMaxWidth().height(130.dp).background(Color(0xFF1E293B))) {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(imageHeight)
+                                    .background(Color(0xFF1E293B))
+                                    .animateContentSize(animationSpec = tween(300)) // Плавная анимация высоты
+                                    .clickable { 
+                                        expandedImageIndex = if (isImageExpanded) -1 else page 
+                                    } // Клик сворачивает/разворачивает
+                            ) {
                                 if (currentCar.imageUri.isNotBlank()) {
                                     AsyncImage(
                                         model = currentCar.imageUri,
                                         contentDescription = "Фото ${currentCar.brand} ${currentCar.model}",
                                         modifier = Modifier.fillMaxSize(),
-                                        contentScale = ContentScale.Crop
+                                        contentScale = imageContentScale // Crop для маленького, Fit для большого
                                     )
                                 } else {
                                     Icon(Icons.Default.DirectionsCar, contentDescription = null, tint = Color.White.copy(alpha = 0.1f), modifier = Modifier.align(Alignment.Center).size(72.dp))
                                 }
                                 IconButton(
-                                    onClick = onEditCar, // <-- КАРАНДАШ ОТКРЫВАЕТ РЕДАКТИРОВАНИЕ
+                                    onClick = onEditCar,
                                     modifier = Modifier.align(Alignment.TopEnd).padding(8.dp).background(Color.Black.copy(alpha = 0.5f), RoundedCornerShape(50))
                                 ) {
                                     Icon(Icons.Default.Edit, contentDescription = "Редактировать", tint = Color.White)
