@@ -35,7 +35,6 @@ fun AddCarDialog(existingCar: Car?, onDismiss: () -> Unit, onSave: (Car) -> Unit
     val context = androidx.compose.ui.platform.LocalContext.current
     val launcher = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
         if (uri != null) {
-            // Копируем изображение во внутреннее хранилище и сохраняем путь
             val savedPath = copyImageToInternalStorage(context, uri)
             if (savedPath != null) {
                 imageUri = savedPath
@@ -439,7 +438,8 @@ fun CompletedWorkInfoDialog(
     record: ServiceRecord,
     onDismiss: () -> Unit,
     onEdit: () -> Unit,
-    onDelete: () -> Unit
+    onDelete: () -> Unit,
+    onCancelCompletion: () -> Unit
 ) {
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -459,6 +459,10 @@ fun CompletedWorkInfoDialog(
                         if (line.article.isNotBlank()) { Text(text = "[${line.article}]", color = TextSecondary, fontSize = 12.sp, modifier = Modifier.padding(horizontal = 4.dp), maxLines = 1, overflow = TextOverflow.Ellipsis) }
                         Text(text = "${formatMoney(line.cost)} ${line.currency}", color = ColorBlue, fontSize = 14.sp, fontWeight = FontWeight.Bold)
                     }
+                }
+                Spacer(Modifier.height(8.dp))
+                TextButton(onClick = onCancelCompletion, modifier = Modifier.fillMaxWidth()) {
+                    Text("Отменить выполнение", color = ColorRed, fontWeight = FontWeight.Bold)
                 }
             }
         },
