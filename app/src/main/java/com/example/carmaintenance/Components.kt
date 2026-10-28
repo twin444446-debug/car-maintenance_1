@@ -26,10 +26,11 @@ import androidx.compose.ui.unit.sp
 fun WorkCard(work: MaintenanceWork, car: Car, records: List<ServiceRecord>, onClick: () -> Unit) {
     val status = getWorkStatus(work, car, records)
     val currentMileage = car.mileage.toIntOrNull() ?: 0
-    
-    val nextMileage = if (work.hasLastExecution) work.lastMileage + work.intervalKm else currentMileage + work.intervalKm
-    val remainingKm = nextMileage - currentMileage
-    
+
+    // Формула: lastMileage + intervalKm - currentMileage
+    val lastMileage = if (work.hasLastExecution) work.lastMileage else 0
+    val remainingKm = lastMileage + work.intervalKm - currentMileage
+
     val style = when (status) {
         WorkStatus.REQUIRED -> WorkCardStyle(Icons.Default.PriorityHigh, Color.Red, "Требуется", Color.Red.copy(alpha = 0.15f), Color.Red)
         WorkStatus.PREVENTIVE -> WorkCardStyle(Icons.Default.Schedule, Color.Yellow, "Скоро", Color.Yellow.copy(alpha = 0.15f), Color.Yellow)
@@ -74,8 +75,7 @@ fun WorkCard(work: MaintenanceWork, car: Car, records: List<ServiceRecord>, onCl
                     overflow = TextOverflow.Ellipsis
                 )
                 Spacer(Modifier.height(4.dp))
-                
-                // Остаток пробега (без слов), белый если > 0, иначе красный
+
                 Text(
                     text = "$remainingKm км",
                     color = if (remainingKm > 0) TextPrimary else Color.Red,
