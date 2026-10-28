@@ -109,6 +109,68 @@ fun WorkCard(work: MaintenanceWork, car: Car, records: List<ServiceRecord>, onCl
     }
 }
 
+// Плашка для записи в "Перечне работ"
+@Composable
+fun ServiceRecordCard(
+    record: ServiceRecord,
+    onClick: () -> Unit,
+    onDelete: () -> Unit
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth().clickable { onClick() },
+        colors = CardDefaults.cardColors(containerColor = CardColor),
+        shape = RoundedCornerShape(16.dp)
+    ) {
+        Column(modifier = Modifier.padding(12.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = formatDate(record.date),
+                    color = ColorBlue,
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.Bold
+                )
+                Text(
+                    text = "${record.mileage} км",
+                    color = TextSecondary,
+                    fontSize = 13.sp
+                )
+            }
+            Spacer(Modifier.height(6.dp))
+            Text(
+                text = record.reason.ifBlank { "Обслуживание" },
+                color = TextPrimary,
+                fontSize = 15.sp,
+                fontWeight = FontWeight.Medium,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+            Spacer(Modifier.height(4.dp))
+            record.lines.take(2).forEach { line ->
+                Text(
+                    text = "• ${line.name}${if (line.article.isNotBlank()) " [${line.article}]" else ""} — ${formatMoney(line.cost)} ${line.currency}",
+                    color = TextSecondary,
+                    fontSize = 12.sp,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
+            if (record.lines.size > 2) {
+                Text("...и ещё ${record.lines.size - 2}", color = TextSecondary, fontSize = 12.sp)
+            }
+            Spacer(Modifier.height(8.dp))
+            Row(horizontalArrangement = Arrangement.End, modifier = Modifier.fillMaxWidth()) {
+                TextButton(onClick = onDelete) {
+                    Text("Удалить", color = ColorRed, fontSize = 12.sp)
+                }
+            }
+        }
+    }
+}
+
 @Composable
 fun QuickAction(title: String, icon: @Composable () -> Unit, color: Color, onClick: () -> Unit, modifier: Modifier = Modifier) {
     Card(
