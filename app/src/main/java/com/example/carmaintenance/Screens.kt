@@ -299,7 +299,29 @@ fun AppScreen() {
             containerColor = CardColor,
             title = { Text("Удалить запись?", color = TextPrimary) },
             text = { Text("Вы уверены, что хотите удалить запись о выполнении работы \"${work.name}\"? Это действие нельзя отменить.", color = TextSecondary) },
-            confirmButton = { TextButton(onClick = { records = records.filter { it.id != record.id }; saveServiceRecords(context, records); workToDelete = null }) { Text("Удалить", color = ColorRed, fontWeight = FontWeight.Bold) } },
+            confirmButton = { 
+                TextButton(onClick = { 
+                    // 1. Удаляем запись
+                    records = records.filter { it.id != record.id }
+                    saveServiceRecords(context, records)
+                    
+                    // 2. Если запись была привязана к регламентной работе, сбрасываем её статус
+                    if (record.workId != null) {
+                        saveAndRefreshWorks(works.map { 
+                            if (it.id == record.workId) {
+                                it.copy(
+                                    hasLastExecution = false,
+                                    lastMileage = 0,
+                                    lastDate = 0L,
+                                    skipped = false
+                                )
+                            } else it
+                        })
+                    }
+                    
+                    workToDelete = null 
+                }) { Text("Удалить", color = ColorRed, fontWeight = FontWeight.Bold) } 
+            },
             dismissButton = { TextButton(onClick = { workToDelete = null }) { Text("Отмена", color = TextSecondary) } }
         )
     }
