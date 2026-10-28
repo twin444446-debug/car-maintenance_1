@@ -314,11 +314,13 @@ fun WorkActionsDialog(
             title = { Text(work.name, color = TextPrimary, fontWeight = FontWeight.Bold) },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    // 1. Последняя замена, км
                     InfoRow(
                         label = "Последняя замена, км:",
                         value = if (work.hasLastExecution) "${work.lastMileage}" else "—",
                         valueColor = ColorGreen.copy(alpha = 0.7f)
                     )
+                    // 2. Дата последней замены
                     InfoRow(
                         label = "Дата последней замены:",
                         value = if (work.hasLastExecution) formatDate(work.lastDate) else "—",
@@ -332,16 +334,19 @@ fun WorkActionsDialog(
                     val currentMileage = car.mileage.toIntOrNull() ?: 0
                     val nextMileage = if (work.hasLastExecution) work.lastMileage + work.intervalKm else currentMileage + work.intervalKm
                     val remainingKm = nextMileage - currentMileage
+                    // 3. Следующая замена, км
                     InfoRow(
                         label = "Следующая замена, км:",
                         value = "$nextMileage",
                         valueColor = if (currentMileage >= nextMileage) Color.Red else TextPrimary
                     )
+                    // 4. Остаток пробега
                     InfoRow(
                         label = "Остаток пробега:",
                         value = "$remainingKm",
                         valueColor = if (remainingKm > 0) TextPrimary else Color.Red
                     )
+                    // 5. Следующая замена, мес
                     if (work.intervalMonths > 0) {
                         val currentTime = System.currentTimeMillis()
                         val lastExecTime = work.lastDate
