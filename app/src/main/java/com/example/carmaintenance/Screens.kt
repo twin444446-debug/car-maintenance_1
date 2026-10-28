@@ -72,7 +72,7 @@ fun AppScreen() {
     var partsScreen by remember { mutableStateOf(false) }
     var selectedStatusFilter by remember { mutableStateOf<WorkStatus?>(null) }
     var backupScreen by remember { mutableStateOf(false) }
-    var matrixScreen by remember { mutableStateOf(false) } // <-- ДОБАВЛЕНО
+    var matrixScreen by remember { mutableStateOf(false) }
     
     var selectedCompletedWork by remember { mutableStateOf<Pair<MaintenanceWork, ServiceRecord>?>(null) }
     var workToDelete by remember { mutableStateOf<Pair<MaintenanceWork, ServiceRecord>?>(null) }
@@ -152,7 +152,9 @@ fun AppScreen() {
             }
         }.map { template ->
             MaintenanceWork(
-                carId = c.id, templateId = template.id, name = template.name, category = template.category,
+                carId = c.id, templateId = template.id, name = template.name, 
+                groupName = template.groupName,
+                category = template.category,
                 intervalKm = template.intervalKm, intervalMonths = template.intervalMonths,
                 warningKm = template.warningKm, warningMonths = template.warningMonths,
                 preventive = template.preventive, notes = template.notes
