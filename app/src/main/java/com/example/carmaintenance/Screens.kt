@@ -531,6 +531,7 @@ fun AppScreen() {
         )
     }
 
+    // ДИАЛОГ УДАЛЕНИЯ АВТОМОБИЛЯ С ПОДТВЕРЖДЕНИЕМ
     if (carToDelete != null) {
         val carToRemove = carToDelete!!
         AlertDialog(
@@ -542,10 +543,16 @@ fun AppScreen() {
                 TextButton(onClick = { 
                     cars = cars.filter { it.id != carToRemove.id }
                     saveCars(context, cars)
+                    
                     works = works.filter { it.carId != carToRemove.id }
                     saveWorks(context, works)
+                    
                     records = records.filter { it.carId != carToRemove.id }
                     saveServiceRecords(context, records)
+                    
+                    parts = parts.filter { it.carId != carToRemove.id }
+                    savePartCatalog(context, parts)
+                    
                     selectedCarId = cars.firstOrNull()?.id
                     context.getSharedPreferences("car_maintenance", android.content.Context.MODE_PRIVATE).edit().putString("selected_car_id", selectedCarId ?: "").apply()
                     screen = "Главная"
@@ -872,7 +879,15 @@ private fun CarDetailScreen(
         Spacer(Modifier.height(12.dp))
         Button(onClick = onMileage, modifier = Modifier.fillMaxWidth()) { Text("Изменить пробег") }
         Button(onClick = onEdit, modifier = Modifier.fillMaxWidth()) { Text("Редактировать") }
-        TextButton(onClick = onDelete) { Text("Удалить автомобиль", color = ColorRed) }
+        Spacer(Modifier.height(8.dp))
+        // КНОПКА УДАЛЕНИЯ АВТОМОБИЛЯ
+        Button(
+            onClick = onDelete, 
+            modifier = Modifier.fillMaxWidth(),
+            colors = ButtonDefaults.buttonColors(containerColor = ColorRed.copy(alpha = 0.2f))
+        ) { 
+            Text("Удалить автомобиль", color = ColorRed, fontWeight = FontWeight.Bold) 
+        }
     }
 }
 
