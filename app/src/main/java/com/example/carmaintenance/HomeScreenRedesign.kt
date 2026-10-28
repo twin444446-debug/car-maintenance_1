@@ -17,11 +17,13 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import coil.compose.AsyncImage
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
@@ -89,12 +91,9 @@ fun HomeScreenRedesign(
             val initialIndex = cars.indexOfFirst { it.id == car.id }.coerceAtLeast(0)
             val pagerState = rememberPagerState(initialPage = initialIndex, pageCount = { cars.size })
 
-            // Синхронизация: если selectedCarId изменился извне, перематываем карусель
             LaunchedEffect(car.id) {
                 val newIndex = cars.indexOfFirst { it.id == car.id }
-                if (newIndex >= 0 && pagerState.currentPage != newIndex) {
-                    pagerState.scrollToPage(newIndex)
-                }
+                if (newIndex >= 0 && pagerState.currentPage != newIndex) pagerState.scrollToPage(newIndex)
             }
 
             LaunchedEffect(pagerState.currentPage) {
@@ -109,8 +108,19 @@ fun HomeScreenRedesign(
                     val currentCar = cars[page]
                     Card(modifier = Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = CardColor), shape = RoundedCornerShape(22.dp)) {
                         Column {
-                            Box(modifier = Modifier.fillMaxWidth().height(130.dp).background(Color(0xFF1E293B))) {
-                                Icon(Icons.Default.DirectionsCar, contentDescription = null, tint = Color.White.copy(alpha = 0.1f), modifier = Modifier.align(Alignment.Center).size(72.dp))
+                            Box(
+                                modifier = Modifier.fillMaxWidth().height(130.dp).background(Color(0xFF1E293B))
+                            ) {
+                                if (currentCar.imageUri.isNotBlank()) {
+                                    AsyncImage(
+                                        model = currentCar.imageUri,
+                                        contentDescription = "Фото ${currentCar.brand} ${currentCar.model}",
+                                        modifier = Modifier.fillMaxSize(),
+                                        contentScale = ContentScale.Crop
+                                    )
+                                } else {
+                                    Icon(Icons.Default.DirectionsCar, contentDescription = null, tint = Color.White.copy(alpha = 0.1f), modifier = Modifier.align(Alignment.Center).size(72.dp))
+                                }
                                 IconButton(onClick = onOpenCar, modifier = Modifier.align(Alignment.TopEnd).padding(8.dp).background(Color.Black.copy(alpha = 0.5f), RoundedCornerShape(50))) {
                                     Icon(Icons.Default.Edit, contentDescription = "Редактировать", tint = Color.White)
                                 }
