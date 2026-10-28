@@ -37,7 +37,8 @@ fun HomeScreenRedesign(
     onAddWork: () -> Unit,
     onWork: (MaintenanceWork) -> Unit,
     onMileage: () -> Unit,
-    onOpenCar: () -> Unit,
+    onOpenCar: () -> Unit,   // Меню (три полоски)
+    onEditCar: () -> Unit,   // Редактирование (карандаш)
     onOpenSettings: () -> Unit = {},
     onStatusClick: (WorkStatus) -> Unit
 ) {
@@ -108,9 +109,7 @@ fun HomeScreenRedesign(
                     val currentCar = cars[page]
                     Card(modifier = Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = CardColor), shape = RoundedCornerShape(22.dp)) {
                         Column {
-                            Box(
-                                modifier = Modifier.fillMaxWidth().height(130.dp).background(Color(0xFF1E293B))
-                            ) {
+                            Box(modifier = Modifier.fillMaxWidth().height(130.dp).background(Color(0xFF1E293B))) {
                                 if (currentCar.imageUri.isNotBlank()) {
                                     AsyncImage(
                                         model = currentCar.imageUri,
@@ -121,7 +120,10 @@ fun HomeScreenRedesign(
                                 } else {
                                     Icon(Icons.Default.DirectionsCar, contentDescription = null, tint = Color.White.copy(alpha = 0.1f), modifier = Modifier.align(Alignment.Center).size(72.dp))
                                 }
-                                IconButton(onClick = onOpenCar, modifier = Modifier.align(Alignment.TopEnd).padding(8.dp).background(Color.Black.copy(alpha = 0.5f), RoundedCornerShape(50))) {
+                                IconButton(
+                                    onClick = onEditCar, // <-- КАРАНДАШ ОТКРЫВАЕТ РЕДАКТИРОВАНИЕ
+                                    modifier = Modifier.align(Alignment.TopEnd).padding(8.dp).background(Color.Black.copy(alpha = 0.5f), RoundedCornerShape(50))
+                                ) {
                                     Icon(Icons.Default.Edit, contentDescription = "Редактировать", tint = Color.White)
                                 }
                             }
