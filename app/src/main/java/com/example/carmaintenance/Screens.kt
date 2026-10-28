@@ -76,6 +76,7 @@ fun AppScreen() {
     var workToDelete by remember { mutableStateOf<Pair<MaintenanceWork, ServiceRecord>?>(null) }
     var carToDelete by remember { mutableStateOf<Car?>(null) }
     var recordToDelete by remember { mutableStateOf<ServiceRecord?>(null) }
+    var editingCompletedWork by remember { mutableStateOf<Pair<MaintenanceWork, ServiceRecord>?>(null) } // <-- ДОБАВЛЕНО
     
     var showAboutDialog by remember { mutableStateOf(false) }
     var showBackupDialog by remember { mutableStateOf(false) }
@@ -296,6 +297,34 @@ fun AppScreen() {
         }
     }
 
+    // Редактирование выполненной работы
+    if (editingCompletedWork != null && car != null) {
+        val (work, record) = editingCompletedWork!!
+        WorkActionsDialog(
+            work = work,
+            car = car,
+            records = records,
+            initialRecord = record,
+            onDismiss = { editingCompletedWork = null },
+            onComplete = { km, date, note, lines ->
+                records = records.map { 
+                    if (it.id == record.id) it.copy(mileage = km, date = date, notes = note, lines = lines) 
+                    else it 
+                }
+                saveServiceRecords(context, records)
+                saveAndRefreshWorks(works.map {
+                    if (it.id == work.id) it.copy(lastMileage = km, lastDate = date, hasLastExecution = true, skipped = false)
+                    else it
+                })
+                editingCompletedWork = null
+            },
+            onSkip = { },
+            onEdit = { },
+            onDelete = { },
+            onShowInList = { }
+        )
+    }
+
     if (regulationDialog && car != null) {
         RegulationWorkDialog(car.id, editingRegulation, templates, { regulationDialog = false; editingRegulation = null }) { work ->
             saveAndRefreshWorks(if (works.any { it.id == work.id }) works.map { if (it.id == work.id) work else it } else works + work)
@@ -308,7 +337,7 @@ fun AppScreen() {
         CompletedWorkInfoDialog(
             work = work, car = car!!, record = record,
             onDismiss = { selectedCompletedWork = null },
-            onEdit = { selectedRecord = record; serviceInitial = record; serviceDialog = true; selectedCompletedWork = null },
+            onEdit = { editingCompletedWork = work to record; selectedCompletedWork = null },
             onDelete = { workToDelete = work to record; selectedCompletedWork = null },
             onCancelCompletion = {
                 records = records.filter { it.id != record.id }
