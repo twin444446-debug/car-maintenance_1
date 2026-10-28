@@ -261,31 +261,42 @@ fun WorkActionsDialog(
             containerColor = CardColor,
             title = { Text(work.name, color = TextPrimary, fontWeight = FontWeight.Bold) },
             text = {
-                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                     // 1. Последняя замена, км
                     InfoRow(
                         label = "Последняя замена, км:",
-                        value = if (work.hasLastExecution) "${work.lastMileage}" else "—"
+                        value = if (work.hasLastExecution) "${work.lastMileage}" else "—",
+                        valueColor = ColorGreen.copy(alpha = 0.7f)
                     )
                     
                     // 2. Дата последней замены
                     InfoRow(
                         label = "Дата последней замены:",
-                        value = if (work.hasLastExecution) formatDate(work.lastDate) else "—"
+                        value = if (work.hasLastExecution) formatDate(work.lastDate) else "—",
+                        valueColor = ColorGreen.copy(alpha = 0.7f)
+                    )
+                    
+                    // Разделитель
+                    HorizontalDivider(
+                        modifier = Modifier.padding(vertical = 4.dp),
+                        color = TextSecondary.copy(alpha = 0.3f),
+                        thickness = 1.dp
                     )
                     
                     // 3. Следующая замена, км
                     val nextMileage = if (work.hasLastExecution) work.lastMileage + work.intervalKm else (car.mileage.toIntOrNull() ?: 0) + work.intervalKm
                     InfoRow(
                         label = "Следующая замена, км:",
-                        value = "$nextMileage"
+                        value = "$nextMileage",
+                        valueColor = Color.Red.copy(alpha = 0.7f)
                     )
                     
                     // 4. Следующая замена, мес
                     if (work.intervalMonths > 0) {
                         InfoRow(
                             label = "Следующая замена, мес:",
-                            value = "${work.intervalMonths}"
+                            value = "${work.intervalMonths}",
+                            valueColor = Color.Red.copy(alpha = 0.7f)
                         )
                     }
                 }
@@ -351,6 +362,18 @@ fun WorkActionsDialog(
             confirmButton = { TextButton(onClick = { onComplete(km.toIntOrNull() ?: 0, System.currentTimeMillis(), note, lines.toList()) }) { Text("Сохранить", color = ColorGreen, fontWeight = FontWeight.Bold) } },
             dismissButton = { TextButton(onClick = { showCompleteForm = false }) { Text("Назад", color = TextSecondary) } }
         )
+    }
+}
+
+@Composable
+private fun InfoRow(label: String, value: String, valueColor: Color = TextPrimary) {
+    Row(
+        modifier = Modifier.fillMaxWidth().padding(vertical = 2.dp),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(label, color = TextSecondary, fontSize = 14.sp)
+        Text(value, color = valueColor, fontSize = 14.sp, fontWeight = FontWeight.Bold)
     }
 }
 
