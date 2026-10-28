@@ -75,6 +75,7 @@ fun AppScreen() {
     var selectedCompletedWork by remember { mutableStateOf<Pair<MaintenanceWork, ServiceRecord>?>(null) }
     var workToDelete by remember { mutableStateOf<Pair<MaintenanceWork, ServiceRecord>?>(null) }
     var carToDelete by remember { mutableStateOf<Car?>(null) }
+    var recordToDelete by remember { mutableStateOf<ServiceRecord?>(null) }
     
     var showAboutDialog by remember { mutableStateOf(false) }
     var showBackupDialog by remember { mutableStateOf(false) }
@@ -85,7 +86,7 @@ fun AppScreen() {
     val drawerState = rememberDrawerState(DrawerValue.Closed)
     val scope = rememberCoroutineScope()
 
-    // Автосинхронизация: сбрасываем hasLastExecution, если нет записей с workId
+    // Автосинхронизация
     LaunchedEffect(works, records) {
         val updatedWorks = works.map { work ->
             if (work.hasLastExecution && records.none { it.workId == work.id }) {
@@ -135,12 +136,7 @@ fun AppScreen() {
         records = records + record
         saveServiceRecords(context, records)
         saveAndRefreshWorks(works.map {
-            if (it.id == w.id) it.copy(
-                lastMileage = km,
-                lastDate = date,
-                hasLastExecution = true,
-                skipped = false
-            ) else it
+            if (it.id == w.id) it.copy(lastMileage = km, lastDate = date, hasLastExecution = true, skipped = false) else it
         })
     }
 
@@ -235,7 +231,8 @@ fun AppScreen() {
                             onEdit = { selectedRecord = it; serviceInitial = it; serviceDialog = true },
                             onPartSave = { parts = parts + it; savePartCatalog(context, parts) },
                             works = works,
-                            onWorkClick = { work, record -> selectedCompletedWork = work to record }
+                            onWorkClick = { work, record -> selectedCompletedWork = work to record },
+                            onDeleteRecord = { recordToDelete = it }
                         )
                         "Регламент" -> RegulationScreen(car, works.filter { it.carId == car?.id }, records, onWork = { actionWork = it }, onAdd = { editingRegulation = null; regulationDialog = true }, onFill = { if (car != null) createDefaultForCar(car) })
                         "Статистика" -> StatisticsScreen(car, records)
@@ -281,7 +278,7 @@ fun AppScreen() {
 
     if (actionWork != null && car != null) {
         val currentWork = actionWork!!
-        key(car.mileage) { // <-- Принудительная перекомпозиция при изменении пробега
+        key(car.mileage) {
             WorkActionsDialog(
                 currentWork, car, records,
                 onDismiss = { actionWork = null },
@@ -343,6 +340,26 @@ fun AppScreen() {
                 }) { Text("Удалить", color = ColorRed, fontWeight = FontWeight.Bold) } 
             },
             dismissButton = { TextButton(onClick = { workToDelete = null }) { Text("Отмена", color = TextSecondary) } }
+        )
+    }
+
+    if (recordToDelete != null) {
+        val record = recordToDelete!!
+        AlertDialog(
+            onDismissRequest = { recordToDelete = null },
+            containerColor = CardColor,
+            title = { Text("Удалить запись?", color = TextPrimary) },
+            text = { Text("Вы уверены, что хотите удалить эту запись? Это действие нельзя отменить.", color = TextSecondary) },
+            confirmButton = {
+                TextButton(onClick = {
+                    records = records.filter { it.id != record.id }
+                    saveServiceRecords(context, records)
+                    recordToDelete = null
+                }) { Text("Удалить", color = ColorRed, fontWeight = FontWeight.Bold) }
+            },
+            dismissButton = {
+                TextButton(onClick = { recordToDelete = null }) { Text("Отмена", color = TextSecondary) }
+            }
         )
     }
 
@@ -469,7 +486,8 @@ private fun WorkListScreen(
     onEdit: (ServiceRecord) -> Unit, 
     onPartSave: (PartCatalogItem) -> Unit,
     works: List<MaintenanceWork>,
-    onWorkClick: (MaintenanceWork, ServiceRecord) -> Unit
+    onWorkClick: (MaintenanceWork, ServiceRecord) -> Unit,
+    onDeleteRecord: (ServiceRecord) -> Unit
 ) {
     if (car == null) { Page("Перечень работ") { Text("Сначала добавьте автомобиль", color = TextSecondary) }; return }
     
@@ -479,7 +497,7 @@ private fun WorkListScreen(
         Row( modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp) ) {
             OutlinedTextField(
                 value = searchQuery, onValueChange = { searchQuery = it }, modifier = Modifier.weight(1f),
-                placeholder = { Text("Поиск по названию...", color = TextSecondary) }, singleLine = true,
+                placeholder = { Text("Поиск...", color = TextSecondary) }, singleLine = true,
                 colors = OutlinedTextFieldDefaults.colors(focusedTextColor = TextPrimary, unfocusedTextColor = TextPrimary, focusedBorderColor = ColorGreen, unfocusedBorderColor = TextSecondary, cursorColor = ColorGreen)
             )
             if (searchQuery.isNotEmpty()) {
@@ -489,49 +507,33 @@ private fun WorkListScreen(
         
         Spacer(Modifier.height(8.dp))
 
-        Row( modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp) ) {
-            FilterChip(selected = filter == null, onClick = { onFilterChange(null) }, label = { Text("Все") }, colors = FilterChipDefaults.filterChipColors(selectedContainerColor = ColorGreen.copy(alpha = 0.2f), selectedLabelColor = ColorGreen, labelColor = TextPrimary))
-            FilterChip(selected = filter == WorkStatus.COMPLETED, onClick = { onFilterChange(WorkStatus.COMPLETED) }, label = { Text("Выполнено") }, colors = FilterChipDefaults.filterChipColors(selectedContainerColor = ColorGreen.copy(alpha = 0.2f), selectedLabelColor = ColorGreen, labelColor = TextPrimary))
-            FilterChip(selected = filter == WorkStatus.PREVENTIVE, onClick = { onFilterChange(WorkStatus.PREVENTIVE) }, label = { Text("Рекомендации") }, colors = FilterChipDefaults.filterChipColors(selectedContainerColor = ColorYellow.copy(alpha = 0.2f), selectedLabelColor = ColorYellow, labelColor = TextPrimary))
-            FilterChip(selected = filter == WorkStatus.REQUIRED, onClick = { onFilterChange(WorkStatus.REQUIRED) }, label = { Text("Необходимо") }, colors = FilterChipDefaults.filterChipColors(selectedContainerColor = ColorRed.copy(alpha = 0.2f), selectedLabelColor = ColorRed, labelColor = TextPrimary))
-            FilterChip(selected = filter == WorkStatus.SKIPPED, onClick = { onFilterChange(WorkStatus.SKIPPED) }, label = { Text("Пропущено") }, colors = FilterChipDefaults.filterChipColors(selectedContainerColor = ColorPurple.copy(alpha = 0.2f), selectedLabelColor = ColorPurple, labelColor = TextPrimary))
-        }
-
-        Spacer(Modifier.height(8.dp))
-
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             Button(onClick = onAdd, modifier = Modifier.weight(1f)) { Text("Добавить запись") }
-            Text("${records.count { it.carId == car.id }} записей", color = TextSecondary, modifier = Modifier.padding(12.dp))
+            Text("${records.count { it.carId == car.id && it.workId == null }} записей", color = TextSecondary, modifier = Modifier.padding(12.dp))
         }
         Spacer(Modifier.height(8.dp))
         
-        val carRecords = records.filter { it.carId == car.id }.sortedByDescending { it.date }
+        val carRecords = records
+            .filter { it.carId == car.id && it.workId == null }
+            .sortedByDescending { it.date }
         
         val filteredItems = carRecords.filter { record ->
-            val matchesSearch = if (searchQuery.isBlank()) true else {
+            if (searchQuery.isBlank()) true else {
                 record.lines.any { it.name.contains(searchQuery, ignoreCase = true) } || 
                 record.reason.contains(searchQuery, ignoreCase = true)
             }
-            
-            val work = works.firstOrNull { it.id == record.workId } 
-                ?: works.firstOrNull { w -> record.lines.any { it.name == w.name } }
-                ?: MaintenanceWork(carId = car.id, name = record.lines.firstOrNull()?.name ?: "Обслуживание", intervalKm = 0, intervalMonths = 0)
-            
-            val matchesFilter = if (filter == null) true else getWorkStatus(work, car, records) == filter
-            
-            matchesSearch && matchesFilter
         }
 
         if (filteredItems.isEmpty()) {
-            Text(if (searchQuery.isNotBlank()) "Ничего не найдено" else "Пока нет выполненных работ", color = TextSecondary)
+            Text(if (searchQuery.isNotBlank()) "Ничего не найдено" else "Пока нет записей вне регламента", color = TextSecondary)
         } else {
             LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 items(filteredItems) { record ->
-                    val work = works.firstOrNull { it.id == record.workId } 
-                        ?: works.firstOrNull { w -> record.lines.any { it.name == w.name } }
-                        ?: MaintenanceWork(carId = car.id, name = record.lines.firstOrNull()?.name ?: "Обслуживание", intervalKm = 0, intervalMonths = 0)
-                    
-                    WorkCard(work, car, records) { onWorkClick(work, record) }
+                    ServiceRecordCard(
+                        record = record,
+                        onClick = { onEdit(record) },
+                        onDelete = { onDeleteRecord(record) }
+                    )
                 }
             }
         }
