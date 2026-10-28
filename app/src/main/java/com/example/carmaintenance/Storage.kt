@@ -114,12 +114,13 @@ fun loadServiceRecords(context: Context): List<ServiceRecord> {
                         id = x.optString("id").ifBlank { UUID.randomUUID().toString() },
                         type = runCatching { ServiceLineType.valueOf(x.optString("type", "WORK")) }.getOrDefault(ServiceLineType.WORK),
                         name = x.optString("name"), article = x.optString("article"), cost = x.optDouble("cost"),
-                        currency = x.optString("currency", "EUR"), oilType = x.optString("oilType"), oilName = x.optString("oilName"), notes = x.optString("notes")
+                        currency = x.optString("currency", "RUB"), oilType = x.optString("oilType"), oilName = x.optString("oilName"), notes = x.optString("notes")
                     ))
                 }
             }
             add(ServiceRecord(
                 id = o.optString("id").ifBlank { UUID.randomUUID().toString() }, carId = o.optString("carId"),
+                workId = o.optString("workId").takeIf { it.isNotBlank() }, // <-- ДОБАВЛЕНО
                 date = o.optLong("date", System.currentTimeMillis()), servicePlace = o.optString("servicePlace"),
                 reason = o.optString("reason"), mileage = o.optInt("mileage"), lines = lines, notes = o.optString("notes")
             ))
@@ -130,7 +131,9 @@ fun loadServiceRecords(context: Context): List<ServiceRecord> {
 fun saveServiceRecords(context: Context, records: List<ServiceRecord>) {
     val a = JSONArray()
     records.forEach { r -> a.put(JSONObject().apply {
-        put("id", r.id); put("carId", r.carId); put("date", r.date); put("servicePlace", r.servicePlace); put("reason", r.reason); put("mileage", r.mileage); put("notes", r.notes)
+        put("id", r.id); put("carId", r.carId)
+        put("workId", r.workId) // <-- ДОБАВЛЕНО
+        put("date", r.date); put("servicePlace", r.servicePlace); put("reason", r.reason); put("mileage", r.mileage); put("notes", r.notes)
         put("lines", JSONArray().apply { r.lines.forEach { l -> put(JSONObject().apply {
             put("id", l.id); put("type", l.type.name); put("name", l.name); put("article", l.article); put("cost", l.cost); put("currency", l.currency); put("oilType", l.oilType); put("oilName", l.oilName); put("notes", l.notes)
         }) } })
@@ -146,7 +149,7 @@ fun loadPartCatalog(context: Context): List<PartCatalogItem> {
             add(PartCatalogItem(
                 id = o.optString("id").ifBlank { UUID.randomUUID().toString() }, carId = o.optString("carId"),
                 name = o.optString("name"), article = o.optString("article"), category = o.optString("category", "Запчасть"),
-                lastCost = o.optDouble("lastCost"), currency = o.optString("currency", "EUR")
+                lastCost = o.optDouble("lastCost"), currency = o.optString("currency", "RUB")
             ))
         }
     }
@@ -177,8 +180,6 @@ private fun migrateIfNeeded(context: Context) {
     val p = context.prefs()
     if (p.getBoolean(MIGRATED, false)) return
 
-    // Read legacy data without modifying or deleting the old keys. This makes a failed
-    // migration retryable and keeps the original data available for recovery.
     val oldWorks = runCatching { JSONArray(p.getString("works", "[]")) }.getOrElse { JSONArray() }
     val oldHistory = runCatching { JSONArray(p.getString(LEGACY_HISTORY, "[]")) }.getOrElse { JSONArray() }
     val oldDefault = runCatching { JSONArray(p.getString("default_template", "[]")) }.getOrElse { JSONArray() }
@@ -200,8 +201,6 @@ private fun migrateIfNeeded(context: Context) {
         ))
     }
 
-    // Import old default templates first, then per-car works. Deduplicate by both name
-    // and category so a similarly named LPG job cannot bind to a general car job.
     for (i in 0 until oldDefault.length()) {
         val o = oldDefault.optJSONObject(i) ?: continue
         val name = o.optString("name")
@@ -250,11 +249,13 @@ private fun migrateIfNeeded(context: Context) {
                 id = x.optString("id").ifBlank { UUID.randomUUID().toString() },
                 type = runCatching { ServiceLineType.valueOf(x.optString("type", "WORK")) }.getOrDefault(ServiceLineType.WORK),
                 name = x.optString("name"), article = x.optString("article"), cost = x.optDouble("cost"),
-                currency = x.optString("currency", "EUR"), oilType = x.optString("oilType"),
+                currency = x.optString("currency", "RUB"), oilType = x.optString("oilType"),
                 oilName = x.optString("oilName"), notes = x.optString("notes")
             ))
         }
-        records.add(ServiceRecord(id = recordId, carId = o.optString("carId"), date = o.optLong("date", 0L),
+        records.add(ServiceRecord(id = recordId, carId = o.optString("carId"),
+            workId = o.optString("workId").takeIf { it.isNotBlank() }, // <-- ДОБАВЛЕНО
+            date = o.optLong("date", 0L),
             servicePlace = o.optString("servicePlace"), reason = o.optString("reason"), mileage = o.optInt("mileage"),
             lines = lines, notes = o.optString("notes")))
         existingLegacyIds.add(recordId)
@@ -272,8 +273,6 @@ private fun migrateIfNeeded(context: Context) {
         ))
     }
 
-    // Persist migrated data before setting the flag. If the process stops early,
-    // the migration can run again; old keys are deliberately retained.
     if (templates.isNotEmpty()) saveTemplates(context, templates)
     if (oldWorks.length() > 0) saveWorks(context, migratedWorks)
     if (oldHistory.length() > 0 || existingRecords.length() > 0) saveServiceRecords(context, records)
