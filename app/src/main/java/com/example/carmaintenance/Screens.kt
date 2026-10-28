@@ -24,7 +24,6 @@ import kotlinx.coroutines.launch
 import java.io.File
 import java.io.FileOutputStream
 
-// Функция копирования изображения во внутреннее хранилище
 fun copyImageToInternalStorage(context: android.content.Context, uri: Uri): String? {
     return try {
         val inputStream = context.contentResolver.openInputStream(uri) ?: return null
@@ -85,6 +84,19 @@ fun AppScreen() {
     val car = cars.firstOrNull { it.id == selectedCarId }
     val drawerState = rememberDrawerState(DrawerValue.Closed)
     val scope = rememberCoroutineScope()
+
+    // Автосинхронизация: сбрасываем hasLastExecution, если нет записей с workId
+    LaunchedEffect(works, records) {
+        val updatedWorks = works.map { work ->
+            if (work.hasLastExecution && records.none { it.workId == work.id }) {
+                work.copy(hasLastExecution = false, lastMileage = 0, lastDate = 0L)
+            } else work
+        }
+        if (updatedWorks != works) {
+            works = updatedWorks
+            saveWorks(context, works)
+        }
+    }
 
     fun saveAndRefreshWorks(newWorks: List<MaintenanceWork>) {
         works = newWorks
@@ -288,7 +300,17 @@ fun AppScreen() {
             work = work, car = car!!, record = record,
             onDismiss = { selectedCompletedWork = null },
             onEdit = { selectedRecord = record; serviceInitial = record; serviceDialog = true; selectedCompletedWork = null },
-            onDelete = { workToDelete = work to record; selectedCompletedWork = null }
+            onDelete = { workToDelete = work to record; selectedCompletedWork = null },
+            onCancelCompletion = {
+                records = records.filter { it.id != record.id }
+                saveServiceRecords(context, records)
+                saveAndRefreshWorks(works.map {
+                    if (it.id == work.id) {
+                        it.copy(hasLastExecution = false, lastMileage = 0, lastDate = 0L, skipped = false)
+                    } else it
+                })
+                selectedCompletedWork = null
+            }
         )
     }
 
@@ -301,24 +323,15 @@ fun AppScreen() {
             text = { Text("Вы уверены, что хотите удалить запись о выполнении работы \"${work.name}\"? Это действие нельзя отменить.", color = TextSecondary) },
             confirmButton = { 
                 TextButton(onClick = { 
-                    // 1. Удаляем запись
                     records = records.filter { it.id != record.id }
                     saveServiceRecords(context, records)
-                    
-                    // 2. Если запись была привязана к регламентной работе, сбрасываем её статус
                     if (record.workId != null) {
                         saveAndRefreshWorks(works.map { 
                             if (it.id == record.workId) {
-                                it.copy(
-                                    hasLastExecution = false,
-                                    lastMileage = 0,
-                                    lastDate = 0L,
-                                    skipped = false
-                                )
+                                it.copy(hasLastExecution = false, lastMileage = 0, lastDate = 0L, skipped = false)
                             } else it
                         })
                     }
-                    
                     workToDelete = null 
                 }) { Text("Удалить", color = ColorRed, fontWeight = FontWeight.Bold) } 
             },
