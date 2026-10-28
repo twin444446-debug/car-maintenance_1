@@ -169,12 +169,25 @@ fun ServiceRecordCard(
     }
 }
 
-// Новая плашка для "Истории"
+// Плашка для "Истории" — с бейджем "Регламент" / "Ремонт"
 @Composable
 fun HistoryRecordCard(
     record: ServiceRecord,
     onClick: () -> Unit
 ) {
+    val isRegulation = record.workId != null
+
+    // Заголовок:
+    // - регламентная  -> первая строка из "Работы и материалы" (поле "Наименование")
+    // - нерегламентная -> первая строка из "Работы и запчасти" (поле "Название")
+    // В обоих случаях это record.lines.first().name.
+    // Если строк нет — фолбэк на reason, затем на "Обслуживание".
+    val title = record.lines.firstOrNull()?.name?.ifBlank { null }
+        ?: record.reason.ifBlank { "Обслуживание" }
+
+    val badgeText = if (isRegulation) "Регламент" else "Ремонт"
+    val badgeColor = if (isRegulation) ColorGreen else ColorBlue
+
     Card(
         modifier = Modifier.fillMaxWidth().clickable { onClick() },
         colors = CardDefaults.cardColors(containerColor = CardColor),
@@ -199,14 +212,34 @@ fun HistoryRecordCard(
                 )
             }
             Spacer(Modifier.height(4.dp))
-            Text(
-                text = record.reason.ifBlank { "Обслуживание" },
-                color = TextPrimary,
-                fontSize = 14.sp,
-                fontWeight = FontWeight.Medium,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
-            )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = title,
+                    color = TextPrimary,
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.Medium,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f)
+                )
+                Spacer(Modifier.width(8.dp))
+                Box(
+                    modifier = Modifier
+                        .background(badgeColor.copy(alpha = 0.15f), RoundedCornerShape(50))
+                        .padding(horizontal = 8.dp, vertical = 2.dp)
+                ) {
+                    Text(
+                        text = badgeText,
+                        color = badgeColor,
+                        fontSize = 10.sp,
+                        fontWeight = FontWeight.Medium,
+                        maxLines = 1
+                    )
+                }
+            }
         }
     }
 }
