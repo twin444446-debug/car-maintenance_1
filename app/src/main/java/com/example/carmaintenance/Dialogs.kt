@@ -126,7 +126,8 @@ fun ServiceRecordDialog(
     parts: List<PartCatalogItem>, 
     works: List<MaintenanceWork>, 
     onDismiss: () -> Unit, 
-    onSave: (ServiceRecord) -> Unit
+    onSave: (ServiceRecord) -> Unit,
+    onDelete: ((ServiceRecord) -> Unit)? = null
 ) {
     var date by remember { mutableStateOf(initial?.date ?: System.currentTimeMillis()) }
     var place by remember { mutableStateOf(initial?.servicePlace ?: "") }
@@ -137,6 +138,7 @@ fun ServiceRecordDialog(
     
     var mode by remember { mutableStateOf(0) }
     var selectedWork by remember { mutableStateOf<MaintenanceWork?>(null) }
+    var showDeleteConfirm by remember { mutableStateOf(false) }
     
     val context = androidx.compose.ui.platform.LocalContext.current
 
@@ -267,8 +269,37 @@ fun ServiceRecordDialog(
                 )
             }) { Text("Сохранить", color = ColorGreen) }
         },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Отмена", color = TextSecondary) } }
+        dismissButton = {
+            Row {
+                if (initial != null && onDelete != null) {
+                    TextButton(onClick = { showDeleteConfirm = true }) {
+                        Text("Удалить", color = ColorRed)
+                    }
+                }
+                TextButton(onClick = onDismiss) { Text("Отмена", color = TextSecondary) }
+            }
+        }
     )
+
+    // Диалог подтверждения удаления
+    if (showDeleteConfirm && initial != null && onDelete != null) {
+        AlertDialog(
+            onDismissRequest = { showDeleteConfirm = false },
+            containerColor = CardColor,
+            title = { Text("Удалить запись?", color = TextPrimary) },
+            text = { Text("Вы уверены, что хотите удалить эту запись? Это действие нельзя отменить.", color = TextSecondary) },
+            confirmButton = {
+                TextButton(onClick = {
+                    onDelete(initial)
+                    showDeleteConfirm = false
+                    onDismiss()
+                }) { Text("Удалить", color = ColorRed, fontWeight = FontWeight.Bold) }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDeleteConfirm = false }) { Text("Отмена", color = TextSecondary) }
+            }
+        )
+    }
 }
 
 @Composable 
@@ -369,7 +400,6 @@ fun WorkActionsDialog(
                         )
                     }
 
-                    // Список выполнений с кнопками редактирования и отмены
                     val completedRecords = records.filter { it.workId == work.id }
                     if (completedRecords.isNotEmpty()) {
                         HorizontalDivider(
@@ -424,7 +454,6 @@ fun WorkActionsDialog(
             },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.heightIn(max = 400.dp).verticalScroll(rememberScrollState())) {
-                    // Дата выполнения
                     Text("Дата: ${formatDate(selectedDate)}", color = TextPrimary)
                     Button(
                         onClick = {
@@ -436,7 +465,6 @@ fun WorkActionsDialog(
                         colors = ButtonDefaults.buttonColors(containerColor = NavColor)
                     ) { Text("Изменить дату") }
                     
-                    // Пробег
                     OutlinedTextField(
                         value = km, onValueChange = { km = it }, label = { Text("Пробег (км)") },
                         modifier = Modifier.fillMaxWidth(), singleLine = true,
