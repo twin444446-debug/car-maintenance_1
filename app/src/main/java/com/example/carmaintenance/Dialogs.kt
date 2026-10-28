@@ -32,8 +32,15 @@ fun AddCarDialog(existingCar: Car?, onDismiss: () -> Unit, onSave: (Car) -> Unit
     var hasLpg by remember { mutableStateOf(existingCar?.hasLpg ?: false) }; var notes by remember { mutableStateOf(existingCar?.notes ?: "") }
     var imageUri by remember { mutableStateOf(existingCar?.imageUri ?: "") }
 
+    val context = androidx.compose.ui.platform.LocalContext.current
     val launcher = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
-        if (uri != null) imageUri = uri.toString()
+        if (uri != null) {
+            // Копируем изображение во внутреннее хранилище и сохраняем путь
+            val savedPath = copyImageToInternalStorage(context, uri)
+            if (savedPath != null) {
+                imageUri = savedPath
+            }
+        }
     }
 
     AlertDialog(onDismissRequest = onDismiss, containerColor = CardColor, title = { Text(if (existingCar == null) "Добавить автомобиль" else "Изменить автомобиль", color = TextPrimary) },
@@ -308,52 +315,39 @@ fun WorkActionsDialog(
             title = { Text(work.name, color = TextPrimary, fontWeight = FontWeight.Bold) },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                    // 1. Последняя замена, км
                     InfoRow(
                         label = "Последняя замена, км:",
                         value = if (work.hasLastExecution) "${work.lastMileage}" else "—",
                         valueColor = ColorGreen.copy(alpha = 0.7f)
                     )
-                    
-                    // 2. Дата последней замены
                     InfoRow(
                         label = "Дата последней замены:",
                         value = if (work.hasLastExecution) formatDate(work.lastDate) else "—",
                         valueColor = ColorGreen.copy(alpha = 0.7f)
                     )
-                    
-                    // Разделитель
                     HorizontalDivider(
                         modifier = Modifier.padding(vertical = 4.dp),
                         color = TextSecondary.copy(alpha = 0.3f),
                         thickness = 1.dp
                     )
-                    
                     val currentMileage = car.mileage.toIntOrNull() ?: 0
                     val nextMileage = if (work.hasLastExecution) work.lastMileage + work.intervalKm else currentMileage + work.intervalKm
                     val remainingKm = nextMileage - currentMileage
-
-                    // 3. Следующая замена, км
                     InfoRow(
                         label = "Следующая замена, км:",
                         value = "$nextMileage",
                         valueColor = if (currentMileage >= nextMileage) Color.Red else TextPrimary
                     )
-                    
-                    // 4. Остаток пробега
                     InfoRow(
                         label = "Остаток пробега:",
                         value = "$remainingKm",
                         valueColor = if (remainingKm > 0) TextPrimary else Color.Red
                     )
-                    
-                    // 5. Следующая замена, мес
                     if (work.intervalMonths > 0) {
                         val currentTime = System.currentTimeMillis()
                         val lastExecTime = work.lastDate
                         val monthsPassed = if (work.hasLastExecution) ((currentTime - lastExecTime) / (1000L * 60 * 60 * 24 * 30)).toInt() else 0
                         val isOverdue = work.hasLastExecution && monthsPassed >= work.intervalMonths
-                        
                         InfoRow(
                             label = "Следующая замена, мес:",
                             value = "${work.intervalMonths}",
