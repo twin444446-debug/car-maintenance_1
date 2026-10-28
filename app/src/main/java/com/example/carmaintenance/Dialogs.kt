@@ -1,6 +1,8 @@
 package com.example.carmaintenance
 
 import android.app.DatePickerDialog
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -13,11 +15,13 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import coil.compose.AsyncImage
 import java.util.Calendar
 
 @Composable
@@ -26,14 +30,56 @@ fun AddCarDialog(existingCar: Car?, onDismiss: () -> Unit, onSave: (Car) -> Unit
     var year by remember { mutableStateOf(existingCar?.year ?: "") }; var vin by remember { mutableStateOf(existingCar?.vin ?: "") }
     var mileage by remember { mutableStateOf(existingCar?.mileage ?: "") }; var engine by remember { mutableStateOf(existingCar?.engine ?: "") }
     var hasLpg by remember { mutableStateOf(existingCar?.hasLpg ?: false) }; var notes by remember { mutableStateOf(existingCar?.notes ?: "") }
+    var imageUri by remember { mutableStateOf(existingCar?.imageUri ?: "") }
+
+    val launcher = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
+        if (uri != null) imageUri = uri.toString()
+    }
+
     AlertDialog(onDismissRequest = onDismiss, containerColor = CardColor, title = { Text(if (existingCar == null) "Добавить автомобиль" else "Изменить автомобиль", color = TextPrimary) },
         text = { Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            if (imageUri.isNotBlank()) {
+                AsyncImage(
+                    model = imageUri,
+                    contentDescription = "Фото авто",
+                    modifier = Modifier.fillMaxWidth().height(150.dp),
+                    contentScale = ContentScale.Crop
+                )
+            }
+            Button(
+                onClick = { launcher.launch("image/*") },
+                modifier = Modifier.fillMaxWidth(),
+                colors = ButtonDefaults.buttonColors(containerColor = NavColor)
+            ) {
+                Icon(Icons.Default.Add, contentDescription = null)
+                Spacer(Modifier.width(8.dp))
+                Text(if (imageUri.isBlank()) "Выбрать фото" else "Изменить фото", color = TextPrimary)
+            }
+            if (imageUri.isNotBlank()) {
+                TextButton(onClick = { imageUri = "" }, modifier = Modifier.fillMaxWidth()) {
+                    Text("Удалить фото", color = ColorRed)
+                }
+            }
+            HorizontalDivider(color = TextSecondary.copy(alpha = 0.2f))
             field("Марка *", brand) { brand = it }; field("Модель *", model) { model = it }; field("Год выпуска", year, KeyboardType.Number) { year = it }
             field("Пробег (км)", mileage, KeyboardType.Number) { mileage = it }; field("VIN-код автомобиля", vin) { vin = it }; field("Двигатель", engine) { engine = it }
             Row(verticalAlignment = Alignment.CenterVertically) { Checkbox(hasLpg, { hasLpg = it }); Text("Установлено ГБО", color = TextPrimary) }
             field("Заметки", notes) { notes = it }
         }},
-        confirmButton = { TextButton(onClick = { if (brand.isNotBlank() && model.isNotBlank()) onSave(existingCar?.copy(brand=brand,model=model,year=year,vin=vin,mileage=mileage,engine=engine,fuel=if(hasLpg) "Бензин/Газ" else "Бензин",hasLpg=hasLpg,notes=notes) ?: Car(brand=brand,model=model,year=year,vin=vin,mileage=mileage,engine=engine,fuel=if(hasLpg) "Бензин/Газ" else "Бензин",hasLpg=hasLpg,notes=notes)) }) { Text("Сохранить", color = ColorGreen) } },
+        confirmButton = { TextButton(onClick = { 
+            if (brand.isNotBlank() && model.isNotBlank()) {
+                val newCar = existingCar?.copy(
+                    brand = brand, model = model, year = year, vin = vin, mileage = mileage,
+                    engine = engine, fuel = if(hasLpg) "Бензин/Газ" else "Бензин", hasLpg = hasLpg,
+                    notes = notes, imageUri = imageUri
+                ) ?: Car(
+                    brand = brand, model = model, year = year, vin = vin, mileage = mileage,
+                    engine = engine, fuel = if(hasLpg) "Бензин/Газ" else "Бензин", hasLpg = hasLpg,
+                    notes = notes, imageUri = imageUri
+                )
+                onSave(newCar)
+            }
+        }) { Text("Сохранить", color = ColorGreen) } },
         dismissButton = { TextButton(onClick = onDismiss) { Text("Отмена", color = TextSecondary) } })
 }
 
@@ -291,7 +337,6 @@ fun WorkActionsDialog(
                     InfoRow(
                         label = "Следующая замена, км:",
                         value = "$nextMileage",
-                        // Если пробег уже превысил следующий порог — красный, иначе белый
                         valueColor = if (currentMileage >= nextMileage) Color.Red else TextPrimary
                     )
                     
@@ -299,13 +344,11 @@ fun WorkActionsDialog(
                     InfoRow(
                         label = "Остаток пробега:",
                         value = "$remainingKm",
-                        // Если остаток положительный — белый, если отрицательный — красный
                         valueColor = if (remainingKm > 0) TextPrimary else Color.Red
                     )
                     
                     // 5. Следующая замена, мес
                     if (work.intervalMonths > 0) {
-                        // Проверяем, не просрочен ли срок в месяцах (простая логика: если последняя замена была больше intervalMonths назад)
                         val currentTime = System.currentTimeMillis()
                         val lastExecTime = work.lastDate
                         val monthsPassed = if (work.hasLastExecution) ((currentTime - lastExecTime) / (1000L * 60 * 60 * 24 * 30)).toInt() else 0
