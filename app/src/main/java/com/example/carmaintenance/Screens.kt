@@ -72,6 +72,7 @@ fun AppScreen() {
     var partsScreen by remember { mutableStateOf(false) }
     var selectedStatusFilter by remember { mutableStateOf<WorkStatus?>(null) }
     var backupScreen by remember { mutableStateOf(false) }
+    var matrixScreen by remember { mutableStateOf(false) } // <-- ДОБАВЛЕНО
     
     var selectedCompletedWork by remember { mutableStateOf<Pair<MaintenanceWork, ServiceRecord>?>(null) }
     var workToDelete by remember { mutableStateOf<Pair<MaintenanceWork, ServiceRecord>?>(null) }
@@ -220,6 +221,9 @@ fun AppScreen() {
                 DrawerItem("Шаблоны регламента", Icons.Default.List, ColorGreen, templateEditor) {
                     templateEditor = true; scope.launch { drawerState.close() }
                 }
+                DrawerItem("Матрица ТО", Icons.Default.List, ColorGreen, matrixScreen) {
+                    matrixScreen = true; scope.launch { drawerState.close() }
+                }
                 DrawerItem("Запчасти и расходники", Icons.Default.Build, ColorBlue, partsScreen) {
                     partsScreen = true; scope.launch { drawerState.close() }
                 }
@@ -255,6 +259,12 @@ fun AppScreen() {
                             backupScreen = false
                             screen = "Главная"
                         }
+                    )
+                    matrixScreen -> MaintenanceMatrixScreen(
+                        car = car,
+                        works = works,
+                        records = records,
+                        onBack = { matrixScreen = false }
                     )
                     templateEditor -> TemplateEditorScreen(templates = templates, onBack = { templateEditor = false }, onSave = { templates = it; saveTemplates(context, templates) })
                     errorDecoder -> ErrorDecoderScreen(onBack = { errorDecoder = false })
