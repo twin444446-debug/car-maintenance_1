@@ -87,11 +87,46 @@ fun AppScreen() {
     val drawerState = rememberDrawerState(DrawerValue.Closed)
     val scope = rememberCoroutineScope()
 
+    fun recalculateWorkAfterRecordRemoval(
+        work: MaintenanceWork,
+        remainingRecords: List<ServiceRecord>
+    ): MaintenanceWork {
+        val workRecords = remainingRecords
+            .filter { it.workId == work.id }
+            .sortedByDescending { it.date }
+
+        val last = workRecords.firstOrNull()
+        return if (last == null) {
+            work.copy(
+                hasLastExecution = false,
+                lastMileage = 0,
+                lastDate = 0L,
+                skipped = false
+            )
+        } else {
+            work.copy(
+                hasLastExecution = true,
+                lastMileage = last.mileage,
+                lastDate = last.date,
+                skipped = false
+            )
+        }
+    }
+
     LaunchedEffect(works, records) {
         val updatedWorks = works.map { work ->
-            if (work.hasLastExecution && records.none { it.workId == work.id }) {
-                work.copy(hasLastExecution = false, lastMileage = 0, lastDate = 0L)
-            } else work
+            val workRecords = records.filter { it.workId == work.id }
+            when {
+                workRecords.isEmpty() && (work.hasLastExecution || work.lastMileage != 0 || work.lastDate != 0L) ->
+                    work.copy(hasLastExecution = false, lastMileage = 0, lastDate = 0L)
+                workRecords.isNotEmpty() -> {
+                    val last = workRecords.maxByOrNull { it.date }!!
+                    if (!work.hasLastExecution || work.lastMileage != last.mileage || work.lastDate != last.date) {
+                        work.copy(hasLastExecution = true, lastMileage = last.mileage, lastDate = last.date)
+                    } else work
+                }
+                else -> work
+            }
         }
         if (updatedWorks != works) {
             works = updatedWorks
@@ -305,11 +340,12 @@ fun AppScreen() {
                 onDelete = { saveAndRefreshWorks(works.filter { it.id != currentWork.id }); actionWork = null },
                 onShowInList = { screen = "Перечень работ"; actionWork = null },
                 onEditRecord = { record -> editingCompletedWork = currentWork to record; actionWork = null },
-                onCancelRecord = { record -> 
-                    records = records.filter { it.id != record.id }
-                    saveServiceRecords(context, records)
+                onCancelRecord = { record ->
+                    val newRecords = records.filter { it.id != record.id }
+                    records = newRecords
+                    saveServiceRecords(context, newRecords)
                     saveAndRefreshWorks(works.map {
-                        if (it.id == currentWork.id) it.copy(hasLastExecution = false, lastMileage = 0, lastDate = 0L, skipped = false)
+                        if (it.id == currentWork.id) recalculateWorkAfterRecordRemoval(currentWork, newRecords)
                         else it
                     })
                     actionWork = null
@@ -343,15 +379,14 @@ fun AppScreen() {
             onDelete = { },
             onShowInList = { },
             onEditRecord = { rec ->
-                // Переключить редактирование на другую запись этой же работы
                 editingCompletedWork = work to rec
             },
             onCancelRecord = { rec ->
-                // Отменить выполнение и сбросить статус работы
-                records = records.filter { it.id != rec.id }
-                saveServiceRecords(context, records)
+                val newRecords = records.filter { it.id != rec.id }
+                records = newRecords
+                saveServiceRecords(context, newRecords)
                 saveAndRefreshWorks(works.map {
-                    if (it.id == work.id) it.copy(hasLastExecution = false, lastMileage = 0, lastDate = 0L, skipped = false)
+                    if (it.id == work.id) recalculateWorkAfterRecordRemoval(work, newRecords)
                     else it
                 })
                 editingCompletedWork = null
@@ -374,12 +409,12 @@ fun AppScreen() {
             onEdit = { editingCompletedWork = work to record; selectedCompletedWork = null },
             onDelete = { workToDelete = work to record; selectedCompletedWork = null },
             onCancelCompletion = {
-                records = records.filter { it.id != record.id }
-                saveServiceRecords(context, records)
+                val newRecords = records.filter { it.id != record.id }
+                records = newRecords
+                saveServiceRecords(context, newRecords)
                 saveAndRefreshWorks(works.map {
-                    if (it.id == work.id) {
-                        it.copy(hasLastExecution = false, lastMileage = 0, lastDate = 0L, skipped = false)
-                    } else it
+                    if (it.id == work.id) recalculateWorkAfterRecordRemoval(work, newRecords)
+                    else it
                 })
                 selectedCompletedWork = null
             }
@@ -395,14 +430,17 @@ fun AppScreen() {
             text = { Text("Вы уверены, что хотите удалить запись о выполнении работы \"${work.name}\"? Это действие нельзя отменить.", color = TextSecondary) },
             confirmButton = { 
                 TextButton(onClick = { 
-                    records = records.filter { it.id != record.id }
-                    saveServiceRecords(context, records)
+                    val newRecords = records.filter { it.id != record.id }
+                    records = newRecords
+                    saveServiceRecords(context, newRecords)
                     if (record.workId != null) {
-                        saveAndRefreshWorks(works.map { 
-                            if (it.id == record.workId) {
-                                it.copy(hasLastExecution = false, lastMileage = 0, lastDate = 0L, skipped = false)
-                            } else it
-                        })
+                        val w = works.firstOrNull { it.id == record.workId }
+                        if (w != null) {
+                            saveAndRefreshWorks(works.map {
+                                if (it.id == w.id) recalculateWorkAfterRecordRemoval(w, newRecords)
+                                else it
+                            })
+                        }
                     }
                     workToDelete = null 
                 }) { Text("Удалить", color = ColorRed, fontWeight = FontWeight.Bold) } 
@@ -420,8 +458,18 @@ fun AppScreen() {
             text = { Text("Вы уверены, что хотите удалить эту запись? Это действие нельзя отменить.", color = TextSecondary) },
             confirmButton = {
                 TextButton(onClick = {
-                    records = records.filter { it.id != record.id }
-                    saveServiceRecords(context, records)
+                    val newRecords = records.filter { it.id != record.id }
+                    records = newRecords
+                    saveServiceRecords(context, newRecords)
+                    if (record.workId != null) {
+                        val w = works.firstOrNull { it.id == record.workId }
+                        if (w != null) {
+                            saveAndRefreshWorks(works.map {
+                                if (it.id == w.id) recalculateWorkAfterRecordRemoval(w, newRecords)
+                                else it
+                            })
+                        }
+                    }
                     recordToDelete = null
                 }) { Text("Удалить", color = ColorRed, fontWeight = FontWeight.Bold) }
             },
