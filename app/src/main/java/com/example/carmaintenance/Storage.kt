@@ -51,6 +51,7 @@ fun loadTemplates(context: Context): List<RegulationTemplate> {
             add(RegulationTemplate(
                 id = o.optString("id").ifBlank { UUID.randomUUID().toString() },
                 name = o.optString("name"),
+                groupName = o.optString("groupName", ""), // <-- ДОБАВЛЕНО
                 category = runCatching { WorkCategory.valueOf(o.optString("category", "GENERAL")) }.getOrDefault(WorkCategory.GENERAL),
                 intervalKm = o.optInt("intervalKm"), intervalMonths = o.optInt("intervalMonths"),
                 warningKm = o.optInt("warningKm"), warningMonths = o.optInt("warningMonths"),
@@ -63,7 +64,9 @@ fun loadTemplates(context: Context): List<RegulationTemplate> {
 fun saveTemplates(context: Context, templates: List<RegulationTemplate>) {
     val a = JSONArray()
     templates.forEach { t -> a.put(JSONObject().apply {
-        put("id", t.id); put("name", t.name); put("category", t.category.name); put("intervalKm", t.intervalKm)
+        put("id", t.id); put("name", t.name); 
+        put("groupName", t.groupName) // <-- ДОБАВЛЕНО
+        put("category", t.category.name); put("intervalKm", t.intervalKm)
         put("intervalMonths", t.intervalMonths); put("warningKm", t.warningKm); put("warningMonths", t.warningMonths)
         put("preventive", t.preventive); put("notes", t.notes)
     }) }
@@ -79,6 +82,7 @@ fun loadWorks(context: Context): List<MaintenanceWork> {
             add(MaintenanceWork(
                 id = o.optString("id").ifBlank { UUID.randomUUID().toString() }, carId = o.optString("carId"),
                 templateId = o.optString("templateId"), name = o.optString("name"),
+                groupName = o.optString("groupName", ""), // <-- ДОБАВЛЕНО
                 category = runCatching { WorkCategory.valueOf(o.optString("category", "GENERAL")) }.getOrDefault(if (o.optString("name").startsWith("ГБО:")) WorkCategory.LPG else WorkCategory.GENERAL),
                 intervalKm = o.optInt("intervalKm"), intervalMonths = o.optInt("intervalMonths"),
                 warningKm = o.optInt("warningKm"), warningMonths = o.optInt("warningMonths"),
@@ -93,7 +97,9 @@ fun loadWorks(context: Context): List<MaintenanceWork> {
 fun saveWorks(context: Context, works: List<MaintenanceWork>) {
     val a = JSONArray()
     works.forEach { w -> a.put(JSONObject().apply {
-        put("id", w.id); put("carId", w.carId); put("templateId", w.templateId); put("name", w.name); put("category", w.category.name)
+        put("id", w.id); put("carId", w.carId); put("templateId", w.templateId); put("name", w.name); 
+        put("groupName", w.groupName) // <-- ДОБАВЛЕНО
+        put("category", w.category.name)
         put("intervalKm", w.intervalKm); put("intervalMonths", w.intervalMonths); put("warningKm", w.warningKm); put("warningMonths", w.warningMonths)
         put("lastMileage", w.lastMileage); put("lastDate", w.lastDate); put("hasLastExecution", w.hasLastExecution)
         put("skipped", w.skipped); put("preventive", w.preventive); put("notes", w.notes)
@@ -121,7 +127,7 @@ fun loadServiceRecords(context: Context): List<ServiceRecord> {
             }
             add(ServiceRecord(
                 id = o.optString("id").ifBlank { UUID.randomUUID().toString() }, carId = o.optString("carId"),
-                workId = o.optString("workId").takeIf { it.isNotBlank() }, // <-- ВАЖНО
+                workId = o.optString("workId").takeIf { it.isNotBlank() },
                 date = o.optLong("date", System.currentTimeMillis()), servicePlace = o.optString("servicePlace"),
                 reason = o.optString("reason"), mileage = o.optInt("mileage"), lines = lines, notes = o.optString("notes")
             ))
@@ -133,7 +139,7 @@ fun saveServiceRecords(context: Context, records: List<ServiceRecord>) {
     val a = JSONArray()
     records.forEach { r -> a.put(JSONObject().apply {
         put("id", r.id); put("carId", r.carId)
-        put("workId", r.workId) // <-- ВАЖНО
+        put("workId", r.workId)
         put("date", r.date); put("servicePlace", r.servicePlace); put("reason", r.reason); put("mileage", r.mileage); put("notes", r.notes)
         put("lines", JSONArray().apply { r.lines.forEach { l -> put(JSONObject().apply {
             put("id", l.id); put("type", l.type.name); put("name", l.name); put("article", l.article); put("cost", l.cost); put("currency", l.currency); put("oilType", l.oilType); put("oilName", l.oilName); put("notes", l.notes)
@@ -170,11 +176,11 @@ fun loadHistory(context: Context): List<WorkHistory> = loadServiceRecords(contex
 }
 
 fun loadDefaultTemplate(context: Context): List<MaintenanceWork> = loadTemplates(context).map {
-    MaintenanceWork(carId = "", templateId = it.id, name = it.name, category = it.category, intervalKm = it.intervalKm, intervalMonths = it.intervalMonths, warningKm = it.warningKm, warningMonths = it.warningMonths, preventive = it.preventive, notes = it.notes)
+    MaintenanceWork(carId = "", templateId = it.id, name = it.name, groupName = it.groupName, category = it.category, intervalKm = it.intervalKm, intervalMonths = it.intervalMonths, warningKm = it.warningKm, warningMonths = it.warningMonths, preventive = it.preventive, notes = it.notes)
 }
 
 fun saveDefaultTemplate(context: Context, works: List<MaintenanceWork>) {
-    saveTemplates(context, works.map { RegulationTemplate(it.templateId.ifBlank { it.id }, it.name, it.category, it.intervalKm, it.intervalMonths, it.warningKm, it.warningMonths, it.preventive, it.notes) })
+    saveTemplates(context, works.map { RegulationTemplate(it.templateId.ifBlank { it.id }, it.name, it.groupName, it.category, it.intervalKm, it.intervalMonths, it.warningKm, it.warningMonths, it.preventive, it.notes) })
 }
 
 private fun migrateIfNeeded(context: Context) {
@@ -192,11 +198,11 @@ private fun migrateIfNeeded(context: Context) {
             ?: if (name.startsWith("ГБО:")) WorkCategory.LPG else WorkCategory.GENERAL
     }
     fun addTemplate(name: String, category: WorkCategory, id: String, km: Int, months: Int,
-                    warningKm: Int, warningMonths: Int, preventive: Boolean, notes: String) {
+                    warningKm: Int, warningMonths: Int, preventive: Boolean, notes: String, groupName: String = "") {
         if (name.isBlank()) return
         val existing = templates.firstOrNull { it.name.trim().equals(name.trim(), ignoreCase = true) && it.category == category }
         if (existing == null) templates.add(RegulationTemplate(
-            id = id.ifBlank { UUID.randomUUID().toString() }, name = name.trim(), category = category,
+            id = id.ifBlank { UUID.randomUUID().toString() }, name = name.trim(), groupName = groupName, category = category,
             intervalKm = km, intervalMonths = months, warningKm = warningKm,
             warningMonths = warningMonths, preventive = preventive, notes = notes
         ))
@@ -207,14 +213,14 @@ private fun migrateIfNeeded(context: Context) {
         val name = o.optString("name")
         addTemplate(name, categoryFor(name, o), o.optString("id"), o.optInt("intervalKm"),
             o.optInt("intervalMonths"), o.optInt("warningKm"), o.optInt("warningMonths"),
-            o.optBoolean("preventive"), o.optString("notes"))
+            o.optBoolean("preventive"), o.optString("notes"), o.optString("groupName", ""))
     }
     for (i in 0 until oldWorks.length()) {
         val o = oldWorks.optJSONObject(i) ?: continue
         val name = o.optString("name")
         addTemplate(name, categoryFor(name, o), o.optString("templateId").ifBlank { o.optString("id") },
             o.optInt("intervalKm"), o.optInt("intervalMonths"), o.optInt("warningKm"),
-            o.optInt("warningMonths"), o.optBoolean("preventive"), o.optString("notes"))
+            o.optInt("warningMonths"), o.optBoolean("preventive"), o.optString("notes"), o.optString("groupName", ""))
     }
 
     val migratedWorks = mutableListOf<MaintenanceWork>()
@@ -228,6 +234,7 @@ private fun migrateIfNeeded(context: Context) {
         migratedWorks.add(MaintenanceWork(
             id = o.optString("id").ifBlank { UUID.randomUUID().toString() },
             carId = o.optString("carId"), templateId = template?.id ?: "", name = name,
+            groupName = o.optString("groupName", ""), // <-- ДОБАВЛЕНО
             category = category, intervalKm = o.optInt("intervalKm"), intervalMonths = o.optInt("intervalMonths"),
             warningKm = o.optInt("warningKm"), warningMonths = o.optInt("warningMonths"),
             lastMileage = o.optInt("lastMileage"), lastDate = o.optLong("lastDate"),
@@ -255,7 +262,7 @@ private fun migrateIfNeeded(context: Context) {
             ))
         }
         records.add(ServiceRecord(id = recordId, carId = o.optString("carId"),
-            workId = o.optString("workId").takeIf { it.isNotBlank() }, // <-- ВАЖНО
+            workId = o.optString("workId").takeIf { it.isNotBlank() },
             date = o.optLong("date", 0L),
             servicePlace = o.optString("servicePlace"), reason = o.optString("reason"), mileage = o.optInt("mileage"),
             lines = lines, notes = o.optString("notes")))
@@ -279,6 +286,7 @@ private fun migrateIfNeeded(context: Context) {
     if (oldHistory.length() > 0 || existingRecords.length() > 0) saveServiceRecords(context, records)
     p.edit().putBoolean(MIGRATED, true).apply()
 }
+
 // ==================== РЕЗЕРВНОЕ КОПИРОВАНИЕ ====================
 
 data class BackupResult(val success: Boolean, val message: String)
@@ -322,7 +330,9 @@ private fun carsToJson(cars: List<Car>): JSONArray = JSONArray().also { a ->
 
 private fun worksToJson(works: List<MaintenanceWork>): JSONArray = JSONArray().also { a ->
     works.forEach { w -> a.put(JSONObject().apply {
-        put("id", w.id); put("carId", w.carId); put("templateId", w.templateId); put("name", w.name); put("category", w.category.name)
+        put("id", w.id); put("carId", w.carId); put("templateId", w.templateId); put("name", w.name); 
+        put("groupName", w.groupName) // <-- ДОБАВЛЕНО
+        put("category", w.category.name)
         put("intervalKm", w.intervalKm); put("intervalMonths", w.intervalMonths); put("warningKm", w.warningKm); put("warningMonths", w.warningMonths)
         put("lastMileage", w.lastMileage); put("lastDate", w.lastDate); put("hasLastExecution", w.hasLastExecution)
         put("skipped", w.skipped); put("preventive", w.preventive); put("notes", w.notes)
@@ -349,7 +359,8 @@ private fun partsToJson(parts: List<PartCatalogItem>): JSONArray = JSONArray().a
 
 private fun templatesToJson(templates: List<RegulationTemplate>): JSONArray = JSONArray().also { a ->
     templates.forEach { t -> a.put(JSONObject().apply {
-        put("id", t.id); put("name", t.name); put("category", t.category.name); put("intervalKm", t.intervalKm)
+        put("id", t.id); put("name", t.name); put("groupName", t.groupName) // <-- ДОБАВЛЕНО
+        put("category", t.category.name); put("intervalKm", t.intervalKm)
         put("intervalMonths", t.intervalMonths); put("warningKm", t.warningKm); put("warningMonths", t.warningMonths)
         put("preventive", t.preventive); put("notes", t.notes)
     }) }
