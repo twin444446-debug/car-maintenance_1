@@ -169,6 +169,48 @@ fun ServiceRecordCard(
     }
 }
 
+// Новая плашка для "Истории"
+@Composable
+fun HistoryRecordCard(
+    record: ServiceRecord,
+    onClick: () -> Unit
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth().clickable { onClick() },
+        colors = CardDefaults.cardColors(containerColor = CardColor),
+        shape = RoundedCornerShape(16.dp)
+    ) {
+        Column(modifier = Modifier.padding(12.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = formatDate(record.date),
+                    color = ColorBlue,
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.Bold
+                )
+                Text(
+                    text = "${record.mileage} км",
+                    color = TextSecondary,
+                    fontSize = 13.sp
+                )
+            }
+            Spacer(Modifier.height(4.dp))
+            Text(
+                text = record.reason.ifBlank { "Обслуживание" },
+                color = TextPrimary,
+                fontSize = 14.sp,
+                fontWeight = FontWeight.Medium,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+        }
+    }
+}
+
 @Composable
 fun QuickAction(title: String, icon: @Composable () -> Unit, color: Color, onClick: () -> Unit, modifier: Modifier = Modifier) {
     Card(
