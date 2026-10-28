@@ -51,7 +51,7 @@ fun loadTemplates(context: Context): List<RegulationTemplate> {
             add(RegulationTemplate(
                 id = o.optString("id").ifBlank { UUID.randomUUID().toString() },
                 name = o.optString("name"),
-                groupName = o.optString("groupName", ""), // <-- ДОБАВЛЕНО
+                groupName = o.optString("groupName", ""),
                 category = runCatching { WorkCategory.valueOf(o.optString("category", "GENERAL")) }.getOrDefault(WorkCategory.GENERAL),
                 intervalKm = o.optInt("intervalKm"), intervalMonths = o.optInt("intervalMonths"),
                 warningKm = o.optInt("warningKm"), warningMonths = o.optInt("warningMonths"),
@@ -64,8 +64,7 @@ fun loadTemplates(context: Context): List<RegulationTemplate> {
 fun saveTemplates(context: Context, templates: List<RegulationTemplate>) {
     val a = JSONArray()
     templates.forEach { t -> a.put(JSONObject().apply {
-        put("id", t.id); put("name", t.name); 
-        put("groupName", t.groupName) // <-- ДОБАВЛЕНО
+        put("id", t.id); put("name", t.name); put("groupName", t.groupName)
         put("category", t.category.name); put("intervalKm", t.intervalKm)
         put("intervalMonths", t.intervalMonths); put("warningKm", t.warningKm); put("warningMonths", t.warningMonths)
         put("preventive", t.preventive); put("notes", t.notes)
@@ -82,7 +81,7 @@ fun loadWorks(context: Context): List<MaintenanceWork> {
             add(MaintenanceWork(
                 id = o.optString("id").ifBlank { UUID.randomUUID().toString() }, carId = o.optString("carId"),
                 templateId = o.optString("templateId"), name = o.optString("name"),
-                groupName = o.optString("groupName", ""), // <-- ДОБАВЛЕНО
+                groupName = o.optString("groupName", ""),
                 category = runCatching { WorkCategory.valueOf(o.optString("category", "GENERAL")) }.getOrDefault(if (o.optString("name").startsWith("ГБО:")) WorkCategory.LPG else WorkCategory.GENERAL),
                 intervalKm = o.optInt("intervalKm"), intervalMonths = o.optInt("intervalMonths"),
                 warningKm = o.optInt("warningKm"), warningMonths = o.optInt("warningMonths"),
@@ -98,7 +97,7 @@ fun saveWorks(context: Context, works: List<MaintenanceWork>) {
     val a = JSONArray()
     works.forEach { w -> a.put(JSONObject().apply {
         put("id", w.id); put("carId", w.carId); put("templateId", w.templateId); put("name", w.name); 
-        put("groupName", w.groupName) // <-- ДОБАВЛЕНО
+        put("groupName", w.groupName)
         put("category", w.category.name)
         put("intervalKm", w.intervalKm); put("intervalMonths", w.intervalMonths); put("warningKm", w.warningKm); put("warningMonths", w.warningMonths)
         put("lastMileage", w.lastMileage); put("lastDate", w.lastDate); put("hasLastExecution", w.hasLastExecution)
@@ -234,7 +233,7 @@ private fun migrateIfNeeded(context: Context) {
         migratedWorks.add(MaintenanceWork(
             id = o.optString("id").ifBlank { UUID.randomUUID().toString() },
             carId = o.optString("carId"), templateId = template?.id ?: "", name = name,
-            groupName = o.optString("groupName", ""), // <-- ДОБАВЛЕНО
+            groupName = o.optString("groupName", ""),
             category = category, intervalKm = o.optInt("intervalKm"), intervalMonths = o.optInt("intervalMonths"),
             warningKm = o.optInt("warningKm"), warningMonths = o.optInt("warningMonths"),
             lastMileage = o.optInt("lastMileage"), lastDate = o.optLong("lastDate"),
@@ -331,7 +330,7 @@ private fun carsToJson(cars: List<Car>): JSONArray = JSONArray().also { a ->
 private fun worksToJson(works: List<MaintenanceWork>): JSONArray = JSONArray().also { a ->
     works.forEach { w -> a.put(JSONObject().apply {
         put("id", w.id); put("carId", w.carId); put("templateId", w.templateId); put("name", w.name); 
-        put("groupName", w.groupName) // <-- ДОБАВЛЕНО
+        put("groupName", w.groupName)
         put("category", w.category.name)
         put("intervalKm", w.intervalKm); put("intervalMonths", w.intervalMonths); put("warningKm", w.warningKm); put("warningMonths", w.warningMonths)
         put("lastMileage", w.lastMileage); put("lastDate", w.lastDate); put("hasLastExecution", w.hasLastExecution)
@@ -359,7 +358,7 @@ private fun partsToJson(parts: List<PartCatalogItem>): JSONArray = JSONArray().a
 
 private fun templatesToJson(templates: List<RegulationTemplate>): JSONArray = JSONArray().also { a ->
     templates.forEach { t -> a.put(JSONObject().apply {
-        put("id", t.id); put("name", t.name); put("groupName", t.groupName) // <-- ДОБАВЛЕНО
+        put("id", t.id); put("name", t.name); put("groupName", t.groupName)
         put("category", t.category.name); put("intervalKm", t.intervalKm)
         put("intervalMonths", t.intervalMonths); put("warningKm", t.warningKm); put("warningMonths", t.warningMonths)
         put("preventive", t.preventive); put("notes", t.notes)
@@ -415,3 +414,101 @@ fun restoreFromLocalBackup(context: Context, file: File): BackupResult {
         BackupResult(false, "Ошибка чтения файла: ${e.message}")
     }
 }
+
+// ==================== ШАБЛОНЫ РЕГЛАМЕНТА ====================
+
+fun defaultTemplates(): List<RegulationTemplate> = listOf(
+    // ================== 1. МАСЛА ==================
+    RegulationTemplate(
+        name = "Масло в двигателе", groupName = "1. МАСЛА",
+        category = WorkCategory.GENERAL, intervalKm = 10000, intervalMonths = 12, warningKm = 1000, warningMonths = 1, notes = "Объем ~3.3 л. Проверять уровень каждые 1000 км."
+    ),
+    RegulationTemplate(
+        name = "Масло в механической коробке передач", groupName = "1. МАСЛА",
+        category = WorkCategory.GENERAL, intervalKm = 90000, intervalMonths = 60, warningKm = 5000, warningMonths = 3
+    ),
+
+    // ================== 2. ЖИДКОСТИ ==================
+    RegulationTemplate(
+        name = "Жидкость охлаждающая (антифриз)", groupName = "2. ЖИДКОСТИ",
+        category = WorkCategory.GENERAL, intervalKm = 40000, intervalMonths = 24, warningKm = 3000, warningMonths = 2, notes = "Замена каждые 40 000 км или раз в 2 года."
+    ),
+    RegulationTemplate(
+        name = "Тормозная жидкость DOT4", groupName = "2. ЖИДКОСТИ",
+        category = WorkCategory.GENERAL, intervalKm = 30000, intervalMonths = 24, warningKm = 3000, warningMonths = 2, notes = "Замена каждые 30 000 км или раз в 2 года."
+    ),
+
+    // ================== 3. ФИЛЬТРЫ ==================
+    RegulationTemplate(
+        name = "Фильтр масляный", groupName = "3. ФИЛЬТРЫ",
+        category = WorkCategory.GENERAL, intervalKm = 10000, intervalMonths = 12, warningKm = 1000, warningMonths = 1
+    ),
+    RegulationTemplate(
+        name = "Фильтр воздушный", groupName = "3. ФИЛЬТРЫ",
+        category = WorkCategory.GENERAL, intervalKm = 10000, intervalMonths = 12, warningKm = 1000, warningMonths = 1
+    ),
+    RegulationTemplate(
+        name = "Фильтр кондиционера (салона)", groupName = "3. ФИЛЬТРЫ",
+        category = WorkCategory.GENERAL, intervalKm = 10000, intervalMonths = 12, warningKm = 1000, warningMonths = 1
+    ),
+    RegulationTemplate(
+        name = "Фильтр топливный (сеточка в баке)", groupName = "3. ФИЛЬТРЫ",
+        category = WorkCategory.GENERAL, intervalKm = 40000, intervalMonths = 48, warningKm = 3000, warningMonths = 2, notes = "Артикул: 31090-07000"
+    ),
+    RegulationTemplate(
+        name = "Фильтр топливный (тонкой очистки)", groupName = "3. ФИЛЬТРЫ",
+        category = WorkCategory.GENERAL, intervalKm = 40000, intervalMonths = 48, warningKm = 3000, warningMonths = 2, notes = "Артикул: 31112-1G500"
+    ),
+
+    // ================== 4. РЕМНИ ==================
+    RegulationTemplate(
+        name = "Ремень ГРМ + ролики", groupName = "4. РЕМНИ",
+        category = WorkCategory.GENERAL, intervalKm = 60000, intervalMonths = 60, warningKm = 5000, warningMonths = 3, notes = "Критически важная замена. Проверять состояние ремня на каждом ТО."
+    ),
+    RegulationTemplate(
+        name = "Ремень генератора", groupName = "4. РЕМНИ",
+        category = WorkCategory.GENERAL, intervalKm = 60000, intervalMonths = 60, warningKm = 5000, warningMonths = 3, notes = "Осмотр каждые 20 000 км, замена при трещинах."
+    ),
+    RegulationTemplate(
+        name = "Ремень кондиционера", groupName = "4. РЕМНИ",
+        category = WorkCategory.GENERAL, intervalKm = 60000, intervalMonths = 60, warningKm = 5000, warningMonths = 3, notes = "Осмотр каждые 20 000 км, замена при трещинах."
+    ),
+
+    // ================== 5. ЗАЖИГАНИЕ ==================
+    RegulationTemplate(
+        name = "Свечи зажигания", groupName = "5. ЗАЖИГАНИЕ",
+        category = WorkCategory.GENERAL, intervalKm = 20000, intervalMonths = 24, warningKm = 2000, warningMonths = 1, notes = "Оригинал: 18814-11051 / 18854-10080"
+    ),
+    RegulationTemplate(
+        name = "Высоковольтные провода", groupName = "5. ЗАЖИГАНИЕ",
+        category = WorkCategory.GENERAL, intervalKm = 40000, intervalMonths = 48, warningKm = 3000, warningMonths = 2, notes = "Артикул: 27501-26D00"
+    ),
+    RegulationTemplate(
+        name = "Катушки зажигания", groupName = "5. ЗАЖИГАНИЕ",
+        category = WorkCategory.GENERAL, intervalKm = 140000, intervalMonths = 84, warningKm = 10000, warningMonths = 6, notes = "Артикул: 27301 26600."
+    ),
+
+    // ================== 6. ТОРМОЗА ==================
+    RegulationTemplate(
+        name = "Колодки тормозные передние", groupName = "6. ТОРМОЗА",
+        category = WorkCategory.GENERAL, intervalKm = 30000, intervalMonths = 24, warningKm = 3000, warningMonths = 2, notes = "Проверять по износу, обычно хватает на 30-40 тыс."
+    ),
+    RegulationTemplate(
+        name = "Колодки тормозные задние", groupName = "6. ТОРМОЗА",
+        category = WorkCategory.GENERAL, intervalKm = 60000, intervalMonths = 36, warningKm = 5000, warningMonths = 3, notes = "Проверять по износу."
+    ),
+
+    // ================== 7. ДАТЧИКИ И ПРОЧЕЕ ==================
+    RegulationTemplate(
+        name = "Датчик кислорода (Лямбда-зонд)", groupName = "7. ДАТЧИКИ И ПРОЧЕЕ",
+        category = WorkCategory.GENERAL, intervalKm = 100000, intervalMonths = 72, warningKm = 10000, warningMonths = 6, notes = "4 контакта."
+    ),
+    RegulationTemplate(
+        name = "Помпа (водяной насос) + прокладка", groupName = "7. ДАТЧИКИ И ПРОЧЕЕ",
+        category = WorkCategory.GENERAL, intervalKm = 120000, intervalMonths = 72, warningKm = 10000, warningMonths = 6, notes = "Артикул помпы: 25100 26902, Прокладка: 25124 26002. Если меняете ГРМ на 120к, настоятельно рекомендуется заменить и помпу."
+    ),
+    RegulationTemplate(
+        name = "Чистка инжектора (форсунок)", groupName = "7. ДАТЧИКИ И ПРОЧЕЕ",
+        category = WorkCategory.GENERAL, intervalKm = 20000, intervalMonths = 24, warningKm = 2000, warningMonths = 1
+    )
+)
