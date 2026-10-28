@@ -135,7 +135,12 @@ fun AppScreen() {
         records = records + record
         saveServiceRecords(context, records)
         saveAndRefreshWorks(works.map {
-            if (it.id == w.id) it.copy(lastMileage = km, lastDate = date, hasLastExecution = true, skipped = false) else it
+            if (it.id == w.id) it.copy(
+                lastMileage = km,
+                lastDate = date,
+                hasLastExecution = true,
+                skipped = false
+            ) else it
         })
     }
 
@@ -276,15 +281,17 @@ fun AppScreen() {
 
     if (actionWork != null && car != null) {
         val currentWork = actionWork!!
-        WorkActionsDialog(
-            currentWork, car, records,
-            onDismiss = { actionWork = null },
-            onComplete = { km, date, note, lines -> completeWork(currentWork, km, date, note, lines); actionWork = null },
-            onSkip = { saveAndRefreshWorks(works.map { if (it.id == currentWork.id) it.copy(skipped = true) else it }); actionWork = null },
-            onEdit = { editingRegulation = currentWork; actionWork = null; regulationDialog = true },
-            onDelete = { saveAndRefreshWorks(works.filter { it.id != currentWork.id }); actionWork = null },
-            onShowInList = { screen = "Перечень работ"; actionWork = null }
-        )
+        key(car.mileage) { // <-- Принудительная перекомпозиция при изменении пробега
+            WorkActionsDialog(
+                currentWork, car, records,
+                onDismiss = { actionWork = null },
+                onComplete = { km, date, note, lines -> completeWork(currentWork, km, date, note, lines); actionWork = null },
+                onSkip = { saveAndRefreshWorks(works.map { if (it.id == currentWork.id) it.copy(skipped = true) else it }); actionWork = null },
+                onEdit = { editingRegulation = currentWork; actionWork = null; regulationDialog = true },
+                onDelete = { saveAndRefreshWorks(works.filter { it.id != currentWork.id }); actionWork = null },
+                onShowInList = { screen = "Перечень работ"; actionWork = null }
+            )
+        }
     }
 
     if (regulationDialog && car != null) {
