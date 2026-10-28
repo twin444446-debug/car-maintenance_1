@@ -283,20 +283,38 @@ fun WorkActionsDialog(
                         thickness = 1.dp
                     )
                     
+                    val currentMileage = car.mileage.toIntOrNull() ?: 0
+                    val nextMileage = if (work.hasLastExecution) work.lastMileage + work.intervalKm else currentMileage + work.intervalKm
+                    val remainingKm = nextMileage - currentMileage
+
                     // 3. Следующая замена, км
-                    val nextMileage = if (work.hasLastExecution) work.lastMileage + work.intervalKm else (car.mileage.toIntOrNull() ?: 0) + work.intervalKm
                     InfoRow(
                         label = "Следующая замена, км:",
                         value = "$nextMileage",
-                        valueColor = Color.Red.copy(alpha = 0.7f)
+                        // Если пробег уже превысил следующий порог — красный, иначе белый
+                        valueColor = if (currentMileage >= nextMileage) Color.Red else TextPrimary
                     )
                     
-                    // 4. Следующая замена, мес
+                    // 4. Остаток пробега
+                    InfoRow(
+                        label = "Остаток пробега:",
+                        value = "$remainingKm",
+                        // Если остаток положительный — белый, если отрицательный — красный
+                        valueColor = if (remainingKm > 0) TextPrimary else Color.Red
+                    )
+                    
+                    // 5. Следующая замена, мес
                     if (work.intervalMonths > 0) {
+                        // Проверяем, не просрочен ли срок в месяцах (простая логика: если последняя замена была больше intervalMonths назад)
+                        val currentTime = System.currentTimeMillis()
+                        val lastExecTime = work.lastDate
+                        val monthsPassed = if (work.hasLastExecution) ((currentTime - lastExecTime) / (1000L * 60 * 60 * 24 * 30)).toInt() else 0
+                        val isOverdue = work.hasLastExecution && monthsPassed >= work.intervalMonths
+                        
                         InfoRow(
                             label = "Следующая замена, мес:",
                             value = "${work.intervalMonths}",
-                            valueColor = Color.Red.copy(alpha = 0.7f)
+                            valueColor = if (isOverdue) Color.Red else TextPrimary
                         )
                     }
                 }
