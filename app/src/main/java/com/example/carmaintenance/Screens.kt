@@ -596,7 +596,8 @@ private fun PartsCatalogScreen(car: Car?, parts: List<PartCatalogItem>, onBack: 
     if (show) { PartCatalogDialog(car.id, onDismiss = { show = false }) { part -> onAdd(part); show = false } }
 }
 
-@Composableprivate fun PartCatalogDialog(carId: String, onDismiss: () -> Unit, onSave: (PartCatalogItem) -> Unit) {
+@Composable
+private fun PartCatalogDialog(carId: String, onDismiss: () -> Unit, onSave: (PartCatalogItem) -> Unit) {
     var name by remember { mutableStateOf("") }; var article by remember { mutableStateOf("") }
     var category by remember { mutableStateOf("Запчасть") }; var cost by remember { mutableStateOf("") }; var currency by remember { mutableStateOf("RUB") }
     AlertDialog(
