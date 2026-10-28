@@ -60,8 +60,6 @@ fun AppScreen() {
     var showAboutDialog by remember { mutableStateOf(false) }
     var showBackupDialog by remember { mutableStateOf(false) }
     var showSettingsDialog by remember { mutableStateOf(false) }
-    
-    // Состояние для раскрытия списка автомобилей в меню
     var carsMenuExpanded by remember { mutableStateOf(false) }
 
     val car = cars.firstOrNull { it.id == selectedCarId }
@@ -112,133 +110,64 @@ fun AppScreen() {
     ModalNavigationDrawer(
         drawerState = drawerState,
         drawerContent = {
-            ModalDrawerSheet(
-                drawerContainerColor = CardColor,
-                drawerContentColor = TextPrimary
-            ) {
+            ModalDrawerSheet(drawerContainerColor = CardColor, drawerContentColor = TextPrimary) {
                 Spacer(Modifier.height(24.dp))
                 Text("Учёт автомобильного ТО", modifier = Modifier.padding(16.dp), color = TextPrimary, fontSize = 20.sp, fontWeight = FontWeight.Bold)
                 HorizontalDivider(color = TextSecondary.copy(alpha = 0.2f))
                 
-                // Функция для пунктов меню
-                @Composable
-                fun DrawerItem(label: String, icon: androidx.compose.ui.graphics.vector.ImageVector, tint: Color, selected: Boolean, onClick: () -> Unit) {
-                    NavigationDrawerItem(
-                        label = { Text(label, color = TextPrimary) },
-                        icon = { Icon(icon, contentDescription = null, tint = tint) },
-                        selected = selected,
-                        onClick = onClick,
-                        colors = NavigationDrawerItemDefaults.colors(
-                            unselectedContainerColor = Color.Transparent,
-                            selectedContainerColor = Color.Transparent
-                        ),
-                        modifier = Modifier.padding(NavigationDrawerItemDefaults.ItemPadding)
-                    )
-                }
-
-                // 1. Мои автомобили (раскрывающийся список)
+                // Мои автомобили (раскрывающийся список)
                 NavigationDrawerItem(
                     label = { Text("Мои автомобили", color = TextPrimary) },
                     icon = { Icon(Icons.Default.DirectionsCar, contentDescription = null, tint = ColorBlue) },
                     selected = false,
                     onClick = { carsMenuExpanded = !carsMenuExpanded },
-                    colors = NavigationDrawerItemDefaults.colors(
-                        unselectedContainerColor = Color.Transparent,
-                        selectedContainerColor = Color.Transparent
-                    ),
+                    colors = NavigationDrawerItemDefaults.colors(unselectedContainerColor = Color.Transparent, selectedContainerColor = Color.Transparent),
                     modifier = Modifier.padding(NavigationDrawerItemDefaults.ItemPadding),
-                    badge = {
-                        Icon(
-                            imageVector = if (carsMenuExpanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
-                            contentDescription = null,
-                            tint = TextSecondary
-                        )
-                    }
+                    badge = { Icon(if (carsMenuExpanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown, contentDescription = null, tint = TextSecondary) }
                 )
                 
-                // Выпадающий список автомобилей
                 if (carsMenuExpanded) {
                     cars.forEach { carItem ->
                         NavigationDrawerItem(
-                            label = { 
-                                Text(
-                                    text = "${carItem.brand} ${carItem.model}".ifBlank { "Автомобиль" },
-                                    color = if (carItem.id == selectedCarId) ColorGreen else TextPrimary,
-                                    fontWeight = if (carItem.id == selectedCarId) FontWeight.Bold else FontWeight.Normal
-                                ) 
-                            },
-                            icon = { 
-                                Icon(
-                                    imageVector = Icons.Default.DirectionsCar, 
-                                    contentDescription = null, 
-                                    tint = if (carItem.id == selectedCarId) ColorGreen else TextSecondary
-                                ) 
-                            },
+                            label = { Text("${carItem.brand} ${carItem.model}".ifBlank { "Автомобиль" }, color = if (carItem.id == selectedCarId) ColorGreen else TextPrimary, fontWeight = if (carItem.id == selectedCarId) FontWeight.Bold else FontWeight.Normal) },
+                            icon = { Icon(Icons.Default.DirectionsCar, contentDescription = null, tint = if (carItem.id == selectedCarId) ColorGreen else TextSecondary) },
                             selected = carItem.id == selectedCarId,
                             onClick = {
                                 selectedCarId = carItem.id
-                                context.getSharedPreferences("car_maintenance", android.content.Context.MODE_PRIVATE)
-                                    .edit().putString("selected_car_id", carItem.id).apply()
+                                context.getSharedPreferences("car_maintenance", android.content.Context.MODE_PRIVATE).edit().putString("selected_car_id", carItem.id).apply()
+                                screen = "Главная"
                                 scope.launch { drawerState.close() }
                             },
-                            colors = NavigationDrawerItemDefaults.colors(
-                                unselectedContainerColor = Color.Transparent,
-                                selectedContainerColor = ColorGreen.copy(alpha = 0.1f)
-                            ),
+                            colors = NavigationDrawerItemDefaults.colors(unselectedContainerColor = Color.Transparent, selectedContainerColor = ColorGreen.copy(alpha = 0.1f)),
                             modifier = Modifier.padding(start = 32.dp, end = 16.dp, top = 2.dp, bottom = 2.dp)
                         )
                     }
                 }
 
-                // 2. Добавить автомобиль
                 DrawerItem("Добавить автомобиль", Icons.Default.Add, ColorGreen, false) {
-                    editingCar = null
-                    carDialog = true
-                    scope.launch { drawerState.close() }
+                    editingCar = null; carDialog = true; scope.launch { drawerState.close() }
                 }
-
-                // 3. Статистика
                 DrawerItem("Статистика", Icons.Default.Info, ColorYellow, screen == "Статистика") {
-                    screen = "Статистика"
-                    scope.launch { drawerState.close() }
+                    screen = "Статистика"; scope.launch { drawerState.close() }
                 }
-
-                // 4. Шаблоны регламента
                 DrawerItem("Шаблоны регламента", Icons.Default.List, ColorGreen, templateEditor) {
-                    templateEditor = true
-                    scope.launch { drawerState.close() }
+                    templateEditor = true; scope.launch { drawerState.close() }
                 }
-
-                // 5. Запчасти и расходники
                 DrawerItem("Запчасти и расходники", Icons.Default.Build, ColorBlue, partsScreen) {
-                    partsScreen = true
-                    scope.launch { drawerState.close() }
+                    partsScreen = true; scope.launch { drawerState.close() }
                 }
-
-                // 6. Коды ошибок
                 DrawerItem("Коды ошибок", Icons.Default.Search, ColorPurple, errorDecoder) {
-                    errorDecoder = true
-                    scope.launch { drawerState.close() }
+                    errorDecoder = true; scope.launch { drawerState.close() }
                 }
-
                 HorizontalDivider(color = TextSecondary.copy(alpha = 0.2f), modifier = Modifier.padding(vertical = 8.dp))
-
-                // 7. О приложении
                 DrawerItem("О приложении", Icons.Default.Info, ColorBlue, showAboutDialog) {
-                    showAboutDialog = true
-                    scope.launch { drawerState.close() }
+                    showAboutDialog = true; scope.launch { drawerState.close() }
                 }
-
-                // 8. Настройки
                 DrawerItem("Настройки", Icons.Default.Settings, Color.Gray, showSettingsDialog) {
-                    showSettingsDialog = true
-                    scope.launch { drawerState.close() }
+                    showSettingsDialog = true; scope.launch { drawerState.close() }
                 }
-
-                // 9. Резервная копия
                 DrawerItem("Резервная копия", Icons.Default.CloudUpload, ColorGreen, showBackupDialog) {
-                    showBackupDialog = true
-                    scope.launch { drawerState.close() }
+                    showBackupDialog = true; scope.launch { drawerState.close() }
                 }
             }
         }
@@ -257,7 +186,8 @@ fun AppScreen() {
                             onAddWork = { suggestedWork = ""; serviceInitial = null; serviceDialog = true },
                             onWork = { actionWork = it },
                             onMileage = { mileageDialog = true },
-                            onOpenCar = { scope.launch { drawerState.open() } },
+                            onOpenCar = { scope.launch { drawerState.open() } }, // <-- Меню
+                            onEditCar = { editingCar = car; carDialog = true }, // <-- Редактирование
                             onStatusClick = { status -> selectedStatusFilter = status; screen = "Перечень работ" }
                         )
                         "Перечень работ" -> WorkListScreen(
@@ -370,7 +300,6 @@ fun AppScreen() {
                     saveWorks(context, works)
                     records = records.filter { it.carId != carToRemove.id }
                     saveServiceRecords(context, records)
-                    
                     selectedCarId = cars.firstOrNull()?.id
                     context.getSharedPreferences("car_maintenance", android.content.Context.MODE_PRIVATE).edit().putString("selected_car_id", selectedCarId ?: "").apply()
                     screen = "Главная"
@@ -431,6 +360,18 @@ fun AppScreen() {
             confirmButton = { TextButton(onClick = { showBackupDialog = false }) { Text("Закрыть", color = ColorGreen) } }
         )
     }
+}
+
+@Composable
+private fun DrawerItem(label: String, icon: androidx.compose.ui.graphics.vector.ImageVector, tint: Color, selected: Boolean, onClick: () -> Unit) {
+    NavigationDrawerItem(
+        label = { Text(label, color = TextPrimary) },
+        icon = { Icon(icon, contentDescription = null, tint = tint) },
+        selected = selected,
+        onClick = onClick,
+        colors = NavigationDrawerItemDefaults.colors(unselectedContainerColor = Color.Transparent, selectedContainerColor = Color.Transparent),
+        modifier = Modifier.padding(NavigationDrawerItemDefaults.ItemPadding)
+    )
 }
 
 @Composable
