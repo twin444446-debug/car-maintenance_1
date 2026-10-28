@@ -27,7 +27,6 @@ fun WorkCard(work: MaintenanceWork, car: Car, records: List<ServiceRecord>, onCl
     val status = getWorkStatus(work, car, records)
     val currentMileage = car.mileage.toIntOrNull() ?: 0
     
-    // Вычисляем остаток пробега до следующей замены
     val nextMileage = if (work.hasLastExecution) work.lastMileage + work.intervalKm else currentMileage + work.intervalKm
     val remainingKm = nextMileage - currentMileage
     
@@ -76,9 +75,9 @@ fun WorkCard(work: MaintenanceWork, car: Car, records: List<ServiceRecord>, onCl
                 )
                 Spacer(Modifier.height(4.dp))
                 
-                // Только остаток пробега: белый, если > 0, иначе красный
+                // Остаток пробега (без слов), белый если > 0, иначе красный
                 Text(
-                    text = if (remainingKm > 0) "$remainingKm км" else "Просрочено на ${-remainingKm} км",
+                    text = "$remainingKm км",
                     color = if (remainingKm > 0) TextPrimary else Color.Red,
                     fontSize = 13.sp,
                     fontWeight = FontWeight.Medium
