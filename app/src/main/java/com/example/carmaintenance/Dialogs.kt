@@ -294,13 +294,15 @@ fun WorkActionsDialog(
     work: MaintenanceWork,
     car: Car,
     records: List<ServiceRecord>,
-    initialRecord: ServiceRecord? = null, // <-- ДОБАВЛЕНО
+    initialRecord: ServiceRecord? = null,
     onDismiss: () -> Unit,
     onComplete: (km: Int, date: Long, note: String, lines: List<ServiceLine>) -> Unit,
     onSkip: () -> Unit,
     onEdit: () -> Unit,
     onDelete: () -> Unit,
-    onShowInList: () -> Unit
+    onShowInList: () -> Unit,
+    onEditRecord: (ServiceRecord) -> Unit,
+    onCancelRecord: (ServiceRecord) -> Unit
 ) {
     var showCompleteForm by remember { mutableStateOf(initialRecord != null) }
     
@@ -323,7 +325,10 @@ fun WorkActionsDialog(
             containerColor = CardColor,
             title = { Text(work.name, color = TextPrimary, fontWeight = FontWeight.Bold) },
             text = {
-                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                Column(
+                    verticalArrangement = Arrangement.spacedBy(6.dp),
+                    modifier = Modifier.heightIn(max = 400.dp).verticalScroll(rememberScrollState())
+                ) {
                     InfoRow(
                         label = "Последняя замена, км:",
                         value = if (work.hasLastExecution && work.lastMileage > 0) "${work.lastMileage}" else "—",
@@ -362,6 +367,35 @@ fun WorkActionsDialog(
                             value = "${work.intervalMonths}",
                             valueColor = if (isOverdue) Color.Red else TextPrimary
                         )
+                    }
+
+                    // Список выполнений с кнопками редактирования и отмены
+                    val completedRecords = records.filter { it.workId == work.id }
+                    if (completedRecords.isNotEmpty()) {
+                        HorizontalDivider(
+                            modifier = Modifier.padding(vertical = 4.dp),
+                            color = TextSecondary.copy(alpha = 0.3f),
+                            thickness = 1.dp
+                        )
+                        Text("Выполнения:", color = TextPrimary, fontWeight = FontWeight.Bold)
+                        completedRecords.forEach { record ->
+                            Row(
+                                modifier = Modifier.fillMaxWidth().padding(vertical = 2.dp),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text("${record.mileage} км", color = TextPrimary, fontSize = 13.sp)
+                                    Text(formatDate(record.date), color = TextSecondary, fontSize = 12.sp)
+                                }
+                                TextButton(onClick = { onEditRecord(record) }) {
+                                    Text("Изменить", color = ColorYellow, fontSize = 12.sp)
+                                }
+                                TextButton(onClick = { onCancelRecord(record) }) {
+                                    Text("Отменить", color = ColorRed, fontSize = 12.sp)
+                                }
+                            }
+                        }
                     }
                 }
             },
