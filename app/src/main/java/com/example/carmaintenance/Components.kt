@@ -27,7 +27,6 @@ fun WorkCard(work: MaintenanceWork, car: Car, records: List<ServiceRecord>, onCl
     val status = getWorkStatus(work, car, records)
     val currentMileage = car.mileage.toIntOrNull() ?: 0
 
-    // Формула: lastMileage + intervalKm - currentMileage
     val lastMileage = if (work.hasLastExecution) work.lastMileage else 0
     val remainingKm = lastMileage + work.intervalKm - currentMileage
 
@@ -109,7 +108,6 @@ fun WorkCard(work: MaintenanceWork, car: Car, records: List<ServiceRecord>, onCl
     }
 }
 
-// Плашка для записи в "Перечне работ"
 @Composable
 fun ServiceRecordCard(
     record: ServiceRecord,
