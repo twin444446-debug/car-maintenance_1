@@ -27,6 +27,10 @@ fun WorkCard(work: MaintenanceWork, car: Car, records: List<ServiceRecord>, onCl
     val status = getWorkStatus(work, car, records)
     val currentMileage = car.mileage.toIntOrNull() ?: 0
     
+    // Вычисляем остаток пробега до следующей замены
+    val nextMileage = if (work.hasLastExecution) work.lastMileage + work.intervalKm else currentMileage + work.intervalKm
+    val remainingKm = nextMileage - currentMileage
+    
     val style = when (status) {
         WorkStatus.REQUIRED -> WorkCardStyle(Icons.Default.PriorityHigh, Color.Red, "Требуется", Color.Red.copy(alpha = 0.15f), Color.Red)
         WorkStatus.PREVENTIVE -> WorkCardStyle(Icons.Default.Schedule, Color.Yellow, "Скоро", Color.Yellow.copy(alpha = 0.15f), Color.Yellow)
@@ -43,19 +47,18 @@ fun WorkCard(work: MaintenanceWork, car: Car, records: List<ServiceRecord>, onCl
             modifier = Modifier.fillMaxWidth().padding(12.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // Иконка с ярким фоном, чёрной иконкой и полупрозрачной окантовкой (свечением)
             Box(
                 modifier = Modifier
                     .size(44.dp)
-                    .background(style.iconColor.copy(alpha = 0.25f), CircleShape) // Окантовка
+                    .background(style.iconColor.copy(alpha = 0.25f), CircleShape)
                     .padding(4.dp)
-                    .background(style.iconColor, CircleShape), // Яркий фон
+                    .background(style.iconColor, CircleShape),
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
                     imageVector = style.icon,
                     contentDescription = null,
-                    tint = Color.Black, // Чёрная иконка
+                    tint = Color.Black,
                     modifier = Modifier.size(22.dp)
                 )
             }
@@ -73,21 +76,13 @@ fun WorkCard(work: MaintenanceWork, car: Car, records: List<ServiceRecord>, onCl
                 )
                 Spacer(Modifier.height(4.dp))
                 
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    val nextMileage = if (work.hasLastExecution) work.lastMileage + work.intervalKm else currentMileage + work.intervalKm
-                    
-                    if (work.hasLastExecution) {
-                        Text("$nextMileage км", color = Color.Red, fontSize = 13.sp, fontWeight = FontWeight.Bold)
-                    } else {
-                        Text("— ($nextMileage км", color = TextSecondary, fontSize = 13.sp)
-                    }
-                    
-                    if (work.intervalMonths > 0) {
-                        Text(" / ${work.intervalMonths} мес.", color = Color.Red, fontSize = 13.sp, fontWeight = FontWeight.Bold)
-                    }
-                    
-                    Text(if (work.hasLastExecution) "" else ")", color = TextSecondary, fontSize = 13.sp)
-                }
+                // Только остаток пробега: белый, если > 0, иначе красный
+                Text(
+                    text = if (remainingKm > 0) "$remainingKm км" else "Просрочено на ${-remainingKm} км",
+                    color = if (remainingKm > 0) TextPrimary else Color.Red,
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.Medium
+                )
             }
 
             Spacer(Modifier.width(8.dp))
