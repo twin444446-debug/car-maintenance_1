@@ -86,7 +86,6 @@ fun AppScreen() {
     val drawerState = rememberDrawerState(DrawerValue.Closed)
     val scope = rememberCoroutineScope()
 
-    // Автосинхронизация
     LaunchedEffect(works, records) {
         val updatedWorks = works.map { work ->
             if (work.hasLastExecution && records.none { it.workId == work.id }) {
@@ -220,13 +219,10 @@ fun AppScreen() {
                             onMileage = { mileageDialog = true },
                             onOpenCar = { scope.launch { drawerState.open() } },
                             onEditCar = { editingCar = car; carDialog = true },
-                            onStatusClick = { status -> selectedStatusFilter = status; screen = "Перечень работ" }
+                            onStatusClick = { status -> selectedStatusFilter = status; screen = "Регламент" }
                         )
                         "Перечень работ" -> WorkListScreen(
                             car, records, parts,
-                            filter = selectedStatusFilter,
-                            onClearFilter = { selectedStatusFilter = null },
-                            onFilterChange = { selectedStatusFilter = it },
                             onAdd = { suggestedWork = ""; serviceInitial = null; serviceDialog = true },
                             onEdit = { selectedRecord = it; serviceInitial = it; serviceDialog = true },
                             onPartSave = { parts = parts + it; savePartCatalog(context, parts) },
@@ -234,7 +230,16 @@ fun AppScreen() {
                             onWorkClick = { work, record -> selectedCompletedWork = work to record },
                             onDeleteRecord = { recordToDelete = it }
                         )
-                        "Регламент" -> RegulationScreen(car, works.filter { it.carId == car?.id }, records, onWork = { actionWork = it }, onAdd = { editingRegulation = null; regulationDialog = true }, onFill = { if (car != null) createDefaultForCar(car) })
+                        "Регламент" -> RegulationScreen(
+                            car, 
+                            works.filter { it.carId == car?.id }, 
+                            records,
+                            filter = selectedStatusFilter,
+                            onFilterChange = { selectedStatusFilter = it },
+                            onWork = { actionWork = it }, 
+                            onAdd = { editingRegulation = null; regulationDialog = true }, 
+                            onFill = { if (car != null) createDefaultForCar(car) }
+                        )
                         "Статистика" -> StatisticsScreen(car, records)
                         "Ещё" -> MoreScreen(onTemplate = { templateEditor = true }, onDecoder = { errorDecoder = true }, onParts = { partsScreen = true })
                         "Автомобиль" -> CarDetailScreen(
@@ -479,9 +484,6 @@ private fun WorkListScreen(
     car: Car?, 
     records: List<ServiceRecord>, 
     parts: List<PartCatalogItem>,
-    filter: WorkStatus? = null,
-    onClearFilter: () -> Unit,
-    onFilterChange: (WorkStatus?) -> Unit,
     onAdd: () -> Unit, 
     onEdit: (ServiceRecord) -> Unit, 
     onPartSave: (PartCatalogItem) -> Unit,
@@ -497,7 +499,7 @@ private fun WorkListScreen(
         Row( modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp) ) {
             OutlinedTextField(
                 value = searchQuery, onValueChange = { searchQuery = it }, modifier = Modifier.weight(1f),
-                placeholder = { Text("Поиск...", color = TextSecondary) }, singleLine = true,
+                placeholder = { Text("Поиск по названию...", color = TextSecondary) }, singleLine = true,
                 colors = OutlinedTextFieldDefaults.colors(focusedTextColor = TextPrimary, unfocusedTextColor = TextPrimary, focusedBorderColor = ColorGreen, unfocusedBorderColor = TextSecondary, cursorColor = ColorGreen)
             )
             if (searchQuery.isNotEmpty()) {
@@ -540,23 +542,71 @@ private fun WorkListScreen(
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun RegulationScreen(car: Car?, works: List<MaintenanceWork>, records: List<ServiceRecord>, onWork: (MaintenanceWork) -> Unit, onAdd: () -> Unit, onFill: () -> Unit) {
+private fun RegulationScreen(
+    car: Car?, 
+    works: List<MaintenanceWork>, 
+    records: List<ServiceRecord>, 
+    filter: WorkStatus?,
+    onFilterChange: (WorkStatus?) -> Unit,
+    onWork: (MaintenanceWork) -> Unit, 
+    onAdd: () -> Unit, 
+    onFill: () -> Unit
+) {
     if (car == null) { Page("Регламент") { Text("Сначала добавьте автомобиль", color = TextSecondary) }; return }
-    val generalWorks = works.filter { it.category == WorkCategory.GENERAL }
-    val lpgWorks = works.filter { it.category == WorkCategory.LPG }
+    
+    var searchQuery by remember { mutableStateOf("") }
+    
     Page("Регламент") {
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            Button(onClick = onFill, modifier = Modifier.weight(1f)) { Text("Заполнить из шаблона") }
-            Button(onClick = onAdd, modifier = Modifier.weight(1f)) { Text("Добавить") }
+        Row( modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp) ) {
+            OutlinedTextField(
+                value = searchQuery, onValueChange = { searchQuery = it }, modifier = Modifier.weight(1f),
+                placeholder = { Text("Поиск по названию...", color = TextSecondary) }, singleLine = true,
+                colors = OutlinedTextFieldDefaults.colors(focusedTextColor = TextPrimary, unfocusedTextColor = TextPrimary, focusedBorderColor = ColorGreen, unfocusedBorderColor = TextSecondary, cursorColor = ColorGreen)
+            )
+            if (searchQuery.isNotEmpty()) {
+                IconButton(onClick = { searchQuery = "" }) { Icon(Icons.Default.Clear, contentDescription = "Очистить", tint = TextSecondary) }
+            }
         }
+        
         Spacer(Modifier.height(8.dp))
+
+        Row( modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp) ) {
+            FilterChip(selected = filter == null, onClick = { onFilterChange(null) }, label = { Text("Все") }, colors = FilterChipDefaults.filterChipColors(selectedContainerColor = ColorGreen.copy(alpha = 0.2f), selectedLabelColor = ColorGreen, labelColor = TextPrimary))
+            FilterChip(selected = filter == WorkStatus.REQUIRED, onClick = { onFilterChange(WorkStatus.REQUIRED) }, label = { Text("Требуется") }, colors = FilterChipDefaults.filterChipColors(selectedContainerColor = ColorRed.copy(alpha = 0.2f), selectedLabelColor = ColorRed, labelColor = TextPrimary))
+            FilterChip(selected = filter == WorkStatus.COMPLETED, onClick = { onFilterChange(WorkStatus.COMPLETED) }, label = { Text("Выполнено") }, colors = FilterChipDefaults.filterChipColors(selectedContainerColor = ColorGreen.copy(alpha = 0.2f), selectedLabelColor = ColorGreen, labelColor = TextPrimary))
+            FilterChip(selected = filter == WorkStatus.SKIPPED, onClick = { onFilterChange(WorkStatus.SKIPPED) }, label = { Text("Пропущено") }, colors = FilterChipDefaults.filterChipColors(selectedContainerColor = ColorPurple.copy(alpha = 0.2f), selectedLabelColor = ColorPurple, labelColor = TextPrimary))
+            FilterChip(selected = filter == WorkStatus.PREVENTIVE, onClick = { onFilterChange(WorkStatus.PREVENTIVE) }, label = { Text("Рекомендовано") }, colors = FilterChipDefaults.filterChipColors(selectedContainerColor = ColorYellow.copy(alpha = 0.2f), selectedLabelColor = ColorYellow, labelColor = TextPrimary))
+        }
+
+        Spacer(Modifier.height(8.dp))
+        
+        val generalWorks = works.filter { it.category == WorkCategory.GENERAL }
+        val lpgWorks = works.filter { it.category == WorkCategory.LPG }
+        
+        val filteredGeneral = generalWorks.filter { work ->
+            val matchesSearch = searchQuery.isBlank() || work.name.contains(searchQuery, ignoreCase = true)
+            val matchesFilter = filter == null || getWorkStatus(work, car, records) == filter
+            matchesSearch && matchesFilter
+        }
+        val filteredLpg = lpgWorks.filter { work ->
+            val matchesSearch = searchQuery.isBlank() || work.name.contains(searchQuery, ignoreCase = true)
+            val matchesFilter = filter == null || getWorkStatus(work, car, records) == filter
+            matchesSearch && matchesFilter
+        }
+
         LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            item { SectionTitle("Обслуживание автомобиля") }
-            items(generalWorks) { work -> WorkCard(work, car, records) { onWork(work) } }
-            if (car.hasLpg) {
+            if (filteredGeneral.isNotEmpty()) {
+                item { SectionTitle("Обслуживание автомобиля") }
+                items(filteredGeneral) { work -> WorkCard(work, car, records) { onWork(work) } }
+            }
+            if (car.hasLpg && filteredLpg.isNotEmpty()) {
                 item { SectionTitle("Регламент ГБО") }
-                items(lpgWorks) { work -> WorkCard(work, car, records) { onWork(work) } }
+                items(filteredLpg) { work -> WorkCard(work, car, records) { onWork(work) } }
+            }
+            if (filteredGeneral.isEmpty() && (!car.hasLpg || filteredLpg.isEmpty())) {
+                item { Text(if (searchQuery.isNotBlank()) "Ничего не найдено" else "Нет работ с этим статусом", color = TextSecondary) }
             }
         }
     }
