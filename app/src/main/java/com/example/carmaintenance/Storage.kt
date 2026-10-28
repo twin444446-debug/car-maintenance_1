@@ -3,6 +3,7 @@ package com.example.carmaintenance
 import android.content.Context
 import org.json.JSONArray
 import org.json.JSONObject
+import java.io.File
 import java.util.UUID
 
 private const val PREFS = "car_maintenance"
@@ -277,4 +278,129 @@ private fun migrateIfNeeded(context: Context) {
     if (oldWorks.length() > 0) saveWorks(context, migratedWorks)
     if (oldHistory.length() > 0 || existingRecords.length() > 0) saveServiceRecords(context, records)
     p.edit().putBoolean(MIGRATED, true).apply()
+}
+// ==================== РЕЗЕРВНОЕ КОПИРОВАНИЕ ====================
+
+data class BackupResult(val success: Boolean, val message: String)
+
+private const val BACKUP_DIR = "backups"
+private const val BACKUP_PREFIX = "backup_"
+private const val BACKUP_SUFFIX = ".json"
+private const val MAX_BACKUPS = 10
+
+private fun Context.backupDir(): File {
+    val dir = File(filesDir, BACKUP_DIR)
+    if (!dir.exists()) dir.mkdirs()
+    return dir
+}
+
+fun buildBackupJson(
+    cars: List<Car>,
+    works: List<MaintenanceWork>,
+    records: List<ServiceRecord>,
+    parts: List<PartCatalogItem>,
+    templates: List<RegulationTemplate>
+): String {
+    val root = JSONObject()
+    root.put("version", 1)
+    root.put("exportedAt", System.currentTimeMillis())
+    root.put("cars", carsToJson(cars))
+    root.put("works", worksToJson(works))
+    root.put("records", recordsToJson(records))
+    root.put("parts", partsToJson(parts))
+    root.put("templates", templatesToJson(templates))
+    return root.toString(2)
+}
+
+private fun carsToJson(cars: List<Car>): JSONArray = JSONArray().also { a ->
+    cars.forEach { c -> a.put(JSONObject().apply {
+        put("id", c.id); put("brand", c.brand); put("model", c.model); put("year", c.year); put("vin", c.vin)
+        put("mileage", c.mileage); put("engine", c.engine); put("fuel", c.fuel); put("hasLpg", c.hasLpg)
+        put("notes", c.notes); put("imageUri", c.imageUri)
+    }) }
+}
+
+private fun worksToJson(works: List<MaintenanceWork>): JSONArray = JSONArray().also { a ->
+    works.forEach { w -> a.put(JSONObject().apply {
+        put("id", w.id); put("carId", w.carId); put("templateId", w.templateId); put("name", w.name); put("category", w.category.name)
+        put("intervalKm", w.intervalKm); put("intervalMonths", w.intervalMonths); put("warningKm", w.warningKm); put("warningMonths", w.warningMonths)
+        put("lastMileage", w.lastMileage); put("lastDate", w.lastDate); put("hasLastExecution", w.hasLastExecution)
+        put("skipped", w.skipped); put("preventive", w.preventive); put("notes", w.notes)
+    }) }
+}
+
+private fun recordsToJson(records: List<ServiceRecord>): JSONArray = JSONArray().also { a ->
+    records.forEach { r -> a.put(JSONObject().apply {
+        put("id", r.id); put("carId", r.carId); put("workId", r.workId)
+        put("date", r.date); put("servicePlace", r.servicePlace); put("reason", r.reason); put("mileage", r.mileage); put("notes", r.notes)
+        put("lines", JSONArray().apply { r.lines.forEach { l -> put(JSONObject().apply {
+            put("id", l.id); put("type", l.type.name); put("name", l.name); put("article", l.article); put("cost", l.cost)
+            put("currency", l.currency); put("oilType", l.oilType); put("oilName", l.oilName); put("notes", l.notes)
+        }) } })
+    }) }
+}
+
+private fun partsToJson(parts: List<PartCatalogItem>): JSONArray = JSONArray().also { a ->
+    parts.forEach { p -> a.put(JSONObject().apply {
+        put("id", p.id); put("carId", p.carId); put("name", p.name); put("article", p.article)
+        put("category", p.category); put("lastCost", p.lastCost); put("currency", p.currency)
+    }) }
+}
+
+private fun templatesToJson(templates: List<RegulationTemplate>): JSONArray = JSONArray().also { a ->
+    templates.forEach { t -> a.put(JSONObject().apply {
+        put("id", t.id); put("name", t.name); put("category", t.category.name); put("intervalKm", t.intervalKm)
+        put("intervalMonths", t.intervalMonths); put("warningKm", t.warningKm); put("warningMonths", t.warningMonths)
+        put("preventive", t.preventive); put("notes", t.notes)
+    }) }
+}
+
+fun createLocalBackup(context: Context, json: String): File {
+    val ts = java.text.SimpleDateFormat("yyyyMMdd_HHmmss", java.util.Locale.US).format(java.util.Date())
+    val file = File(context.backupDir(), "$BACKUP_PREFIX$ts$BACKUP_SUFFIX")
+    file.writeText(json)
+    pruneOldBackups(context)
+    return file
+}
+
+private fun pruneOldBackups(context: Context) {
+    val files = context.backupDir().listFiles { f -> f.name.startsWith(BACKUP_PREFIX) }?.sortedByDescending { it.lastModified() } ?: return
+    files.drop(MAX_BACKUPS).forEach { it.delete() }
+}
+
+fun listLocalBackups(context: Context): List<File> =
+    context.backupDir().listFiles { f -> f.name.startsWith(BACKUP_PREFIX) }
+        ?.sortedByDescending { it.lastModified() }
+        ?: emptyList()
+
+fun importBackupJson(context: Context, json: String): BackupResult {
+    return try {
+        val root = JSONObject(json)
+        val carsArr = root.optJSONArray("cars") ?: JSONArray()
+        val worksArr = root.optJSONArray("works") ?: JSONArray()
+        val recordsArr = root.optJSONArray("records") ?: JSONArray()
+        val partsArr = root.optJSONArray("parts") ?: JSONArray()
+        val templatesArr = root.optJSONArray("templates") ?: JSONArray()
+
+        context.prefs().edit()
+            .putString(CARS, carsArr.toString())
+            .putString(WORKS, worksArr.toString())
+            .putString(RECORDS, recordsArr.toString())
+            .putString(PARTS, partsArr.toString())
+            .putString(TEMPLATES, templatesArr.toString())
+            .putBoolean(MIGRATED, true)
+            .commit()
+
+        BackupResult(true, "Импортировано: ${carsArr.length()} авто, ${worksArr.length()} работ, ${recordsArr.length()} записей.")
+    } catch (e: Exception) {
+        BackupResult(false, "Ошибка импорта: ${e.message}")
+    }
+}
+
+fun restoreFromLocalBackup(context: Context, file: File): BackupResult {
+    return try {
+        importBackupJson(context, file.readText())
+    } catch (e: Exception) {
+        BackupResult(false, "Ошибка чтения файла: ${e.message}")
+    }
 }
