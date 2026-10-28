@@ -76,7 +76,7 @@ fun AppScreen() {
     var workToDelete by remember { mutableStateOf<Pair<MaintenanceWork, ServiceRecord>?>(null) }
     var carToDelete by remember { mutableStateOf<Car?>(null) }
     var recordToDelete by remember { mutableStateOf<ServiceRecord?>(null) }
-    var editingCompletedWork by remember { mutableStateOf<Pair<MaintenanceWork, ServiceRecord>?>(null) } // <-- ДОБАВЛЕНО
+    var editingCompletedWork by remember { mutableStateOf<Pair<MaintenanceWork, ServiceRecord>?>(null) }
     
     var showAboutDialog by remember { mutableStateOf(false) }
     var showBackupDialog by remember { mutableStateOf(false) }
@@ -242,7 +242,18 @@ fun AppScreen() {
                             onFill = { if (car != null) createDefaultForCar(car) }
                         )
                         "Статистика" -> StatisticsScreen(car, records)
-                        "Ещё" -> MoreScreen(onTemplate = { templateEditor = true }, onDecoder = { errorDecoder = true }, onParts = { partsScreen = true })
+                        "История" -> HistoryScreen(
+                            car, records, works,
+                            onEditRecord = { record ->
+                                if (record.workId != null) {
+                                    val work = works.firstOrNull { it.id == record.workId }
+                                    if (work != null) editingCompletedWork = work to record
+                                } else {
+                                    selectedRecord = record; serviceInitial = record; serviceDialog = true
+                                }
+                            },
+                            onDeleteRecord = { recordToDelete = it }
+                        )
                         "Автомобиль" -> CarDetailScreen(
                             car,
                             onBack = { screen = "Главная" },
@@ -292,12 +303,21 @@ fun AppScreen() {
                 onSkip = { saveAndRefreshWorks(works.map { if (it.id == currentWork.id) it.copy(skipped = true) else it }); actionWork = null },
                 onEdit = { editingRegulation = currentWork; actionWork = null; regulationDialog = true },
                 onDelete = { saveAndRefreshWorks(works.filter { it.id != currentWork.id }); actionWork = null },
-                onShowInList = { screen = "Перечень работ"; actionWork = null }
+                onShowInList = { screen = "Перечень работ"; actionWork = null },
+                onEditRecord = { record -> editingCompletedWork = currentWork to record; actionWork = null },
+                onCancelRecord = { record -> 
+                    records = records.filter { it.id != record.id }
+                    saveServiceRecords(context, records)
+                    saveAndRefreshWorks(works.map {
+                        if (it.id == currentWork.id) it.copy(hasLastExecution = false, lastMileage = 0, lastDate = 0L, skipped = false)
+                        else it
+                    })
+                    actionWork = null
+                }
             )
         }
     }
 
-    // Редактирование выполненной работы
     if (editingCompletedWork != null && car != null) {
         val (work, record) = editingCompletedWork!!
         WorkActionsDialog(
@@ -321,7 +341,9 @@ fun AppScreen() {
             onSkip = { },
             onEdit = { },
             onDelete = { },
-            onShowInList = { }
+            onShowInList = { },
+            onEditRecord = { },
+            onCancelRecord = { }
         )
     }
 
@@ -489,7 +511,13 @@ private fun DrawerItem(label: String, icon: androidx.compose.ui.graphics.vector.
 @Composable
 private fun BottomNav(screen: String, onSelect: (String) -> Unit) {
     NavigationBar(containerColor = NavColor) {
-        listOf("Главная" to Icons.Default.Home, "Перечень работ" to Icons.Default.List, "Регламент" to Icons.Default.Build, "Статистика" to Icons.Default.Info, "Ещё" to Icons.Default.MoreVert).forEach { (title, icon) ->
+        listOf(
+            "Главная" to Icons.Default.Home,
+            "Перечень работ" to Icons.Default.List,
+            "Регламент" to Icons.Default.Build,
+            "Статистика" to Icons.Default.Info,
+            "История" to Icons.Default.History
+        ).forEach { (title, icon) ->
             NavigationBarItem(
                 selected = screen == title, onClick = { onSelect(title) }, icon = { Icon(imageVector = icon, contentDescription = title) }, label = { Text(title, fontSize = 10.sp) },
                 colors = NavigationBarItemDefaults.colors(selectedIconColor = ColorGreen, selectedTextColor = ColorGreen, indicatorColor = ColorGreen.copy(alpha = .1f), unselectedIconColor = TextSecondary, unselectedTextColor = TextSecondary)
@@ -641,6 +669,76 @@ private fun RegulationScreen(
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun HistoryScreen(
+    car: Car?, 
+    records: List<ServiceRecord>, 
+    works: List<MaintenanceWork>,
+    onEditRecord: (ServiceRecord) -> Unit,
+    onDeleteRecord: (ServiceRecord) -> Unit
+) {
+    if (car == null) { Page("История") { Text("Сначала добавьте автомобиль", color = TextSecondary) }; return }
+    
+    var searchQuery by remember { mutableStateOf("") }
+    var filterType by remember { mutableStateOf("Все") } // Все, Регламентные, Свободные
+    
+    Page("История") {
+        // Поиск
+        Row( modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp) ) {
+            OutlinedTextField(
+                value = searchQuery, onValueChange = { searchQuery = it }, modifier = Modifier.weight(1f),
+                placeholder = { Text("Поиск...", color = TextSecondary) }, singleLine = true,
+                colors = OutlinedTextFieldDefaults.colors(focusedTextColor = TextPrimary, unfocusedTextColor = TextPrimary, focusedBorderColor = ColorGreen, unfocusedBorderColor = TextSecondary, cursorColor = ColorGreen)
+            )
+            if (searchQuery.isNotEmpty()) {
+                IconButton(onClick = { searchQuery = "" }) { Icon(Icons.Default.Clear, contentDescription = "Очистить", tint = TextSecondary) }
+            }
+        }
+        
+        Spacer(Modifier.height(8.dp))
+
+        // Фильтры типа
+        Row( modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp) ) {
+            FilterChip(selected = filterType == "Все", onClick = { filterType = "Все" }, label = { Text("Все") })
+            FilterChip(selected = filterType == "Регламентные", onClick = { filterType = "Регламентные" }, label = { Text("Регламентные") })
+            FilterChip(selected = filterType == "Свободные", onClick = { filterType = "Свободные" }, label = { Text("Свободные") })
+        }
+
+        Spacer(Modifier.height(8.dp))
+        
+        val carRecords = records
+            .filter { it.carId == car.id }
+            .filter { 
+                when (filterType) {
+                    "Регламентные" -> it.workId != null
+                    "Свободные" -> it.workId == null
+                    else -> true
+                }
+            }
+            .filter { record ->
+                if (searchQuery.isBlank()) true else {
+                    record.lines.any { it.name.contains(searchQuery, ignoreCase = true) } || 
+                    record.reason.contains(searchQuery, ignoreCase = true)
+                }
+            }
+            .sortedByDescending { it.date }
+
+        if (carRecords.isEmpty()) {
+            Text(if (searchQuery.isNotBlank()) "Ничего не найдено" else "Пока нет записей", color = TextSecondary)
+        } else {
+            LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                items(carRecords) { record ->
+                    HistoryRecordCard(
+                        record = record,
+                        onClick = { onEditRecord(record) }
+                    )
+                }
+            }
+        }
+    }
+}
+
 @Composable
 private fun StatisticsScreen(car: Car?, records: List<ServiceRecord>) {
     if (car == null) { Page("Статистика") { Text("Сначала добавьте автомобиль", color = TextSecondary) }; return }
@@ -656,16 +754,6 @@ private fun StatisticsScreen(car: Car?, records: List<ServiceRecord>) {
         InfoRow("Всего строк", carRecords.sumOf { it.lines.size }.toString())
         InfoRow("Последнее обслуживание", formatDate(carRecords.maxOfOrNull { it.date } ?: 0L))
         Text("Расход топлива не рассчитывается: для автомобиля с бензином и ГБО такой показатель без дополнительных данных может быть некорректным.", color = TextSecondary, fontSize = 12.sp)
-    }
-}
-
-@Composable
-private fun MoreScreen(onTemplate: () -> Unit, onDecoder: () -> Unit, onParts: () -> Unit) {
-    Page("Ещё") {
-        Button(onClick = onTemplate, modifier = Modifier.fillMaxWidth()) { Text("Шаблоны регламента") }
-        Button(onClick = onDecoder, modifier = Modifier.fillMaxWidth()) { Text("Расшифровка кодов ошибок") }
-        Button(onClick = onParts, modifier = Modifier.fillMaxWidth()) { Text("Запчасти и расходники") }
-        Text("Шаблоны общие, а интервалы, статусы и история — отдельно для каждого автомобиля.", color = TextSecondary)
     }
 }
 
