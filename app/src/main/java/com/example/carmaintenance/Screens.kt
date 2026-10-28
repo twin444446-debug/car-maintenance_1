@@ -71,6 +71,7 @@ fun AppScreen() {
     var selectedRecord by remember { mutableStateOf<ServiceRecord?>(null) }
     var partsScreen by remember { mutableStateOf(false) }
     var selectedStatusFilter by remember { mutableStateOf<WorkStatus?>(null) }
+    var backupScreen by remember { mutableStateOf(false) }
     
     var selectedCompletedWork by remember { mutableStateOf<Pair<MaintenanceWork, ServiceRecord>?>(null) }
     var workToDelete by remember { mutableStateOf<Pair<MaintenanceWork, ServiceRecord>?>(null) }
@@ -79,7 +80,6 @@ fun AppScreen() {
     var editingCompletedWork by remember { mutableStateOf<Pair<MaintenanceWork, ServiceRecord>?>(null) }
     
     var showAboutDialog by remember { mutableStateOf(false) }
-    var showBackupDialog by remember { mutableStateOf(false) }
     var showSettingsDialog by remember { mutableStateOf(false) }
     var carsMenuExpanded by remember { mutableStateOf(false) }
 
@@ -233,8 +233,8 @@ fun AppScreen() {
                 DrawerItem("Настройки", Icons.Default.Settings, Color.Gray, showSettingsDialog) {
                     showSettingsDialog = true; scope.launch { drawerState.close() }
                 }
-                DrawerItem("Резервная копия", Icons.Default.CloudUpload, ColorGreen, showBackupDialog) {
-                    showBackupDialog = true; scope.launch { drawerState.close() }
+                DrawerItem("Резервная копия", Icons.Default.CloudUpload, ColorGreen, backupScreen) {
+                    backupScreen = true; scope.launch { drawerState.close() }
                 }
             }
         }
@@ -242,6 +242,20 @@ fun AppScreen() {
         Scaffold(containerColor = BgColor, bottomBar = { BottomNav(screen) { screen = it } }) { pad ->
             Box(Modifier.fillMaxSize().padding(pad)) {
                 when {
+                    backupScreen -> BackupScreen(
+                        cars = cars, works = works, records = records, parts = parts, templates = templates,
+                        onBack = { backupScreen = false },
+                        onImported = {
+                            cars = loadCars(context)
+                            works = loadWorks(context)
+                            records = loadServiceRecords(context)
+                            parts = loadPartCatalog(context)
+                            templates = loadTemplates(context)
+                            selectedCarId = cars.firstOrNull()?.id
+                            backupScreen = false
+                            screen = "Главная"
+                        }
+                    )
                     templateEditor -> TemplateEditorScreen(templates = templates, onBack = { templateEditor = false }, onSave = { templates = it; saveTemplates(context, templates) })
                     errorDecoder -> ErrorDecoderScreen(onBack = { errorDecoder = false })
                     partsScreen -> PartsCatalogScreen(car, parts, onBack = { partsScreen = false }, onAdd = { p -> parts = parts + p; savePartCatalog(context, parts) })
@@ -536,22 +550,6 @@ fun AppScreen() {
                 }
             },
             confirmButton = { TextButton(onClick = { showSettingsDialog = false }) { Text("Закрыть", color = ColorGreen) } }
-        )
-    }
-
-    if (showBackupDialog) {
-        AlertDialog(
-            onDismissRequest = { showBackupDialog = false },
-            containerColor = CardColor,
-            title = { Text("Резервная копия", color = TextPrimary) },
-            text = {
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text("Функция резервного копирования находится в разработке.", color = TextSecondary, fontSize = 14.sp)
-                    Spacer(Modifier.height(8.dp))
-                    Text("Пока вы можете сделать резервную копию, скопировав файлы данных приложения (при наличии доступа).", color = TextSecondary, fontSize = 12.sp)
-                }
-            },
-            confirmButton = { TextButton(onClick = { showBackupDialog = false }) { Text("Закрыть", color = ColorGreen) } }
         )
     }
 }
@@ -946,11 +944,7 @@ private enum class ErrorBase { HYUNDAI_ACCENT, BOSCH_ME1797 }
 
 // ===== Базы кодов ошибок =====
 
-// База кодов ошибок Hyundai Accent 2008 (MC) 1.4
-// Только общие коды OBD-II (P0xxx), применимые к любым авто,
-// плюс подтверждённые коды для Accent из TSB и таблиц по модели.
 private val hyundaiAccentCodes: Map<String, String> = mapOf(
-    // --- Подтверждённые коды для Accent (TSB / таблицы модели) ---
     "P0102" to "ДМРВ. Низкий уровень сигнала",
     "P0103" to "ДМРВ. Высокий уровень сигнала",
     "P0108" to "Датчик абсолютного давления (MAP). Высокий уровень сигнала",
@@ -998,25 +992,18 @@ private val hyundaiAccentCodes: Map<String, String> = mapOf(
     "P0562" to "Пониженное напряжение бортовой сети",
     "P0563" to "Повышенное напряжение бортовой сети",
     "P0606" to "Внутренняя неисправность ЭБУ",
-
-    // --- Общие OBD-II коды (все машины) ---
     "P0171" to "Слишком бедная топливовоздушная смесь",
     "P0172" to "Слишком богатая топливовоздушная смесь",
     "P0420" to "Эффективность нейтрализатора ниже порога"
 )
 
-// База кодов ошибок ЭБУ Bosch ME17.9.7 (УАЗ Патриот, Евро-3)
-// Источники: samara-stavr.ru, chiptuner.ru, forum.uazbuka.ru
 private val boschMe1797Codes: Map<String, String> = mapOf(
-    // --- Нагреватели датчиков кислорода ---
     "0030" to "ДК1. Неисправность цепи нагревателя",
     "0031" to "ДК1. Обрыв или замыкание на «массу» цепи нагревателя",
     "0032" to "ДК1. Короткое замыкание на «бортсеть» цепи нагревателя",
     "0036" to "ДК2. Неисправность цепи нагревателя",
     "0037" to "ДК2. Обрыв или замыкание на «массу» цепи нагревателя",
     "0038" to "ДК2. Короткое замыкание на «бортсеть» цепи нагревателя",
-
-    // --- ДМРВ, ДТВ, ДТОЖ ---
     "0101" to "ДМРВ. Сигнал вне допустимого диапазона",
     "0102" to "ДМРВ. Низкий уровень сигнала",
     "0103" to "ДМРВ. Высокий уровень сигнала",
@@ -1025,14 +1012,10 @@ private val boschMe1797Codes: Map<String, String> = mapOf(
     "0116" to "ДТОЖ. Сигнал вне допустимого диапазона",
     "0117" to "ДТОЖ. Низкий уровень сигнала",
     "0118" to "ДТОЖ. Высокий уровень сигнала",
-
-    // --- Дроссельная заслонка (датчики) ---
     "0122" to "ДПДЗ 1. Низкий уровень сигнала",
     "0123" to "ДПДЗ 1. Высокий уровень сигнала",
     "0222" to "ДПДЗ 2. Низкий уровень сигнала",
     "0223" to "ДПДЗ 2. Высокий уровень сигнала",
-
-    // --- Датчики кислорода (сигнальные цепи) ---
     "0130" to "ДК1. Неисправность сигнальной цепи",
     "0131" to "ДК1. Низкий уровень сигнала",
     "0132" to "ДК1. Высокий уровень сигнала",
@@ -1044,14 +1027,10 @@ private val boschMe1797Codes: Map<String, String> = mapOf(
     "0138" to "ДК2. Высокий уровень сигнала",
     "0140" to "ДК2. Потеря активности сигнала или обрыв цепи",
     "0141" to "ДК2. Неисправность цепи нагревателя",
-
-    // --- Топливоподача ---
     "0171" to "Система топливоподачи слишком «бедная» при максимальном обогащении",
     "0172" to "Система топливоподачи слишком «богатая» при максимальном обеднении",
     "2187" to "Система топливоподачи дрейфует к «бедной» области на холостом ходу",
     "2188" to "Система топливоподачи дрейфует к «богатой» области на холостом ходу",
-
-    // --- Форсунки ---
     "0201" to "Форсунка 1. Неисправность цепи управления",
     "0202" to "Форсунка 2. Неисправность цепи управления",
     "0203" to "Форсунка 3. Неисправность цепи управления",
@@ -1064,30 +1043,20 @@ private val boschMe1797Codes: Map<String, String> = mapOf(
     "0268" to "Форсунка 3. КЗ на «бортсеть» цепи управления",
     "0270" to "Форсунка 4. Обрыв или КЗ на «массу» цепи управления",
     "0271" to "Форсунка 4. КЗ на «бортсеть» цепи управления",
-
-    // --- Пропуски воспламенения ---
     "0300" to "Случайные/множественные пропуски воспламенения",
     "0301" to "Цилиндр 1. Пропуски воспламенения",
     "0302" to "Цилиндр 2. Пропуски воспламенения",
     "0303" to "Цилиндр 3. Пропуски воспламенения",
     "0304" to "Цилиндр 4. Пропуски воспламенения",
-
-    // --- Датчик детонации, коленвал, распредвал ---
     "0327" to "Датчик детонации. Низкий уровень сигнала",
     "0335" to "Датчик положения коленчатого вала. Неисправность цепи",
     "0340" to "Датчик фазы. Неисправность",
-
-    // --- Нейтрализатор ---
     "0420" to "Эффективность нейтрализатора ниже допустимой нормы",
     "0422" to "Эффективность нейтрализатора ниже порога",
-
-    // --- Адсорбер ---
     "0441" to "Система улавливания паров. Неверный расход воздуха через КПА",
     "0444" to "Клапан продувки адсорбера. Обрыв цепи управления",
     "0458" to "Клапан продувки адсорбера. КЗ на «массу»",
     "0459" to "Клапан продувки адсорбера. КЗ на «бортсеть»",
-
-    // --- Вентиляторы, реле ---
     "0480" to "Реле вентилятора 1. Обрыв цепи управления",
     "0481" to "Реле вентилятора 2. Обрыв цепи управления",
     "0485" to "Напряжение питания вентилятора вне диапазона",
@@ -1095,19 +1064,13 @@ private val boschMe1797Codes: Map<String, String> = mapOf(
     "0692" to "Реле вентилятора 1. КЗ на «бортсеть»",
     "0693" to "Реле вентилятора 2. КЗ на «массу»",
     "0694" to "Реле вентилятора 2. КЗ на «бортсеть»",
-
-    // --- Скорость, педаль тормоза ---
     "0500" to "Датчик скорости автомобиля. Нет сигнала",
     "0501" to "Датчик скорости. Сигнал вне диапазона",
     "0504" to "Выключатели педали тормоза. Рассогласование сигналов",
-
-    // --- Напряжение бортовой сети ---
     "0560" to "Напряжение бортовой сети",
     "0561" to "Напряжение бортовой сети нестабильно",
     "0562" to "Напряжение бортовой сети. Низкий уровень",
     "0563" to "Напряжение бортовой сети. Высокий уровень",
-
-    // --- ЭБУ ---
     "0606" to "Контроллер СУД. Неисправность АЦП",
     "0627" to "Реле бензонасоса. Обрыв цепи управления",
     "0628" to "Реле бензонасоса. КЗ на «массу»",
@@ -1115,8 +1078,6 @@ private val boschMe1797Codes: Map<String, String> = mapOf(
     "0645" to "Реле муфты кондиционера. Обрыв цепи управления",
     "0646" to "Реле муфты кондиционера. КЗ на «массу»",
     "0647" to "Реле муфты кондиционера. КЗ на «бортсеть»",
-
-    // --- Электронный дроссель (мониторинг) ---
     "1335" to "Положение дроссельной заслонки вне допустимого диапазона",
     "1336" to "Рассогласование сигналов датчиков «А»/«В» дросселя",
     "1388" to "Рассогласование сигналов датчиков «А»/«В» педали акселератора",
@@ -1127,16 +1088,10 @@ private val boschMe1797Codes: Map<String, String> = mapOf(
     "1558" to "Привод дроссельной заслонки. Возвратная пружина неисправна",
     "1559" to "Привод дроссельной заслонки. Положение покоя вне диапазона",
     "1564" to "Адаптация нуля заслонки прервана из-за низкого напряжения",
-
-    // --- Иммобилайзер ---
     "1570" to "Иммобилизатор. Цепь неисправна",
-
-    // --- Датчики кислорода (диагностические, после нейтрализатора) ---
     "2195" to "Нет совпадения сигналов датчиков кислорода 1 и 2",
     "2270" to "ДК2. Сигнал в состоянии «бедно»",
     "2271" to "ДК2. Сигнал в состоянии «богато»",
-
-    // --- CAN ---
     "C001" to "Неисправность информационной CAN-шины"
 )
 
@@ -1144,7 +1099,6 @@ private fun obdMeaning(code: String, base: ErrorBase): String {
     val normalized = code.trim().uppercase()
     return when (base) {
         ErrorBase.HYUNDAI_ACCENT -> {
-            // Hyundai: коды обычно в формате P0300 или 0300
             val key = if (normalized.startsWith("P") || normalized.startsWith("C") || normalized.startsWith("B") || normalized.startsWith("U")) {
                 normalized
             } else {
@@ -1155,7 +1109,6 @@ private fun obdMeaning(code: String, base: ErrorBase): String {
             else "Код $normalized: расшифровка пока отсутствует в базе Hyundai Accent."
         }
         ErrorBase.BOSCH_ME1797 -> {
-            // Bosch: коды вида 0031 или C001
             val key = when {
                 normalized.startsWith("P") || normalized.startsWith("C") -> normalized.drop(1)
                 else -> normalized
