@@ -336,10 +336,36 @@ fun AppScreen() {
     }
 
     if (serviceDialog && car != null) {
-        ServiceRecordDialog(car, serviceInitial, suggestedWork, parts, works, { serviceDialog = false; serviceInitial = null }) { record ->
-            records = if (records.any { it.id == record.id }) records.map { if (it.id == record.id) record else it } else records + record
-            saveServiceRecords(context, records); serviceDialog = false; serviceInitial = null
-        }
+        ServiceRecordDialog(
+            car = car,
+            initial = serviceInitial,
+            suggestedName = suggestedWork,
+            parts = parts,
+            works = works,
+            onDismiss = { serviceDialog = false; serviceInitial = null },
+            onSave = { record ->
+                records = if (records.any { it.id == record.id }) records.map { if (it.id == record.id) record else it } else records + record
+                saveServiceRecords(context, records)
+                serviceDialog = false
+                serviceInitial = null
+            },
+            onDelete = { record ->
+                val newRecords = records.filter { it.id != record.id }
+                records = newRecords
+                saveServiceRecords(context, newRecords)
+                if (record.workId != null) {
+                    val w = works.firstOrNull { it.id == record.workId }
+                    if (w != null) {
+                        saveAndRefreshWorks(works.map {
+                            if (it.id == w.id) recalculateWorkAfterRecordRemoval(w, newRecords)
+                            else it
+                        })
+                    }
+                }
+                serviceDialog = false
+                serviceInitial = null
+            }
+        )
     }
 
     if (actionWork != null && car != null) {
