@@ -1,5 +1,6 @@
 package com.example.carmaintenance
 
+import android.net.Uri
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
@@ -20,6 +21,25 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.platform.LocalContext
 import kotlinx.coroutines.launch
+import java.io.File
+import java.io.FileOutputStream
+
+// Функция копирования изображения во внутреннее хранилище
+fun copyImageToInternalStorage(context: android.content.Context, uri: Uri): String? {
+    return try {
+        val inputStream = context.contentResolver.openInputStream(uri) ?: return null
+        val fileName = "car_${System.currentTimeMillis()}.jpg"
+        val file = File(context.filesDir, fileName)
+        val outputStream = FileOutputStream(file)
+        inputStream.copyTo(outputStream)
+        inputStream.close()
+        outputStream.close()
+        file.absolutePath
+    } catch (e: Exception) {
+        e.printStackTrace()
+        null
+    }
+}
 
 @Composable
 fun AppScreen() {
@@ -115,7 +135,6 @@ fun AppScreen() {
                 Text("Учёт автомобильного ТО", modifier = Modifier.padding(16.dp), color = TextPrimary, fontSize = 20.sp, fontWeight = FontWeight.Bold)
                 HorizontalDivider(color = TextSecondary.copy(alpha = 0.2f))
                 
-                // Мои автомобили (раскрывающийся список)
                 NavigationDrawerItem(
                     label = { Text("Мои автомобили", color = TextPrimary) },
                     icon = { Icon(Icons.Default.DirectionsCar, contentDescription = null, tint = ColorBlue) },
@@ -186,8 +205,8 @@ fun AppScreen() {
                             onAddWork = { suggestedWork = ""; serviceInitial = null; serviceDialog = true },
                             onWork = { actionWork = it },
                             onMileage = { mileageDialog = true },
-                            onOpenCar = { scope.launch { drawerState.open() } }, // <-- Меню
-                            onEditCar = { editingCar = car; carDialog = true }, // <-- Редактирование
+                            onOpenCar = { scope.launch { drawerState.open() } },
+                            onEditCar = { editingCar = car; carDialog = true },
                             onStatusClick = { status -> selectedStatusFilter = status; screen = "Перечень работ" }
                         )
                         "Перечень работ" -> WorkListScreen(
@@ -577,8 +596,7 @@ private fun PartsCatalogScreen(car: Car?, parts: List<PartCatalogItem>, onBack: 
     if (show) { PartCatalogDialog(car.id, onDismiss = { show = false }) { part -> onAdd(part); show = false } }
 }
 
-@Composable
-private fun PartCatalogDialog(carId: String, onDismiss: () -> Unit, onSave: (PartCatalogItem) -> Unit) {
+@Composableprivate fun PartCatalogDialog(carId: String, onDismiss: () -> Unit, onSave: (PartCatalogItem) -> Unit) {
     var name by remember { mutableStateOf("") }; var article by remember { mutableStateOf("") }
     var category by remember { mutableStateOf("Запчасть") }; var cost by remember { mutableStateOf("") }; var currency by remember { mutableStateOf("RUB") }
     AlertDialog(
