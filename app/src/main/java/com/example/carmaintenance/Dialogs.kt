@@ -579,23 +579,108 @@ fun CompletedWorkInfoDialog(
 }
 
 @Composable
-fun RegulationWorkDialog(carId:String, existing:MaintenanceWork?, templates:List<RegulationTemplate>, onDismiss:()->Unit, onSave:(MaintenanceWork)->Unit){
+fun RegulationWorkDialog(
+    carId: String, 
+    existing: MaintenanceWork?, 
+    templates: List<RegulationTemplate>, 
+    onDismiss: () -> Unit, 
+    onSave: (MaintenanceWork) -> Unit
+) {
     var name by remember { mutableStateOf(existing?.name ?: "") }
+    var groupName by remember { mutableStateOf(existing?.groupName ?: "") } // <-- ДОБАВЛЕНО
     var category by remember { mutableStateOf(existing?.category ?: WorkCategory.GENERAL) }
     var km by remember { mutableStateOf(existing?.intervalKm?.toString() ?: "") }
     var months by remember { mutableStateOf(existing?.intervalMonths?.toString() ?: "") }
     var warningKm by remember { mutableStateOf(existing?.warningKm?.toString() ?: "") }
     var warningMonths by remember { mutableStateOf(existing?.warningMonths?.toString() ?: "") }
     var preventive by remember { mutableStateOf(existing?.preventive ?: false) }
-    val fieldColors = OutlinedTextFieldDefaults.colors(focusedTextColor = TextPrimary, unfocusedTextColor = TextPrimary, focusedBorderColor = ColorBlue, unfocusedBorderColor = TextSecondary, focusedLabelColor = ColorBlue, unfocusedLabelColor = TextSecondary, cursorColor = ColorBlue)
-    AlertDialog(onDismissRequest=onDismiss,containerColor=CardColor,title={Text(if(existing==null)"Добавить регламентную работу" else "Изменить регламентную работу",color=TextPrimary)},text={Column(Modifier.heightIn(max = 400.dp).verticalScroll(rememberScrollState()),verticalArrangement=Arrangement.spacedBy(8.dp)){
-        OutlinedTextField(name,{name=it},label={Text("Название")},singleLine=true,modifier=Modifier.fillMaxWidth(), colors = fieldColors)
-        Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.spacedBy(6.dp)){FilterChip(selected=category==WorkCategory.GENERAL,onClick={category=WorkCategory.GENERAL},label={Text("Автомобиль")});FilterChip(selected=category==WorkCategory.LPG,onClick={category=WorkCategory.LPG},label={Text("ГБО")})}
-        Row(horizontalArrangement=Arrangement.spacedBy(6.dp)){OutlinedTextField(km,{km=it},label={Text("Интервал км")},keyboardOptions=KeyboardOptions(keyboardType=KeyboardType.Number),modifier=Modifier.weight(1f), colors = fieldColors);OutlinedTextField(months,{months=it},label={Text("Интервал мес.")},keyboardOptions=KeyboardOptions(keyboardType=KeyboardType.Number),modifier=Modifier.weight(1f), colors = fieldColors)}
-        Row(horizontalArrangement=Arrangement.spacedBy(6.dp)){OutlinedTextField(warningKm,{warningKm=it},label={Text("Предупреждение км")},keyboardOptions=KeyboardOptions(keyboardType=KeyboardType.Number),modifier=Modifier.weight(1f), colors = fieldColors);OutlinedTextField(warningMonths,{warningMonths=it},label={Text("Предупреждение мес.")},keyboardOptions=KeyboardOptions(keyboardType=KeyboardType.Number),modifier=Modifier.weight(1f), colors = fieldColors)}
-        Row(verticalAlignment=Alignment.CenterVertically){Checkbox(preventive,{preventive=it});Text("Профилактическая рекомендация",color=TextPrimary)}
-        Text("Можно создать работу без интервала — например, для проверки состояния детали. Её статус будет профилактическим.",color=TextSecondary,fontSize=12.sp)
-    }},confirmButton={TextButton(onClick={if(name.isNotBlank())onSave(MaintenanceWork(id=existing?.id?:java.util.UUID.randomUUID().toString(),carId=carId,templateId=existing?.templateId?:(templates.firstOrNull{it.name==name}?.id?:""),name=name,category=category,intervalKm=km.toIntOrNull()?:0,intervalMonths=months.toIntOrNull()?:0,warningKm=warningKm.toIntOrNull()?:0,warningMonths=warningMonths.toIntOrNull()?:0,lastMileage=existing?.lastMileage?:0,lastDate=existing?.lastDate?:0L,hasLastExecution=existing?.hasLastExecution?:false,skipped=existing?.skipped?:false,preventive=preventive,notes=existing?.notes?:""))}){Text("Сохранить",color=ColorGreen)}},dismissButton={TextButton(onClick=onDismiss){Text("Отмена",color=TextSecondary)}})
+    
+    val fieldColors = OutlinedTextFieldDefaults.colors(
+        focusedTextColor = TextPrimary, unfocusedTextColor = TextPrimary, 
+        focusedBorderColor = ColorBlue, unfocusedBorderColor = TextSecondary, 
+        focusedLabelColor = ColorBlue, unfocusedLabelColor = TextSecondary, 
+        cursorColor = ColorBlue
+    )
+    
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        containerColor = CardColor,
+        title = { Text(if (existing == null) "Добавить регламентную работу" else "Изменить регламентную работу", color = TextPrimary) },
+        text = {
+            Column(
+                Modifier.heightIn(max = 400.dp).verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                OutlinedTextField(
+                    value = name, 
+                    onValueChange = { name = it }, 
+                    label = { Text("Название работы") }, 
+                    singleLine = true, 
+                    modifier = Modifier.fillMaxWidth(), 
+                    colors = fieldColors
+                )
+                
+                // Поле для ввода группы
+                OutlinedTextField(
+                    value = groupName, 
+                    onValueChange = { groupName = it }, 
+                    label = { Text("Группа (например, 1. МАСЛА)") }, 
+                    singleLine = true, 
+                    modifier = Modifier.fillMaxWidth(), 
+                    colors = fieldColors
+                )
+
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    FilterChip(selected = category == WorkCategory.GENERAL, onClick = { category = WorkCategory.GENERAL }, label = { Text("Автомобиль") })
+                    FilterChip(selected = category == WorkCategory.LPG, onClick = { category = WorkCategory.LPG }, label = { Text("ГБО") })
+                }
+                
+                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    OutlinedTextField(km, { km = it }, label = { Text("Интервал км") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number), modifier = Modifier.weight(1f), colors = fieldColors)
+                    OutlinedTextField(months, { months = it }, label = { Text("Интервал мес.") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number), modifier = Modifier.weight(1f), colors = fieldColors)
+                }
+                
+                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    OutlinedTextField(warningKm, { warningKm = it }, label = { Text("Предупреждение км") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number), modifier = Modifier.weight(1f), colors = fieldColors)
+                    OutlinedTextField(warningMonths, { warningMonths = it }, label = { Text("Предупреждение мес.") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number), modifier = Modifier.weight(1f), colors = fieldColors)
+                }
+                
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Checkbox(preventive, { preventive = it })
+                    Text("Профилактическая рекомендация", color = TextPrimary)
+                }
+                
+                Text("Можно создать работу без интервала — например, для проверки состояния детали. Её статус будет профилактическим.", color = TextSecondary, fontSize = 12.sp)
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = {
+                if (name.isNotBlank()) {
+                    onSave(MaintenanceWork(
+                        id = existing?.id ?: java.util.UUID.randomUUID().toString(),
+                        carId = carId,
+                        templateId = existing?.templateId ?: (templates.firstOrNull { it.name == name }?.id ?: ""),
+                        name = name,
+                        groupName = groupName, // <-- ДОБАВЛЕНО
+                        category = category,
+                        intervalKm = km.toIntOrNull() ?: 0,
+                        intervalMonths = months.toIntOrNull() ?: 0,
+                        warningKm = warningKm.toIntOrNull() ?: 0,
+                        warningMonths = warningMonths.toIntOrNull() ?: 0,
+                        lastMileage = existing?.lastMileage ?: 0,
+                        lastDate = existing?.lastDate ?: 0L,
+                        hasLastExecution = existing?.hasLastExecution ?: false,
+                        skipped = existing?.skipped ?: false,
+                        preventive = preventive,
+                        notes = existing?.notes ?: ""
+                    ))
+                }
+            }) { Text("Сохранить", color = ColorGreen) }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text("Отмена", color = TextSecondary) }
+        }
+    )
 }
 
 private fun WorkStatus.title(): String = when(this) {
