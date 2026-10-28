@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Build
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.KeyboardArrowRight
@@ -108,63 +109,67 @@ fun WorkCard(work: MaintenanceWork, car: Car, records: List<ServiceRecord>, onCl
     }
 }
 
+// Плашка записи во вкладке "Перечень работ"
 @Composable
 fun ServiceRecordCard(
     record: ServiceRecord,
     onClick: () -> Unit,
     onDelete: () -> Unit
 ) {
+    val title = record.lines.firstOrNull()?.name?.ifBlank { null }
+        ?: record.reason.ifBlank { "Обслуживание" }
+
     Card(
         modifier = Modifier.fillMaxWidth().clickable { onClick() },
         colors = CardDefaults.cardColors(containerColor = CardColor),
-        shape = RoundedCornerShape(16.dp)
+        shape = RoundedCornerShape(8.dp)
     ) {
-        Column(modifier = Modifier.padding(12.dp)) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(10.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            // Иконка «гаечный ключ» с голубым свечением
+            Box(
+                modifier = Modifier
+                    .size(42.dp)
+                    .background(ColorBlue.copy(alpha = 0.35f), RoundedCornerShape(8.dp))
+                    .padding(3.dp)
+                    .background(Color(0xFF0D47A1), RoundedCornerShape(6.dp)),
+                contentAlignment = Alignment.Center
             ) {
-                Text(
-                    text = formatDate(record.date),
-                    color = ColorBlue,
-                    fontSize = 14.sp,
-                    fontWeight = FontWeight.Bold
-                )
-                Text(
-                    text = "${record.mileage} км",
-                    color = TextSecondary,
-                    fontSize = 13.sp
+                Icon(
+                    imageVector = Icons.Default.Build,
+                    contentDescription = null,
+                    tint = Color.White,
+                    modifier = Modifier.size(22.dp)
                 )
             }
-            Spacer(Modifier.height(6.dp))
-            Text(
-                text = record.reason.ifBlank { "Обслуживание" },
-                color = TextPrimary,
-                fontSize = 15.sp,
-                fontWeight = FontWeight.Medium,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
-            )
-            Spacer(Modifier.height(4.dp))
-            record.lines.take(2).forEach { line ->
+
+            Spacer(Modifier.width(10.dp))
+
+            Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    text = "• ${line.name}${if (line.article.isNotBlank()) " [${line.article}]" else ""} — ${formatMoney(line.cost)} ${line.currency}",
-                    color = TextSecondary,
-                    fontSize = 12.sp,
+                    text = title,
+                    color = TextPrimary,
+                    fontSize = 15.sp,
+                    fontWeight = FontWeight.Bold,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
+                Spacer(Modifier.height(4.dp))
+                Text(
+                    text = "${formatDate(record.date)} · ${record.mileage} км",
+                    color = TextSecondary,
+                    fontSize = 12.sp
+                )
             }
-            if (record.lines.size > 2) {
-                Text("...и ещё ${record.lines.size - 2}", color = TextSecondary, fontSize = 12.sp)
-            }
-            Spacer(Modifier.height(8.dp))
-            Row(horizontalArrangement = Arrangement.End, modifier = Modifier.fillMaxWidth()) {
-                TextButton(onClick = onDelete) {
-                    Text("Удалить", color = ColorRed, fontSize = 12.sp)
-                }
-            }
+
+            Icon(
+                imageVector = Icons.Default.KeyboardArrowRight,
+                contentDescription = null,
+                tint = TextSecondary,
+                modifier = Modifier.size(20.dp)
+            )
         }
     }
 }
@@ -177,11 +182,6 @@ fun HistoryRecordCard(
 ) {
     val isRegulation = record.workId != null
 
-    // Заголовок:
-    // - регламентная  -> первая строка из "Работы и материалы" (поле "Наименование")
-    // - нерегламентная -> первая строка из "Работы и запчасти" (поле "Название")
-    // В обоих случаях это record.lines.first().name.
-    // Если строк нет — фолбэк на reason, затем на "Обслуживание".
     val title = record.lines.firstOrNull()?.name?.ifBlank { null }
         ?: record.reason.ifBlank { "Обслуживание" }
 
