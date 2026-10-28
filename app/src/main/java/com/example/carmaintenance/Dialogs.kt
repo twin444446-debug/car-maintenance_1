@@ -294,6 +294,7 @@ fun WorkActionsDialog(
     work: MaintenanceWork,
     car: Car,
     records: List<ServiceRecord>,
+    initialRecord: ServiceRecord? = null, // <-- ДОБАВЛЕНО
     onDismiss: () -> Unit,
     onComplete: (km: Int, date: Long, note: String, lines: List<ServiceLine>) -> Unit,
     onSkip: () -> Unit,
@@ -301,11 +302,20 @@ fun WorkActionsDialog(
     onDelete: () -> Unit,
     onShowInList: () -> Unit
 ) {
-    var showCompleteForm by remember { mutableStateOf(false) }
-    var km by remember { mutableStateOf(car.mileage.ifBlank { "0" }) }
-    var note by remember { mutableStateOf("") }
+    var showCompleteForm by remember { mutableStateOf(initialRecord != null) }
     
-    val lines = remember { mutableStateListOf(ServiceLine(name = work.name, type = ServiceLineType.WORK)) }
+    var km by remember { mutableStateOf(initialRecord?.mileage?.toString() ?: car.mileage.ifBlank { "0" }) }
+    var note by remember { mutableStateOf(initialRecord?.notes ?: "") }
+    var selectedDate by remember { mutableStateOf(initialRecord?.date ?: System.currentTimeMillis()) }
+    
+    val lines = remember { 
+        mutableStateListOf<ServiceLine>().apply {
+            if (initialRecord != null) addAll(initialRecord.lines)
+            else add(ServiceLine(name = work.name, type = ServiceLineType.WORK))
+        } 
+    }
+    
+    val context = androidx.compose.ui.platform.LocalContext.current
 
     if (!showCompleteForm) {
         AlertDialog(
@@ -369,16 +379,36 @@ fun WorkActionsDialog(
         )
     } else {
         AlertDialog(
-            onDismissRequest = { showCompleteForm = false },
+            onDismissRequest = onDismiss,
             containerColor = CardColor,
-            title = { Text("Выполнение: ${work.name}", color = TextPrimary, fontSize = 18.sp) },
+            title = { 
+                Text(
+                    if (initialRecord != null) "Изменить выполнение: ${work.name}" else "Выполнение: ${work.name}", 
+                    color = TextPrimary, 
+                    fontSize = 18.sp
+                ) 
+            },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.heightIn(max = 400.dp).verticalScroll(rememberScrollState())) {
+                    // Дата выполнения
+                    Text("Дата: ${formatDate(selectedDate)}", color = TextPrimary)
+                    Button(
+                        onClick = {
+                            val c = Calendar.getInstance().apply { timeInMillis = selectedDate }
+                            DatePickerDialog(context, { _, y, m, d -> 
+                                selectedDate = Calendar.getInstance().apply { set(y, m, d, 12, 0, 0) }.timeInMillis 
+                            }, c.get(Calendar.YEAR), c.get(Calendar.MONTH), c.get(Calendar.DAY_OF_MONTH)).show()
+                        },
+                        colors = ButtonDefaults.buttonColors(containerColor = NavColor)
+                    ) { Text("Изменить дату") }
+                    
+                    // Пробег
                     OutlinedTextField(
                         value = km, onValueChange = { km = it }, label = { Text("Пробег (км)") },
                         modifier = Modifier.fillMaxWidth(), singleLine = true,
                         colors = OutlinedTextFieldDefaults.colors(focusedTextColor = TextPrimary, unfocusedTextColor = TextPrimary, focusedBorderColor = ColorGreen, unfocusedBorderColor = TextSecondary, focusedLabelColor = ColorGreen, unfocusedLabelColor = TextSecondary, cursorColor = ColorGreen)
                     )
+                    
                     Text("Работы и материалы", color = TextPrimary, fontWeight = FontWeight.Bold)
                     lines.forEachIndexed { index, line ->
                         Card(colors = CardDefaults.cardColors(containerColor = BgColor), modifier = Modifier.fillMaxWidth()) {
@@ -413,8 +443,18 @@ fun WorkActionsDialog(
                     )
                 }
             },
-            confirmButton = { TextButton(onClick = { onComplete(km.toIntOrNull() ?: 0, System.currentTimeMillis(), note, lines.toList()) }) { Text("Сохранить", color = ColorGreen, fontWeight = FontWeight.Bold) } },
-            dismissButton = { TextButton(onClick = { showCompleteForm = false }) { Text("Назад", color = TextSecondary) } }
+            confirmButton = { 
+                TextButton(onClick = { 
+                    onComplete(km.toIntOrNull() ?: 0, selectedDate, note, lines.toList())
+                }) { 
+                    Text("Сохранить", color = ColorGreen, fontWeight = FontWeight.Bold) 
+                } 
+            },
+            dismissButton = { 
+                TextButton(onClick = { 
+                    if (initialRecord != null) onDismiss() else showCompleteForm = false 
+                }) { Text("Назад", color = TextSecondary) } 
+            }
         )
     }
 }
