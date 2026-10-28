@@ -1,10 +1,8 @@
 package com.example.carmaintenance
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
@@ -29,10 +27,10 @@ fun WorkCard(work: MaintenanceWork, car: Car, records: List<ServiceRecord>, onCl
     val currentMileage = car.mileage.toIntOrNull() ?: 0
     
     val style = when (status) {
-        WorkStatus.REQUIRED -> WorkCardStyle(Icons.Default.PriorityHigh, Color.Red, "Требуется", Color.Red.copy(alpha = 0.15f), Color.Red)
-        WorkStatus.PREVENTIVE -> WorkCardStyle(Icons.Default.Schedule, Color.Yellow, "Скоро", Color.Yellow.copy(alpha = 0.15f), Color.Yellow)
-        WorkStatus.COMPLETED -> WorkCardStyle(Icons.Default.Check, Color.Green, "Выполнено", Color.Green.copy(alpha = 0.15f), Color.Green)
-        WorkStatus.SKIPPED -> WorkCardStyle(Icons.Default.Close, Color(0xFF9C27B0), "Пропущено", Color(0xFF9C27B0).copy(alpha = 0.15f), Color(0xFF9C27B0))
+        WorkStatus.REQUIRED -> WorkCardStyle(Icons.Default.PriorityHigh, ColorRed, "Требуется", ColorRed.copy(alpha = 0.15f), ColorRed)
+        WorkStatus.PREVENTIVE -> WorkCardStyle(Icons.Default.Schedule, ColorYellow, "Скоро", ColorYellow.copy(alpha = 0.15f), ColorYellow)
+        WorkStatus.COMPLETED -> WorkCardStyle(Icons.Default.Check, ColorGreen, "Выполнено", ColorGreen.copy(alpha = 0.15f), ColorGreen)
+        WorkStatus.SKIPPED -> WorkCardStyle(Icons.Default.Close, ColorPurple, "Пропущено", ColorPurple.copy(alpha = 0.15f), ColorPurple)
     }
 
     Card(
@@ -44,23 +42,12 @@ fun WorkCard(work: MaintenanceWork, car: Car, records: List<ServiceRecord>, onCl
             modifier = Modifier.fillMaxWidth().padding(12.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // --- НОВАЯ ИКОНКА С ЯРКИМ ФОНОМ И СВЕЧЕНИЕМ ---
             Box(
-                modifier = Modifier
-                    .size(44.dp) // Увеличили размер, чтобы влезло кольцо
-                    .background(style.iconColor.copy(alpha = 0.25f), CircleShape) // Полупрозрачное кольцо (свечение)
-                    .padding(4.dp) // Отступ для внутреннего кружка
-                    .background(style.iconColor, CircleShape), // Яркий непрозрачный фон
+                modifier = Modifier.size(40.dp).background(style.iconColor.copy(alpha = 0.15f), RoundedCornerShape(50)),
                 contentAlignment = Alignment.Center
             ) {
-                Icon(
-                    imageVector = style.icon,
-                    contentDescription = null,
-                    tint = Color.Black, // Чёрная иконка
-                    modifier = Modifier.size(22.dp)
-                )
+                Icon(imageVector = style.icon, contentDescription = null, tint = style.iconColor, modifier = Modifier.size(24.dp))
             }
-            // ----------------------------------------------
 
             Spacer(Modifier.width(12.dp))
 
@@ -79,13 +66,13 @@ fun WorkCard(work: MaintenanceWork, car: Car, records: List<ServiceRecord>, onCl
                     val nextMileage = if (work.hasLastExecution) work.lastMileage + work.intervalKm else currentMileage + work.intervalKm
                     
                     if (work.hasLastExecution) {
-                        Text("$nextMileage км", color = style.iconColor, fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                        Text("$nextMileage км", color = ColorRed, fontSize = 13.sp, fontWeight = FontWeight.Bold)
                     } else {
                         Text("— ($nextMileage км", color = TextSecondary, fontSize = 13.sp)
                     }
                     
                     if (work.intervalMonths > 0) {
-                        Text(" / ${work.intervalMonths} мес.", color = style.iconColor, fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                        Text(" / ${work.intervalMonths} мес.", color = ColorRed, fontSize = 13.sp, fontWeight = FontWeight.Bold)
                     }
                     
                     Text(if (work.hasLastExecution) "" else ")", color = TextSecondary, fontSize = 13.sp)
@@ -100,7 +87,7 @@ fun WorkCard(work: MaintenanceWork, car: Car, records: List<ServiceRecord>, onCl
             ) {
                 Text(
                     text = style.text,
-                    color = style.iconColor,
+                    color = style.textColor,
                     fontSize = 11.sp,
                     fontWeight = FontWeight.Medium,
                     maxLines = 1,
