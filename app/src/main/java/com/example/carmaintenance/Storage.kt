@@ -120,7 +120,7 @@ fun loadServiceRecords(context: Context): List<ServiceRecord> {
             }
             add(ServiceRecord(
                 id = o.optString("id").ifBlank { UUID.randomUUID().toString() }, carId = o.optString("carId"),
-                workId = o.optString("workId").takeIf { it.isNotBlank() }, // <-- ДОБАВЛЕНО
+                workId = o.optString("workId").takeIf { it.isNotBlank() }, // <-- ВАЖНО
                 date = o.optLong("date", System.currentTimeMillis()), servicePlace = o.optString("servicePlace"),
                 reason = o.optString("reason"), mileage = o.optInt("mileage"), lines = lines, notes = o.optString("notes")
             ))
@@ -132,7 +132,7 @@ fun saveServiceRecords(context: Context, records: List<ServiceRecord>) {
     val a = JSONArray()
     records.forEach { r -> a.put(JSONObject().apply {
         put("id", r.id); put("carId", r.carId)
-        put("workId", r.workId) // <-- ДОБАВЛЕНО
+        put("workId", r.workId) // <-- ВАЖНО
         put("date", r.date); put("servicePlace", r.servicePlace); put("reason", r.reason); put("mileage", r.mileage); put("notes", r.notes)
         put("lines", JSONArray().apply { r.lines.forEach { l -> put(JSONObject().apply {
             put("id", l.id); put("type", l.type.name); put("name", l.name); put("article", l.article); put("cost", l.cost); put("currency", l.currency); put("oilType", l.oilType); put("oilName", l.oilName); put("notes", l.notes)
@@ -165,7 +165,7 @@ fun savePartCatalog(context: Context, parts: List<PartCatalogItem>) {
 
 fun loadHistory(context: Context): List<WorkHistory> = loadServiceRecords(context).flatMap { r ->
     r.lines.filter { it.type == ServiceLineType.WORK || it.type == ServiceLineType.CONSUMABLE || it.type == ServiceLineType.PART }
-        .map { WorkHistory(it.id, r.carId, it.name, r.date, r.mileage, r.notes.ifBlank { r.reason }) }
+        .map { WorkHistory(it.id, r.carId, it.name, r.date, r.mileage, it.notes.ifBlank { r.reason }) }
 }
 
 fun loadDefaultTemplate(context: Context): List<MaintenanceWork> = loadTemplates(context).map {
@@ -254,7 +254,7 @@ private fun migrateIfNeeded(context: Context) {
             ))
         }
         records.add(ServiceRecord(id = recordId, carId = o.optString("carId"),
-            workId = o.optString("workId").takeIf { it.isNotBlank() }, // <-- ДОБАВЛЕНО
+            workId = o.optString("workId").takeIf { it.isNotBlank() }, // <-- ВАЖНО
             date = o.optLong("date", 0L),
             servicePlace = o.optString("servicePlace"), reason = o.optString("reason"), mileage = o.optInt("mileage"),
             lines = lines, notes = o.optString("notes")))
