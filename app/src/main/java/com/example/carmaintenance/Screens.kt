@@ -327,9 +327,9 @@ fun AppScreen() {
             initialRecord = record,
             onDismiss = { editingCompletedWork = null },
             onComplete = { km, date, note, lines ->
-                records = records.map { 
-                    if (it.id == record.id) it.copy(mileage = km, date = date, notes = note, lines = lines) 
-                    else it 
+                records = records.map {
+                    if (it.id == record.id) it.copy(mileage = km, date = date, notes = note, lines = lines)
+                    else it
                 }
                 saveServiceRecords(context, records)
                 saveAndRefreshWorks(works.map {
@@ -342,8 +342,20 @@ fun AppScreen() {
             onEdit = { },
             onDelete = { },
             onShowInList = { },
-            onEditRecord = { },
-            onCancelRecord = { }
+            onEditRecord = { rec ->
+                // Переключить редактирование на другую запись этой же работы
+                editingCompletedWork = work to rec
+            },
+            onCancelRecord = { rec ->
+                // Отменить выполнение и сбросить статус работы
+                records = records.filter { it.id != rec.id }
+                saveServiceRecords(context, records)
+                saveAndRefreshWorks(works.map {
+                    if (it.id == work.id) it.copy(hasLastExecution = false, lastMileage = 0, lastDate = 0L, skipped = false)
+                    else it
+                })
+                editingCompletedWork = null
+            }
         )
     }
 
