@@ -25,12 +25,7 @@ import coil.compose.AsyncImage
 import java.util.Calendar
 
 @Composable
-fun AddCarDialog(
-    existingCar: Car?, 
-    onDismiss: () -> Unit, 
-    onSave: (Car) -> Unit,
-    onDelete: (() -> Unit)? = null // <-- ДОБАВЛЕНО
-) {
+fun AddCarDialog(existingCar: Car?, onDismiss: () -> Unit, onSave: (Car) -> Unit, onDelete: (() -> Unit)? = null) {
     var brand by remember { mutableStateOf(existingCar?.brand ?: "") }; var model by remember { mutableStateOf(existingCar?.model ?: "") }
     var year by remember { mutableStateOf(existingCar?.year ?: "") }; var vin by remember { mutableStateOf(existingCar?.vin ?: "") }
     var mileage by remember { mutableStateOf(existingCar?.mileage ?: "") }; var engine by remember { mutableStateOf(existingCar?.engine ?: "") }
@@ -47,51 +42,85 @@ fun AddCarDialog(
         }
     }
 
-    AlertDialog(onDismissRequest = onDismiss, containerColor = CardColor, title = { Text(if (existingCar == null) "Добавить автомобиль" else "Изменить автомобиль", color = TextPrimary) },
-        text = { Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            if (imageUri.isNotBlank()) {
-                AsyncImage(
-                    model = imageUri,
-                    contentDescription = "Фото авто",
-                    modifier = Modifier.fillMaxWidth().height(150.dp),
-                    contentScale = ContentScale.Crop
-                )
-            }
-            Button(
-                onClick = { launcher.launch("image/*") },
-                modifier = Modifier.fillMaxWidth(),
-                colors = ButtonDefaults.buttonColors(containerColor = NavColor)
+    AlertDialog(
+        onDismissRequest = onDismiss, 
+        containerColor = CardColor, 
+        title = { Text(if (existingCar == null) "Добавить автомобиль" else "Изменить автомобиль", color = TextPrimary) },
+        text = { 
+            Column(
+                Modifier.verticalScroll(rememberScrollState()), 
+                verticalArrangement = Arrangement.spacedBy(4.dp) // Уменьшили отступ между полями
             ) {
-                Icon(Icons.Default.Add, contentDescription = null)
-                Spacer(Modifier.width(8.dp))
-                Text(if (imageUri.isBlank()) "Выбрать фото" else "Изменить фото", color = TextPrimary)
-            }
-            if (imageUri.isNotBlank()) {
-                TextButton(onClick = { imageUri = "" }, modifier = Modifier.fillMaxWidth()) {
-                    Text("Удалить фото", color = ColorRed)
+                if (imageUri.isNotBlank()) {
+                    AsyncImage(
+                        model = imageUri,
+                        contentDescription = "Фото авто",
+                        modifier = Modifier.fillMaxWidth().height(120.dp), // Уменьшили высоту фото
+                        contentScale = ContentScale.Crop
+                    )
+                    Spacer(Modifier.height(4.dp))
                 }
+                
+                Button(
+                    onClick = { launcher.launch("image/*") },
+                    modifier = Modifier.fillMaxWidth().height(40.dp), // Сделали кнопку ниже
+                    colors = ButtonDefaults.buttonColors(containerColor = NavColor),
+                    contentPadding = PaddingValues(0.dp)
+                ) {
+                    Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(18.dp))
+                    Spacer(Modifier.width(4.dp))
+                    Text(if (imageUri.isBlank()) "Выбрать фото" else "Изменить фото", color = TextPrimary, fontSize = 13.sp)
+                }
+                
+                if (imageUri.isNotBlank()) {
+                    TextButton(
+                        onClick = { imageUri = "" }, 
+                        modifier = Modifier.fillMaxWidth().height(30.dp)
+                    ) {
+                        Text("Удалить фото", color = ColorRed, fontSize = 12.sp)
+                    }
+                }
+                
+                HorizontalDivider(color = TextSecondary.copy(alpha = 0.2f), modifier = Modifier.padding(vertical = 4.dp))
+                
+                // Используем компактные поля
+                compactField("Марка *", brand) { brand = it }
+                compactField("Модель *", model) { model = it }
+                compactField("Год выпуска", year, KeyboardType.Number) { year = it }
+                compactField("Пробег (км)", mileage, KeyboardType.Number) { mileage = it }
+                compactField("VIN-код автомобиля", vin) { vin = it }
+                compactField("Двигатель", engine) { engine = it }
+                
+                Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(vertical = 2.dp)) { 
+                    Checkbox(
+                        checked = hasLpg, 
+                        onCheckedChange = { hasLpg = it },
+                        modifier = Modifier.size(24.dp) // Уменьшили чекбокс
+                    )
+                    Spacer(Modifier.width(8.dp))
+                    Text("Установлено ГБО", color = TextPrimary, fontSize = 13.sp) 
+                }
+                
+                compactField("Заметки", notes) { notes = it }
             }
-            HorizontalDivider(color = TextSecondary.copy(alpha = 0.2f))
-            field("Марка *", brand) { brand = it }; field("Модель *", model) { model = it }; field("Год выпуска", year, KeyboardType.Number) { year = it }
-            field("Пробег (км)", mileage, KeyboardType.Number) { mileage = it }; field("VIN-код автомобиля", vin) { vin = it }; field("Двигатель", engine) { engine = it }
-            Row(verticalAlignment = Alignment.CenterVertically) { Checkbox(hasLpg, { hasLpg = it }); Text("Установлено ГБО", color = TextPrimary) }
-            field("Заметки", notes) { notes = it }
-        }},
-        confirmButton = { TextButton(onClick = { 
-            if (brand.isNotBlank() && model.isNotBlank()) {
-                val newCar = existingCar?.copy(
-                    brand = brand, model = model, year = year, vin = vin, mileage = mileage,
-                    engine = engine, fuel = if(hasLpg) "Бензин/Газ" else "Бензин", hasLpg = hasLpg,
-                    notes = notes, imageUri = imageUri
-                ) ?: Car(
-                    brand = brand, model = model, year = year, vin = vin, mileage = mileage,
-                    engine = engine, fuel = if(hasLpg) "Бензин/Газ" else "Бензин", hasLpg = hasLpg,
-                    notes = notes, imageUri = imageUri
-                )
-                onSave(newCar)
-            }
-        }) { Text("Сохранить", color = ColorGreen) } },
-                dismissButton = {
+        },
+        confirmButton = { 
+            TextButton(onClick = { 
+                if (brand.isNotBlank() && model.isNotBlank()) {
+                    val newCar = existingCar?.copy(
+                        brand = brand, model = model, year = year, vin = vin, mileage = mileage,
+                        engine = engine, fuel = if(hasLpg) "Бензин/Газ" else "Бензин", hasLpg = hasLpg,
+                        notes = notes, imageUri = imageUri
+                    ) ?: Car(
+                        brand = brand, model = model, year = year, vin = vin, mileage = mileage,
+                        engine = engine, fuel = if(hasLpg) "Бензин/Газ" else "Бензин", hasLpg = hasLpg,
+                        notes = notes, imageUri = imageUri
+                    )
+                    onSave(newCar)
+                }
+            }) { Text("Сохранить", color = ColorGreen) } 
+        },
+        dismissButton = {
             Row {
                 if (existingCar != null && onDelete != null) {
                     TextButton(onClick = { onDelete() }) {
@@ -104,6 +133,33 @@ fun AddCarDialog(
     )
 }
 
+// Компактное поле для диалога добавления авто
+@Composable
+private fun compactField(
+    label: String,
+    value: String,
+    type: KeyboardType = KeyboardType.Text,
+    onValue: (String) -> Unit
+) = OutlinedTextField(
+    value = value,
+    onValueChange = onValue,
+    label = { Text(label, fontSize = 12.sp) },
+    keyboardOptions = KeyboardOptions(keyboardType = type),
+    singleLine = true,
+    modifier = Modifier.fillMaxWidth(),
+    textStyle = androidx.compose.ui.text.TextStyle(fontSize = 14.sp),
+    colors = OutlinedTextFieldDefaults.colors(
+        focusedTextColor = TextPrimary,
+        unfocusedTextColor = TextPrimary,
+        focusedBorderColor = ColorBlue,
+        unfocusedBorderColor = TextSecondary.copy(alpha = 0.5f),
+        focusedLabelColor = ColorBlue,
+        unfocusedLabelColor = TextSecondary,
+        cursorColor = ColorBlue
+    )
+)
+
+// Обычное поле для остальных диалогов
 @Composable 
 private fun field(
     label: String, 
@@ -602,7 +658,7 @@ fun RegulationWorkDialog(
     onSave: (MaintenanceWork) -> Unit
 ) {
     var name by remember { mutableStateOf(existing?.name ?: "") }
-    var groupName by remember { mutableStateOf(existing?.groupName ?: "") } // <-- ДОБАВЛЕНО
+    var groupName by remember { mutableStateOf(existing?.groupName ?: "") }
     var category by remember { mutableStateOf(existing?.category ?: WorkCategory.GENERAL) }
     var km by remember { mutableStateOf(existing?.intervalKm?.toString() ?: "") }
     var months by remember { mutableStateOf(existing?.intervalMonths?.toString() ?: "") }
@@ -635,7 +691,6 @@ fun RegulationWorkDialog(
                     colors = fieldColors
                 )
                 
-                // Поле для ввода группы
                 OutlinedTextField(
                     value = groupName, 
                     onValueChange = { groupName = it }, 
@@ -676,7 +731,7 @@ fun RegulationWorkDialog(
                         carId = carId,
                         templateId = existing?.templateId ?: (templates.firstOrNull { it.name == name }?.id ?: ""),
                         name = name,
-                        groupName = groupName, // <-- ДОБАВЛЕНО
+                        groupName = groupName,
                         category = category,
                         intervalKm = km.toIntOrNull() ?: 0,
                         intervalMonths = months.toIntOrNull() ?: 0,
