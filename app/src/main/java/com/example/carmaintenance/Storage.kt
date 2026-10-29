@@ -424,7 +424,12 @@ fun migrateGroupNames(context: Context) {
     
     val updatedWorks = works.map { work ->
         if (work.groupName.isBlank()) {
-            val template = templates.find { it.name.trim().equals(work.name.trim(), ignoreCase = true) }
+            // Ищем по точному названию или по вхождению подстроки (например, "масляный" и "масло")
+            val template = templates.find { 
+                it.name.trim().equals(work.name.trim(), ignoreCase = true) ||
+                work.name.contains(it.name.trim(), ignoreCase = true) ||
+                it.name.contains(work.name.trim(), ignoreCase = true)
+            }
             if (template != null && template.groupName.isNotBlank()) {
                 changed = true
                 work.copy(groupName = template.groupName)
