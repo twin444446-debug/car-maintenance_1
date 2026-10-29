@@ -45,7 +45,7 @@ fun saveCars(context: Context, cars: List<Car>) {
 
 fun loadTemplates(context: Context): List<RegulationTemplate> {
     val a = runCatching { JSONArray(context.prefs().getString(TEMPLATES, "[]")) }.getOrElse { JSONArray() }
-    val defaults = defaultTemplates() // <-- Берем из TemplatesData.kt
+    val defaults = defaultTemplates()
     
     return buildList {
         for (i in 0 until a.length()) {
@@ -466,5 +466,22 @@ fun migrateGroupNames(context: Context) {
     
     if (changed) {
         saveWorks(context, updatedWorks)
+    }
+}
+
+fun migrateLpgTemplates(context: Context) {
+    val currentTemplates = loadTemplates(context).toMutableList()
+    val defaultTemplates = defaultTemplates()
+    
+    // Ищем, есть ли уже работы ГБО в базе
+    val hasLpg = currentTemplates.any { it.category == WorkCategory.LPG }
+    
+    // Если работ ГБО нет, берем их из дефолтных и добавляем к текущим
+    if (!hasLpg) {
+        val lpgTemplates = defaultTemplates.filter { it.category == WorkCategory.LPG }
+        if (lpgTemplates.isNotEmpty()) {
+            currentTemplates.addAll(lpgTemplates)
+            saveTemplates(context, currentTemplates)
+        }
     }
 }
