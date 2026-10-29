@@ -3,13 +3,16 @@ package com.example.carmaintenance
 import android.app.DatePickerDialog
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -24,6 +27,9 @@ import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import java.util.Calendar
 
+// ==================== НОВЫЙ ДИАЛОГ АВТОМОБИЛЯ (ModalBottomSheet) ====================
+
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AddCarDialog(existingCar: Car?, onDismiss: () -> Unit, onSave: (Car) -> Unit, onDelete: (() -> Unit)? = null) {
     var brand by remember { mutableStateOf(existingCar?.brand ?: "") }; var model by remember { mutableStateOf(existingCar?.model ?: "") }
@@ -42,102 +48,148 @@ fun AddCarDialog(existingCar: Car?, onDismiss: () -> Unit, onSave: (Car) -> Unit
         }
     }
 
-    AlertDialog(
-        onDismissRequest = onDismiss, 
-        containerColor = CardColor, 
-        title = { Text(if (existingCar == null) "Добавить автомобиль" else "Изменить автомобиль", color = TextPrimary) },
-        text = { 
-            Column(
-                Modifier.verticalScroll(rememberScrollState()), 
-                verticalArrangement = Arrangement.spacedBy(4.dp) // Уменьшили отступ между полями
-            ) {
-                if (imageUri.isNotBlank()) {
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        containerColor = CardColor,
+        contentColor = TextPrimary,
+        dragHandle = { BottomSheetDefaults.DragHandle(color = TextSecondary) }
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp)
+                .padding(bottom = 32.dp)
+                .verticalScroll(rememberScrollState())
+        ) {
+            Text(
+                text = if (existingCar == null) "Новый автомобиль" else "Редактировать автомобиль",
+                color = TextPrimary,
+                fontSize = 20.sp,
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier.padding(bottom = 16.dp)
+            )
+
+            if (imageUri.isNotBlank()) {
+                Box(
+                    modifier = Modifier.fillMaxWidth().height(160.dp),
+                    contentAlignment = Alignment.TopEnd
+                ) {
                     AsyncImage(
                         model = imageUri,
                         contentDescription = "Фото авто",
-                        modifier = Modifier.fillMaxWidth().height(120.dp), // Уменьшили высоту фото
+                        modifier = Modifier.fillMaxWidth().fillMaxHeight().background(Color.Black.copy(alpha = 0.2f), RoundedCornerShape(12.dp)),
                         contentScale = ContentScale.Crop
                     )
-                    Spacer(Modifier.height(4.dp))
-                }
-                
-                Button(
-                    onClick = { launcher.launch("image/*") },
-                    modifier = Modifier.fillMaxWidth().height(40.dp), // Сделали кнопку ниже
-                    colors = ButtonDefaults.buttonColors(containerColor = NavColor),
-                    contentPadding = PaddingValues(0.dp)
-                ) {
-                    Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(18.dp))
-                    Spacer(Modifier.width(4.dp))
-                    Text(if (imageUri.isBlank()) "Выбрать фото" else "Изменить фото", color = TextPrimary, fontSize = 13.sp)
-                }
-                
-                if (imageUri.isNotBlank()) {
-                    TextButton(
-                        onClick = { imageUri = "" }, 
-                        modifier = Modifier.fillMaxWidth().height(30.dp)
+                    IconButton(
+                        onClick = { imageUri = "" },
+                        modifier = Modifier.padding(4.dp).background(Color.Black.copy(alpha = 0.5f), RoundedCornerShape(50))
                     ) {
-                        Text("Удалить фото", color = ColorRed, fontSize = 12.sp)
+                        Icon(Icons.Default.Delete, contentDescription = "Удалить фото", tint = Color.White)
                     }
                 }
-                
-                HorizontalDivider(color = TextSecondary.copy(alpha = 0.2f), modifier = Modifier.padding(vertical = 4.dp))
-                
-                // Используем компактные поля
-                compactField("Марка *", brand) { brand = it }
-                compactField("Модель *", model) { model = it }
-                compactField("Год выпуска", year, KeyboardType.Number) { year = it }
-                compactField("Пробег (км)", mileage, KeyboardType.Number) { mileage = it }
-                compactField("VIN-код автомобиля", vin) { vin = it }
-                compactField("Двигатель", engine) { engine = it }
-                
-                Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(vertical = 2.dp)) { 
-                    Checkbox(
-                        checked = hasLpg, 
-                        onCheckedChange = { hasLpg = it },
-                        modifier = Modifier.size(24.dp) // Уменьшили чекбокс
-                    )
-                    Spacer(Modifier.width(8.dp))
-                    Text("Установлено ГБО", color = TextPrimary, fontSize = 13.sp) 
-                }
-                
-                compactField("Заметки", notes) { notes = it }
+                Spacer(Modifier.height(8.dp))
             }
-        },
-        confirmButton = { 
-            TextButton(onClick = { 
-                if (brand.isNotBlank() && model.isNotBlank()) {
-                    val newCar = existingCar?.copy(
-                        brand = brand, model = model, year = year, vin = vin, mileage = mileage,
-                        engine = engine, fuel = if(hasLpg) "Бензин/Газ" else "Бензин", hasLpg = hasLpg,
-                        notes = notes, imageUri = imageUri
-                    ) ?: Car(
-                        brand = brand, model = model, year = year, vin = vin, mileage = mileage,
-                        engine = engine, fuel = if(hasLpg) "Бензин/Газ" else "Бензин", hasLpg = hasLpg,
-                        notes = notes, imageUri = imageUri
-                    )
-                    onSave(newCar)
-                }
-            }) { Text("Сохранить", color = ColorGreen) } 
-        },
-        dismissButton = {
-            Row {
+
+            Button(
+                onClick = { launcher.launch("image/*") },
+                modifier = Modifier.fillMaxWidth().height(44.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = NavColor),
+                shape = RoundedCornerShape(8.dp)
+            ) {
+                Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(18.dp))
+                Spacer(Modifier.width(8.dp))
+                Text(if (imageUri.isBlank()) "Загрузить фото" else "Изменить фото", fontSize = 14.sp)
+            }
+
+            Spacer(Modifier.height(16.dp))
+            HorizontalDivider(color = TextSecondary.copy(alpha = 0.2f))
+            Spacer(Modifier.height(16.dp))
+
+            Text("Основная информация", color = ColorGreen, fontSize = 14.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(bottom = 8.dp))
+            
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                modernField("Марка *", brand, Modifier.weight(1f)) { brand = it }
+                modernField("Модель *", model, Modifier.weight(1f)) { model = it }
+            }
+            Spacer(Modifier.height(8.dp))
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                modernField("Год выпуска", year, Modifier.weight(1f), KeyboardType.Number) { year = it }
+                modernField("Пробег (км)", mileage, Modifier.weight(1f), KeyboardType.Number) { mileage = it }
+            }
+
+            Spacer(Modifier.height(16.dp))
+            HorizontalDivider(color = TextSecondary.copy(alpha = 0.2f))
+            Spacer(Modifier.height(16.dp))
+
+            Text("Технические данные", color = ColorGreen, fontSize = 14.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(bottom = 8.dp))
+            
+            modernField("VIN-код", vin) { vin = it }
+            Spacer(Modifier.height(8.dp))
+            modernField("Двигатель", engine) { engine = it }
+            Spacer(Modifier.height(8.dp))
+            modernField("Заметки", notes) { notes = it }
+            
+            Spacer(Modifier.height(8.dp))
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Checkbox(
+                    checked = hasLpg, 
+                    onCheckedChange = { hasLpg = it },
+                    colors = CheckboxDefaults.colors(checkedColor = ColorGreen, uncheckedColor = TextSecondary)
+                )
+                Text("Установлено ГБО (Газ)", color = TextPrimary, fontSize = 14.sp)
+            }
+
+            Spacer(Modifier.height(24.dp))
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
                 if (existingCar != null && onDelete != null) {
-                    TextButton(onClick = { onDelete() }) {
-                        Text("Удалить", color = ColorRed)
-                    }
+                    OutlinedButton(
+                        onClick = { onDelete() },
+                        modifier = Modifier.weight(1f).height(48.dp),
+                        shape = RoundedCornerShape(8.dp),
+                        colors = ButtonDefaults.outlinedButtonColors(contentColor = ColorRed),
+                        border = BorderStroke(1.dp, ColorRed)
+                    ) { Text("Удалить") }
                 }
-                TextButton(onClick = onDismiss) { Text("Отмена", color = TextSecondary) }
+                OutlinedButton(
+                    onClick = onDismiss,
+                    modifier = Modifier.weight(1f).height(48.dp),
+                    shape = RoundedCornerShape(8.dp),
+                    colors = ButtonDefaults.outlinedButtonColors(contentColor = TextSecondary),
+                    border = BorderStroke(1.dp, TextSecondary.copy(alpha = 0.5f))
+                ) { Text("Отмена") }
+                Button(
+                    onClick = {
+                        if (brand.isNotBlank() && model.isNotBlank()) {
+                            val newCar = existingCar?.copy(
+                                brand = brand, model = model, year = year, vin = vin, mileage = mileage,
+                                engine = engine, fuel = if(hasLpg) "Бензин/Газ" else "Бензин", hasLpg = hasLpg,
+                                notes = notes, imageUri = imageUri
+                            ) ?: Car(
+                                brand = brand, model = model, year = year, vin = vin, mileage = mileage,
+                                engine = engine, fuel = if(hasLpg) "Бензин/Газ" else "Бензин", hasLpg = hasLpg,
+                                notes = notes, imageUri = imageUri
+                            )
+                            onSave(newCar)
+                        }
+                    },
+                    modifier = Modifier.weight(1f).height(48.dp),
+                    shape = RoundedCornerShape(8.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = ColorGreen)
+                ) { Text("Сохранить", fontWeight = FontWeight.Bold) }
             }
         }
-    )
+    }
 }
 
-// Компактное поле для диалога добавления авто
 @Composable
-private fun compactField(
+private fun modernField(
     label: String,
     value: String,
+    modifier: Modifier = Modifier,
     type: KeyboardType = KeyboardType.Text,
     onValue: (String) -> Unit
 ) = OutlinedTextField(
@@ -146,20 +198,25 @@ private fun compactField(
     label = { Text(label, fontSize = 12.sp) },
     keyboardOptions = KeyboardOptions(keyboardType = type),
     singleLine = true,
-    modifier = Modifier.fillMaxWidth(),
+    modifier = modifier,
+    shape = RoundedCornerShape(10.dp),
     textStyle = androidx.compose.ui.text.TextStyle(fontSize = 14.sp),
     colors = OutlinedTextFieldDefaults.colors(
         focusedTextColor = TextPrimary,
         unfocusedTextColor = TextPrimary,
-        focusedBorderColor = ColorBlue,
-        unfocusedBorderColor = TextSecondary.copy(alpha = 0.5f),
-        focusedLabelColor = ColorBlue,
+        focusedBorderColor = ColorGreen,
+        unfocusedBorderColor = TextSecondary.copy(alpha = 0.3f),
+        focusedContainerColor = BgColor.copy(alpha = 0.5f),
+        unfocusedContainerColor = BgColor.copy(alpha = 0.5f),
+        focusedLabelColor = ColorGreen,
         unfocusedLabelColor = TextSecondary,
-        cursorColor = ColorBlue
-    )
+        cursorColor = ColorGreen
+    ),
+    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 12.dp)
 )
 
-// Обычное поле для остальных диалогов
+// ==================== ОСТАЛЬНЫЕ ДИАЛОГИ (без изменений) ====================
+
 @Composable 
 private fun field(
     label: String, 
@@ -352,7 +409,6 @@ fun ServiceRecordDialog(
         }
     )
 
-    // Диалог подтверждения удаления
     if (showDeleteConfirm && initial != null && onDelete != null) {
         AlertDialog(
             onDismissRequest = { showDeleteConfirm = false },
