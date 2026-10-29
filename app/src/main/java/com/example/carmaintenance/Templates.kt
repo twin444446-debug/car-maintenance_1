@@ -1,5 +1,6 @@
 package com.example.carmaintenance
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -13,6 +14,18 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+
+// Список доступных групп для выпадающего списка
+private val AVAILABLE_GROUPS = listOf(
+    "1. МАСЛА",
+    "2. ЖИДКОСТИ",
+    "3. ФИЛЬТРЫ",
+    "4. РЕМНИ",
+    "5. ЗАЖИГАНИЕ",
+    "6. ТОРМОЗА",
+    "7. ДАТЧИКИ И ПРОЧЕЕ",
+    "8. ГБО"
+)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -117,6 +130,7 @@ fun TemplateEditorScreen(templates: List<RegulationTemplate>, onBack: () -> Unit
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun TemplateDialog(
     existing: RegulationTemplate?, 
@@ -125,30 +139,107 @@ fun TemplateDialog(
     onSave: (RegulationTemplate) -> Unit
 ) {
     var name by remember { mutableStateOf(existing?.name ?: "") }
+    var groupName by remember { mutableStateOf(existing?.groupName ?: "") }
     var km by remember { mutableStateOf(existing?.intervalKm?.toString() ?: "") }
     var months by remember { mutableStateOf(existing?.intervalMonths?.toString() ?: "") }
     var warningKm by remember { mutableStateOf(existing?.warningKm?.toString() ?: "") }
     var warningMonths by remember { mutableStateOf(existing?.warningMonths?.toString() ?: "") }
     var lpg by remember { mutableStateOf(existing?.category == WorkCategory.LPG || defaultIsLpg) }
     var preventive by remember { mutableStateOf(existing?.preventive ?: false) }
+    
+    // Состояние для раскрытия выпадающего списка
+    var expanded by remember { mutableStateOf(false) }
 
     AlertDialog(
         onDismissRequest = onDismiss, 
         containerColor = CardColor, 
         title = { Text(if (existing == null) "Новый шаблон" else "Редактировать шаблон", color = TextPrimary) },
         text = { 
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                OutlinedTextField(name, { name = it }, label = { Text("Название") }, singleLine = true, modifier = Modifier.fillMaxWidth())
+            Column(
+                Modifier.heightIn(max = 500.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                OutlinedTextField(
+                    value = name, 
+                    onValueChange = { name = it }, 
+                    label = { Text("Название") }, 
+                    singleLine = true, 
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedTextColor = TextPrimary, unfocusedTextColor = TextPrimary,
+                        focusedBorderColor = ColorGreen, unfocusedBorderColor = TextSecondary
+                    )
+                )
+                
+                // ПУНКТ 2: Выпадающий список групп
+                ExposedDropdownMenuBox(
+                    expanded = expanded,
+                    onExpandedChange = { expanded = !expanded },
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    OutlinedTextField(
+                        value = groupName.ifBlank { "Выберите группу" },
+                        onValueChange = {},
+                        readOnly = true,
+                        label = { Text("Группа") },
+                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
+                        modifier = Modifier.menuAnchor().fillMaxWidth(),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedTextColor = TextPrimary, unfocusedTextColor = TextPrimary,
+                            focusedBorderColor = ColorGreen, unfocusedBorderColor = TextSecondary
+                        )
+                    )
+                    ExposedDropdownMenu(
+                        expanded = expanded,
+                        onDismissRequest = { expanded = false },
+                        modifier = Modifier.background(CardColor)
+                    ) {
+                        AVAILABLE_GROUPS.forEach { group ->
+                            DropdownMenuItem(
+                                text = { Text(group, color = TextPrimary) },
+                                onClick = {
+                                    groupName = group
+                                    expanded = false
+                                }
+                            )
+                        }
+                    }
+                }
+
                 Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                    OutlinedTextField(km, { km = it }, label = { Text("Интервал км") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number), modifier = Modifier.weight(1f))
-                    OutlinedTextField(months, { months = it }, label = { Text("Месяцы") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number), modifier = Modifier.weight(1f))
+                    OutlinedTextField(
+                        value = km, onValueChange = { km = it }, 
+                        label = { Text("Интервал км") }, 
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number), 
+                        modifier = Modifier.weight(1f),
+                        colors = OutlinedTextFieldDefaults.colors(focusedTextColor = TextPrimary, unfocusedTextColor = TextPrimary, focusedBorderColor = ColorGreen, unfocusedBorderColor = TextSecondary)
+                    )
+                    OutlinedTextField(
+                        value = months, onValueChange = { months = it }, 
+                        label = { Text("Месяцы") }, 
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number), 
+                        modifier = Modifier.weight(1f),
+                        colors = OutlinedTextFieldDefaults.colors(focusedTextColor = TextPrimary, unfocusedTextColor = TextPrimary, focusedBorderColor = ColorGreen, unfocusedBorderColor = TextSecondary)
+                    )
                 }
                 Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                    OutlinedTextField(warningKm, { warningKm = it }, label = { Text("Предупр. км") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number), modifier = Modifier.weight(1f))
-                    OutlinedTextField(warningMonths, { warningMonths = it }, label = { Text("Предупр. мес") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number), modifier = Modifier.weight(1f))
+                    OutlinedTextField(
+                        value = warningKm, onValueChange = { warningKm = it }, 
+                        label = { Text("Предупр. км") }, 
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number), 
+                        modifier = Modifier.weight(1f),
+                        colors = OutlinedTextFieldDefaults.colors(focusedTextColor = TextPrimary, unfocusedTextColor = TextPrimary, focusedBorderColor = ColorGreen, unfocusedBorderColor = TextSecondary)
+                    )
+                    OutlinedTextField(
+                        value = warningMonths, onValueChange = { warningMonths = it }, 
+                        label = { Text("Предупр. мес") }, 
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number), 
+                        modifier = Modifier.weight(1f),
+                        colors = OutlinedTextFieldDefaults.colors(focusedTextColor = TextPrimary, unfocusedTextColor = TextPrimary, focusedBorderColor = ColorGreen, unfocusedBorderColor = TextSecondary)
+                    )
                 }
                 Row(verticalAlignment = Alignment.CenterVertically) { 
-                    Checkbox(lpg, { lpg = it }, enabled = existing == null) // Блокируем смену типа при редактировании
+                    Checkbox(lpg, { lpg = it }, enabled = existing == null)
                     Text("Работа по ГБО", color = TextPrimary) 
                 }
                 Row(verticalAlignment = Alignment.CenterVertically) { 
@@ -160,9 +251,11 @@ fun TemplateDialog(
         confirmButton = {
             TextButton(onClick = {
                 if (name.isNotBlank()) {
+                    // ПУНКТ 1: Сохраняем группу при создании/редактировании
                     onSave(
                         existing?.copy(
                             name = name, 
+                            groupName = groupName,
                             category = if (lpg) WorkCategory.LPG else WorkCategory.GENERAL,
                             intervalKm = km.toIntOrNull() ?: 0, 
                             intervalMonths = months.toIntOrNull() ?: 0,
@@ -171,6 +264,7 @@ fun TemplateDialog(
                             preventive = preventive
                         ) ?: RegulationTemplate(
                             name = name, 
+                            groupName = groupName,
                             category = if (lpg) WorkCategory.LPG else WorkCategory.GENERAL,
                             intervalKm = km.toIntOrNull() ?: 0, 
                             intervalMonths = months.toIntOrNull() ?: 0,
