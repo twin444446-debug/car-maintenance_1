@@ -53,7 +53,7 @@ fun AppScreen() {
     LaunchedEffect(Unit) {
         forceRegroupAllWorks(context)
         migrateLpgTemplates(context)
-        syncNewTemplatesToCars(context) // <-- Добавляем новые шаблоны в регламенты машин
+        syncNewTemplatesToCars(context)
         works = loadWorks(context)
         templates = loadTemplates(context)
     }
@@ -282,7 +282,7 @@ fun AppScreen() {
                         onBack = { templateEditor = false }, 
                         onSave = { templates = it; saveTemplates(context, templates) },
                         onSync = {
-                            syncNewTemplatesToCars(context) // <-- Синхронизация по кнопке
+                            syncNewTemplatesToCars(context)
                             works = loadWorks(context)
                         }
                     )
@@ -1139,4 +1139,68 @@ private val boschMe1797Codes: Map<String, String> = mapOf(
     "0481" to "Реле вентилятора 2. Обрыв цепи управления",
     "0485" to "Напряжение питания вентилятора вне диапазона",
     "0691" to "Реле вентилятора 1. КЗ на «массу»",
-    "0692
+    "0692" to "Реле вентилятора 1. КЗ на «бортсеть»",
+    "0693" to "Реле вентилятора 2. КЗ на «массу»",
+    "0694" to "Реле вентилятора 2. КЗ на «бортсеть»",
+    "0500" to "Датчик скорости автомобиля. Нет сигнала",
+    "0501" to "Датчик скорости. Сигнал вне диапазона",
+    "0504" to "Выключатели педали тормоза. Рассогласование сигналов",
+    "0560" to "Напряжение бортовой сети",
+    "0561" to "Напряжение бортовой сети нестабильно",
+    "0562" to "Напряжение бортовой сети. Низкий уровень",
+    "0563" to "Напряжение бортовой сети. Высокий уровень",
+    "0606" to "Контроллер СУД. Неисправность АЦП",
+    "0627" to "Реле бензонасоса. Обрыв цепи управления",
+    "0628" to "Реле бензонасоса. КЗ на «массу»",
+    "0629" to "Реле бензонасоса. КЗ на «бортсеть»",
+    "0645" to "Реле муфты кондиционера. Обрыв цепи управления",
+    "0646" to "Реле муфты кондиционера. КЗ на «массу»",
+    "0647" to "Реле муфты кондиционера. КЗ на «бортсеть»",
+    "1335" to "Положение дроссельной заслонки вне допустимого диапазона",
+    "1336" to "Рассогласование сигналов датчиков «А»/«В» дросселя",
+    "1388" to "Рассогласование сигналов датчиков «А»/«В» педали акселератора",
+    "1389" to "Обороты двигателя вне допустимого диапазона",
+    "1390" to "Некорректная реакция на неисправность в системе",
+    "1391" to "Отсутствует реакция на неисправность в системе",
+    "1545" to "Привод дроссельной заслонки. Положение заслонки вне диапазона",
+    "1558" to "Привод дроссельной заслонки. Возвратная пружина неисправна",
+    "1559" to "Привод дроссельной заслонки. Положение покоя вне диапазона",
+    "1564" to "Адаптация нуля заслонки прервана из-за низкого напряжения",
+    "1570" to "Иммобилизатор. Цепь неисправна",
+    "2195" to "Нет совпадения сигналов датчиков кислорода 1 и 2",
+    "2270" to "ДК2. Сигнал в состоянии «бедно»",
+    "2271" to "ДК2. Сигнал в состоянии «богато»",
+    "C001" to "Неисправность информационной CAN-шины"
+)
+
+private fun obdMeaning(code: String, base: ErrorBase): String {
+    val normalized = code.trim().uppercase()
+    return when (base) {
+        ErrorBase.HYUNDAI_ACCENT -> {
+            val key = if (normalized.startsWith("P") || normalized.startsWith("C") || normalized.startsWith("B") || normalized.startsWith("U")) {
+                normalized
+            } else {
+                "P$normalized"
+            }
+            val description = hyundaiAccentCodes[key]
+            if (description != null) "$key — $description"
+            else "Код $normalized: расшифровка пока отсутствует в базе Hyundai Accent."
+        }
+        ErrorBase.BOSCH_ME1797 -> {
+            val key = when {
+                normalized.startsWith("P") || normalized.startsWith("C") -> normalized.drop(1)
+                else -> normalized
+            }
+            val description = boschMe1797Codes[key]
+            if (description != null) "$normalized — $description"
+            else "Код $normalized: расшифровка пока отсутствует в базе Bosch ME17.9.7."
+        }
+    }
+}
+
+private fun WorkStatus.title(): String = when(this) {
+    WorkStatus.COMPLETED -> "Выполнено"
+    WorkStatus.REQUIRED -> "Необходимо"
+    WorkStatus.PREVENTIVE -> "Рекомендации"
+    WorkStatus.SKIPPED -> "Пропущено"
+}
