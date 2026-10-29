@@ -25,7 +25,13 @@ import coil.compose.AsyncImage
 import java.util.Calendar
 
 @Composable
-fun AddCarDialog(existingCar: Car?, onDismiss: () -> Unit, onSave: (Car) -> Unit) {
+@Composable
+fun AddCarDialog(
+    existingCar: Car?, 
+    onDismiss: () -> Unit, 
+    onSave: (Car) -> Unit,
+    onDelete: (() -> Unit)? = null // <-- ДОБАВЛЕНО
+) {
     var brand by remember { mutableStateOf(existingCar?.brand ?: "") }; var model by remember { mutableStateOf(existingCar?.model ?: "") }
     var year by remember { mutableStateOf(existingCar?.year ?: "") }; var vin by remember { mutableStateOf(existingCar?.vin ?: "") }
     var mileage by remember { mutableStateOf(existingCar?.mileage ?: "") }; var engine by remember { mutableStateOf(existingCar?.engine ?: "") }
@@ -86,7 +92,17 @@ fun AddCarDialog(existingCar: Car?, onDismiss: () -> Unit, onSave: (Car) -> Unit
                 onSave(newCar)
             }
         }) { Text("Сохранить", color = ColorGreen) } },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Отмена", color = TextSecondary) } })
+                dismissButton = {
+            Row {
+                if (existingCar != null && onDelete != null) {
+                    TextButton(onClick = { onDelete() }) {
+                        Text("Удалить", color = ColorRed)
+                    }
+                }
+                TextButton(onClick = onDismiss) { Text("Отмена", color = TextSecondary) }
+            }
+        }
+    )
 }
 
 @Composable 
