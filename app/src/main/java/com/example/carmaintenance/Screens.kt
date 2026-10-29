@@ -49,10 +49,12 @@ fun AppScreen() {
     var records by remember { mutableStateOf(loadServiceRecords(context)) }
     var parts by remember { mutableStateOf(loadPartCatalog(context)) }
     
-    // Миграция групп для старых работ
+    // Миграция групп и добавление ГБО шаблонов для старых работ
     LaunchedEffect(Unit) {
         migrateGroupNames(context)
+        migrateLpgTemplates(context) // <-- ДОБАВЛЕНО
         works = loadWorks(context)
+        templates = loadTemplates(context) // <-- Перечитываем шаблоны
     }
 
     var selectedCarId by remember {
