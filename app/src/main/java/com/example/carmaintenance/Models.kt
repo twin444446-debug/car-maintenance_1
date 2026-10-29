@@ -15,14 +15,15 @@ data class Car(
 data class RegulationTemplate(
     val id: String = UUID.randomUUID().toString(),
     var name: String,
-    var groupName: String = "", // <-- ДОБАВЛЕНО
+    var groupName: String = "",
     var category: WorkCategory = WorkCategory.GENERAL,
     var intervalKm: Int = 0,
     var intervalMonths: Int = 0,
     var warningKm: Int = 0,
     var warningMonths: Int = 0,
     var preventive: Boolean = false,
-    var notes: String = ""
+    var notes: String = "",
+    var isSystem: Boolean = false // <-- ДОБАВЛЕНО
 )
 
 data class MaintenanceWork(
@@ -30,7 +31,7 @@ data class MaintenanceWork(
     val carId: String,
     var templateId: String = "",
     var name: String,
-    var groupName: String = "", // <-- ДОБАВЛЕНО
+    var groupName: String = "",
     var category: WorkCategory = WorkCategory.GENERAL,
     var intervalKm: Int = 0,
     var intervalMonths: Int = 0,
