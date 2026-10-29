@@ -52,11 +52,13 @@ fun AddCarDialog(existingCar: Car?, onDismiss: () -> Unit, onSave: (Car) -> Unit
         onDismissRequest = onDismiss,
         containerColor = CardColor,
         contentColor = TextPrimary,
-        dragHandle = { BottomSheetDefaults.DragHandle(color = TextSecondary) }
+        dragHandle = { BottomSheetDefaults.DragHandle(color = TextSecondary) },
+        windowInsets = WindowInsets(0, 0, 0, 0)
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
+                .imePadding() // <-- Вот это исправляет наезд клавиатуры
                 .padding(horizontal = 16.dp)
                 .padding(bottom = 32.dp)
                 .verticalScroll(rememberScrollState())
