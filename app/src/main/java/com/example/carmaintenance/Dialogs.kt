@@ -25,7 +25,6 @@ import coil.compose.AsyncImage
 import java.util.Calendar
 
 @Composable
-@Composable
 fun AddCarDialog(
     existingCar: Car?, 
     onDismiss: () -> Unit, 
