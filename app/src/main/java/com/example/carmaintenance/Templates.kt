@@ -11,11 +11,11 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
-// Список доступных групп для выпадающего списка
 private val AVAILABLE_GROUPS = listOf(
     "1. МАСЛА",
     "2. ЖИДКОСТИ",
@@ -29,12 +29,15 @@ private val AVAILABLE_GROUPS = listOf(
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun TemplateEditorScreen(templates: List<RegulationTemplate>, onBack: () -> Unit, onSave: (List<RegulationTemplate>) -> Unit) {
+fun TemplateEditorScreen(
+    templates: List<RegulationTemplate>, 
+    onBack: () -> Unit, 
+    onSave: (List<RegulationTemplate>) -> Unit,
+    onSync: () -> Unit // <-- КОЛБЭК ДЛЯ СИНХРОНИЗАЦИИ
+) {
     var list by remember(templates) { mutableStateOf(templates) }
     var show by remember { mutableStateOf(false) }
     var templateToDelete by remember { mutableStateOf<RegulationTemplate?>(null) }
-    
-    // Состояние для фильтра: 0 - Автомобиль, 1 - ГБО
     var selectedTab by remember { mutableIntStateOf(0) }
 
     Column(Modifier.fillMaxSize().padding(16.dp)) {
@@ -45,7 +48,6 @@ fun TemplateEditorScreen(templates: List<RegulationTemplate>, onBack: () -> Unit
         
         Spacer(Modifier.height(8.dp))
 
-        // Переключатель между стандартными и ГБО
         SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
             SegmentedButton(
                 selected = selectedTab == 0,
@@ -64,7 +66,6 @@ fun TemplateEditorScreen(templates: List<RegulationTemplate>, onBack: () -> Unit
 
         Spacer(Modifier.height(8.dp))
 
-        // Фильтруем список в зависимости от выбранной вкладки
         val filteredList = list.filter { 
             if (selectedTab == 0) it.category == WorkCategory.GENERAL 
             else it.category == WorkCategory.LPG 
@@ -80,7 +81,6 @@ fun TemplateEditorScreen(templates: List<RegulationTemplate>, onBack: () -> Unit
                             Text("${t.intervalKm} км / ${t.intervalMonths} мес$groupText", color = TextSecondary, fontSize = 12.sp)
                         }
                         
-                        // Защита системных шаблонов от удаления
                         if (t.isSystem) {
                             Icon(Icons.Default.Lock, contentDescription = "Системный шаблон", tint = TextSecondary.copy(alpha = 0.5f))
                         } else {
@@ -95,12 +95,20 @@ fun TemplateEditorScreen(templates: List<RegulationTemplate>, onBack: () -> Unit
         
         Spacer(Modifier.height(8.dp))
         
-        Button(onClick = { show = true }, modifier = Modifier.fillMaxWidth()) { 
-            Text("Добавить шаблон") 
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+            Button(onClick = { show = true }, modifier = Modifier.weight(1f)) { 
+                Text("Добавить") 
+            }
+            Button(
+                onClick = { onSync() }, 
+                modifier = Modifier.weight(1f),
+                colors = ButtonDefaults.buttonColors(containerColor = ColorBlue.copy(alpha = 0.2f))
+            ) { 
+                Text("Синхронизировать", color = ColorBlue) 
+            }
         }
     }
 
-    // Диалог добавления (с учетом выбранной вкладки)
     if (show) {
         TemplateDialog(null, defaultIsLpg = selectedTab == 1, onDismiss = { show = false }) { 
             list = list + it
@@ -109,7 +117,6 @@ fun TemplateEditorScreen(templates: List<RegulationTemplate>, onBack: () -> Unit
         }
     }
 
-    // Диалог подтверждения удаления
     if (templateToDelete != null) {
         AlertDialog(
             onDismissRequest = { templateToDelete = null },
@@ -147,7 +154,6 @@ fun TemplateDialog(
     var lpg by remember { mutableStateOf(existing?.category == WorkCategory.LPG || defaultIsLpg) }
     var preventive by remember { mutableStateOf(existing?.preventive ?: false) }
     
-    // Состояние для раскрытия выпадающего списка
     var expanded by remember { mutableStateOf(false) }
 
     AlertDialog(
@@ -171,7 +177,6 @@ fun TemplateDialog(
                     )
                 )
                 
-                // ПУНКТ 2: Выпадающий список групп
                 ExposedDropdownMenuBox(
                     expanded = expanded,
                     onExpandedChange = { expanded = !expanded },
@@ -251,7 +256,6 @@ fun TemplateDialog(
         confirmButton = {
             TextButton(onClick = {
                 if (name.isNotBlank()) {
-                    // ПУНКТ 1: Сохраняем группу при создании/редактировании
                     onSave(
                         existing?.copy(
                             name = name, 
