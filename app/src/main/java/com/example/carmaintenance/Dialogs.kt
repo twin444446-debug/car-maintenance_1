@@ -211,8 +211,7 @@ private fun modernField(
         focusedLabelColor = ColorGreen,
         unfocusedLabelColor = TextSecondary,
         cursorColor = ColorGreen
-    ),
-    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 12.dp)
+    )
 )
 
 // ==================== ОСТАЛЬНЫЕ ДИАЛОГИ (без изменений) ====================
