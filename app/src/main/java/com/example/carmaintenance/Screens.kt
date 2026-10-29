@@ -10,7 +10,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.*
+import androidx.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -49,6 +49,12 @@ fun AppScreen() {
     var records by remember { mutableStateOf(loadServiceRecords(context)) }
     var parts by remember { mutableStateOf(loadPartCatalog(context)) }
     
+    // Миграция групп для старых работ
+    LaunchedEffect(Unit) {
+        migrateGroupNames(context)
+        works = loadWorks(context)
+    }
+
     var selectedCarId by remember {
         mutableStateOf(
             context.getSharedPreferences("car_maintenance", android.content.Context.MODE_PRIVATE)
@@ -531,7 +537,6 @@ fun AppScreen() {
         )
     }
 
-    // ДИАЛОГ УДАЛЕНИЯ АВТОМОБИЛЯ С ПОДТВЕРЖДЕНИЕМ
     if (carToDelete != null) {
         val carToRemove = carToDelete!!
         AlertDialog(
@@ -543,16 +548,12 @@ fun AppScreen() {
                 TextButton(onClick = { 
                     cars = cars.filter { it.id != carToRemove.id }
                     saveCars(context, cars)
-                    
                     works = works.filter { it.carId != carToRemove.id }
                     saveWorks(context, works)
-                    
                     records = records.filter { it.carId != carToRemove.id }
                     saveServiceRecords(context, records)
-                    
                     parts = parts.filter { it.carId != carToRemove.id }
                     savePartCatalog(context, parts)
-                    
                     selectedCarId = cars.firstOrNull()?.id
                     context.getSharedPreferences("car_maintenance", android.content.Context.MODE_PRIVATE).edit().putString("selected_car_id", selectedCarId ?: "").apply()
                     screen = "Главная"
@@ -738,6 +739,11 @@ private fun RegulationScreen(
             FilterChip(selected = filter == WorkStatus.COMPLETED, onClick = { onFilterChange(WorkStatus.COMPLETED) }, label = { Text("Выполнено") }, colors = FilterChipDefaults.filterChipColors(selectedContainerColor = ColorGreen.copy(alpha = 0.2f), selectedLabelColor = ColorGreen, labelColor = TextPrimary))
             FilterChip(selected = filter == WorkStatus.SKIPPED, onClick = { onFilterChange(WorkStatus.SKIPPED) }, label = { Text("Пропущено") }, colors = FilterChipDefaults.filterChipColors(selectedContainerColor = ColorPurple.copy(alpha = 0.2f), selectedLabelColor = ColorPurple, labelColor = TextPrimary))
             FilterChip(selected = filter == WorkStatus.PREVENTIVE, onClick = { onFilterChange(WorkStatus.PREVENTIVE) }, label = { Text("Рекомендовано") }, colors = FilterChipDefaults.filterChipColors(selectedContainerColor = ColorYellow.copy(alpha = 0.2f), selectedLabelColor = ColorYellow, labelColor = TextPrimary))
+            
+            // Кнопка «Заполнить», если нужна
+            Button(onClick = onFill, colors = ButtonDefaults.buttonColors(containerColor = ColorBlue.copy(alpha = 0.2f))) {
+                Text("Добавить из шаблонов", color = ColorBlue, fontSize = 12.sp)
+            }
         }
 
         Spacer(Modifier.height(8.dp))
@@ -880,7 +886,6 @@ private fun CarDetailScreen(
         Button(onClick = onMileage, modifier = Modifier.fillMaxWidth()) { Text("Изменить пробег") }
         Button(onClick = onEdit, modifier = Modifier.fillMaxWidth()) { Text("Редактировать") }
         Spacer(Modifier.height(8.dp))
-        // КНОПКА УДАЛЕНИЯ АВТОМОБИЛЯ
         Button(
             onClick = onDelete, 
             modifier = Modifier.fillMaxWidth(),
