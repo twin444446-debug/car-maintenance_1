@@ -336,15 +336,25 @@ fun AppScreen() {
 
     // Диалоги
     if (carDialog) {
-        AddCarDialog(editingCar, { carDialog = false }) { newCar ->
+    AddCarDialog(
+        existingCar = editingCar,
+        onDismiss = { carDialog = false; editingCar = null },
+        onSave = { newCar ->
             cars = if (cars.any { it.id == newCar.id }) cars.map { if (it.id == newCar.id) newCar else it } else cars + newCar
             saveCars(context, cars)
             selectedCarId = newCar.id
             context.getSharedPreferences("car_maintenance", android.content.Context.MODE_PRIVATE).edit().putString("selected_car_id", newCar.id).apply()
-            carDialog = false; editingCar = null
+            carDialog = false
+            editingCar = null
             if (works.none { it.carId == newCar.id }) createDefaultForCar(newCar)
+        },
+        onDelete = {
+            // Если нажали «Удалить» внутри редактирования
+            carDialog = false
+            carToDelete = editingCar // Передаем машину в диалог подтверждения
         }
-    }
+    )
+}
 
     if (mileageDialog && car != null) {
         MileageDialog(car.mileage, { mileageDialog = false }) { value ->
