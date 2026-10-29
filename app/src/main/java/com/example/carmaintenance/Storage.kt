@@ -424,43 +424,33 @@ fun restoreFromLocalBackup(context: Context, file: File): BackupResult {
     }
 }
 
-// ==================== МИГРАЦИЯ ГРУПП ====================
+// ==================== МИГРАЦИЯ И СИНХРОНИЗАЦИЯ ====================
 
-fun migrateGroupNames(context: Context) {
+fun forceRegroupAllWorks(context: Context) {
     val works = loadWorks(context)
     val templates = defaultTemplates()
     var changed = false
     
     val updatedWorks = works.map { work ->
-        if (work.groupName.isBlank()) {
-            var template = templates.find { 
-                it.name.trim().equals(work.name.trim(), ignoreCase = true) ||
-                work.name.contains(it.name.trim(), ignoreCase = true) ||
-                it.name.contains(work.name.trim(), ignoreCase = true)
-            }
-            
-            if (template == null) {
-                val name = work.name.lowercase()
-                val group = when {
-                    name.contains("масл") -> "1. МАСЛА"
-                    name.contains("жидкост") || name.contains("антифриз") || name.contains("тормозн") -> "2. ЖИДКОСТИ"
-                    name.contains("фильтр") -> "3. ФИЛЬТРЫ"
-                    name.contains("ремень") || name.contains("грм") || name.contains("ролик") -> "4. РЕМНИ"
-                    name.contains("свеч") || name.contains("провод") || name.contains("зажиган") || name.contains("катушк") -> "5. ЗАЖИГАНИЕ"
-                    name.contains("колодк") || name.contains("тормоз") -> "6. ТОРМОЗА"
-                    name.contains("датчик") || name.contains("помпа") || name.contains("инжектор") -> "7. ДАТЧИКИ И ПРОЧЕЕ"
-                    else -> null
-                }
-                if (group != null) {
-                    changed = true
-                    return@map work.copy(groupName = group)
-                }
-            }
-            
-            if (template != null && template.groupName.isNotBlank()) {
-                changed = true
-                work.copy(groupName = template.groupName)
-            } else work
+        val name = work.name.lowercase()
+        
+        val templateGroup = templates.find { it.name.trim().equals(work.name.trim(), ignoreCase = true) }?.groupName
+        
+        val newGroup = templateGroup ?: when {
+            name.contains("колодк") -> "6. ТОРМОЗА"
+            name.contains("масл") -> "1. МАСЛА"
+            name.contains("жидкост") || name.contains("антифриз") || name.contains("тормозная") -> "2. ЖИДКОСТИ"
+            name.contains("фильтр") -> "3. ФИЛЬТРЫ"
+            name.contains("ремень") || name.contains("грм") || name.contains("ролик") -> "4. РЕМНИ"
+            name.contains("свеч") || name.contains("провод") || name.contains("зажиган") || name.contains("катушк") -> "5. ЗАЖИГАНИЕ"
+            name.contains("датчик") || name.contains("помпа") || name.contains("инжектор") -> "7. ДАТЧИКИ И ПРОЧЕЕ"
+            name.contains("гбо") -> "8. ГБО"
+            else -> ""
+        }
+        
+        if (work.groupName != newGroup) {
+            changed = true
+            work.copy(groupName = newGroup)
         } else work
     }
     
@@ -473,15 +463,58 @@ fun migrateLpgTemplates(context: Context) {
     val currentTemplates = loadTemplates(context).toMutableList()
     val defaultTemplates = defaultTemplates()
     
-    // Ищем, есть ли уже работы ГБО в базе
     val hasLpg = currentTemplates.any { it.category == WorkCategory.LPG }
     
-    // Если работ ГБО нет, берем их из дефолтных и добавляем к текущим
     if (!hasLpg) {
         val lpgTemplates = defaultTemplates.filter { it.category == WorkCategory.LPG }
         if (lpgTemplates.isNotEmpty()) {
             currentTemplates.addAll(lpgTemplates)
             saveTemplates(context, currentTemplates)
         }
+    }
+}
+
+fun syncNewTemplatesToCars(context: Context) {
+    val cars = loadCars(context)
+    val templates = loadTemplates(context)
+    var works = loadWorks(context)
+    var changed = false
+
+    cars.forEach { car ->
+        val source = templates.filter {
+            it.category == WorkCategory.GENERAL || (it.category == WorkCategory.LPG && car.hasLpg)
+        }
+        
+        val existingForCar = works.filter { it.carId == car.id }
+        val existingTemplateIds = existingForCar.map { it.templateId }.filter { it.isNotBlank() }.toSet()
+
+        val add = source.filter { template ->
+            template.id !in existingTemplateIds && existingForCar.none { work ->
+                work.name.equals(template.name, ignoreCase = true) && work.category == template.category
+            }
+        }.map { template ->
+            MaintenanceWork(
+                carId = car.id, 
+                templateId = template.id, 
+                name = template.name, 
+                groupName = template.groupName,
+                category = template.category,
+                intervalKm = template.intervalKm, 
+                intervalMonths = template.intervalMonths,
+                warningKm = template.warningKm, 
+                warningMonths = template.warningMonths,
+                preventive = template.preventive, 
+                notes = template.notes
+            )
+        }
+
+        if (add.isNotEmpty()) {
+            works = works + add
+            changed = true
+        }
+    }
+
+    if (changed) {
+        saveWorks(context, works)
     }
 }
