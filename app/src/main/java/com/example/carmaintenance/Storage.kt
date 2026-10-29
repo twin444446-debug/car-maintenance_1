@@ -45,13 +45,12 @@ fun saveCars(context: Context, cars: List<Car>) {
 
 fun loadTemplates(context: Context): List<RegulationTemplate> {
     val a = runCatching { JSONArray(context.prefs().getString(TEMPLATES, "[]")) }.getOrElse { JSONArray() }
-    val defaults = defaultTemplates()
+    val defaults = defaultTemplates() // <-- Берем из TemplatesData.kt
     
     return buildList {
         for (i in 0 until a.length()) {
             val o = a.optJSONObject(i) ?: continue
             val name = o.optString("name")
-            // Если в базе нет флага isSystem, проверяем, есть ли такой шаблон в дефолтных
             val isSystemSaved = o.optBoolean("isSystem", false)
             val isSystemDefault = defaults.any { it.name.trim().equals(name.trim(), ignoreCase = true) }
             
@@ -63,7 +62,7 @@ fun loadTemplates(context: Context): List<RegulationTemplate> {
                 intervalKm = o.optInt("intervalKm"), intervalMonths = o.optInt("intervalMonths"),
                 warningKm = o.optInt("warningKm"), warningMonths = o.optInt("warningMonths"),
                 preventive = o.optBoolean("preventive"), notes = o.optString("notes"),
-                isSystem = isSystemSaved || isSystemDefault // <-- Автомиграция флага
+                isSystem = isSystemSaved || isSystemDefault
             ))
         }
     }
@@ -76,7 +75,7 @@ fun saveTemplates(context: Context, templates: List<RegulationTemplate>) {
         put("category", t.category.name); put("intervalKm", t.intervalKm)
         put("intervalMonths", t.intervalMonths); put("warningKm", t.warningKm); put("warningMonths", t.warningMonths)
         put("preventive", t.preventive); put("notes", t.notes)
-        put("isSystem", t.isSystem) // <-- СОХРАНЕНИЕ
+        put("isSystem", t.isSystem)
     }) }
     context.prefs().edit().putString(TEMPLATES, a.toString()).apply()
 }
@@ -469,41 +468,3 @@ fun migrateGroupNames(context: Context) {
         saveWorks(context, updatedWorks)
     }
 }
-
-fun resetTemplatesToDefault(context: Context): List<RegulationTemplate> {
-    val defaults = defaultTemplates()
-    saveTemplates(context, defaults)
-    return defaults
-}
-
-// ==================== ШАБЛОНЫ РЕГЛАМЕНТА ====================
-
-fun defaultTemplates(): List<RegulationTemplate> = listOf(
-    // 1. МАСЛА
-    RegulationTemplate(name = "Масло в двигателе", groupName = "1. МАСЛА", intervalKm = 10000, intervalMonths = 12, warningKm = 1000, warningMonths = 1, notes = "Объем ~3.3 л."),
-    RegulationTemplate(name = "Масло в механической коробке передач", groupName = "1. МАСЛА", intervalKm = 90000, intervalMonths = 60, warningKm = 5000, warningMonths = 3),
-    // 2. ЖИДКОСТИ
-    RegulationTemplate(name = "Жидкость охлаждающая (антифриз)", groupName = "2. ЖИДКОСТИ", intervalKm = 40000, intervalMonths = 24, warningKm = 3000, warningMonths = 2),
-    RegulationTemplate(name = "Тормозная жидкость DOT4", groupName = "2. ЖИДКОСТИ", intervalKm = 30000, intervalMonths = 24, warningKm = 3000, warningMonths = 2),
-    // 3. ФИЛЬТРЫ
-    RegulationTemplate(name = "Фильтр масляный", groupName = "3. ФИЛЬТРЫ", intervalKm = 10000, intervalMonths = 12, warningKm = 1000, warningMonths = 1),
-    RegulationTemplate(name = "Фильтр воздушный", groupName = "3. ФИЛЬТРЫ", intervalKm = 10000, intervalMonths = 12, warningKm = 1000, warningMonths = 1),
-    RegulationTemplate(name = "Фильтр кондиционера (салона)", groupName = "3. ФИЛЬТРЫ", intervalKm = 10000, intervalMonths = 12, warningKm = 1000, warningMonths = 1),
-    RegulationTemplate(name = "Фильтр топливный (сеточка в баке)", groupName = "3. ФИЛЬТРЫ", intervalKm = 40000, intervalMonths = 48, warningKm = 3000, warningMonths = 2, notes = "Артикул: 31090-07000"),
-    RegulationTemplate(name = "Фильтр топливный (тонкой очистки)", groupName = "3. ФИЛЬТРЫ", intervalKm = 40000, intervalMonths = 48, warningKm = 3000, warningMonths = 2, notes = "Артикул: 31112-1G500"),
-    // 4. РЕМНИ
-    RegulationTemplate(name = "Ремень ГРМ + ролики", groupName = "4. РЕМНИ", intervalKm = 60000, intervalMonths = 60, warningKm = 5000, warningMonths = 3),
-    RegulationTemplate(name = "Ремень генератора", groupName = "4. РЕМНИ", intervalKm = 60000, intervalMonths = 60, warningKm = 5000, warningMonths = 3),
-    RegulationTemplate(name = "Ремень кондиционера", groupName = "4. РЕМНИ", intervalKm = 60000, intervalMonths = 60, warningKm = 5000, warningMonths = 3),
-    // 5. ЗАЖИГАНИЕ
-    RegulationTemplate(name = "Свечи зажигания", groupName = "5. ЗАЖИГАНИЕ", intervalKm = 20000, intervalMonths = 24, warningKm = 2000, warningMonths = 1, notes = "Оригинал: 18814-11051 / 18854-10080"),
-    RegulationTemplate(name = "Высоковольтные провода", groupName = "5. ЗАЖИГАНИЕ", intervalKm = 40000, intervalMonths = 48, warningKm = 3000, warningMonths = 2, notes = "Артикул: 27501-26D00"),
-    RegulationTemplate(name = "Катушки зажигания", groupName = "5. ЗАЖИГАНИЕ", intervalKm = 140000, intervalMonths = 84, warningKm = 10000, warningMonths = 6, notes = "Артикул: 27301 26600"),
-    // 6. ТОРМОЗА
-    RegulationTemplate(name = "Колодки тормозные передние", groupName = "6. ТОРМОЗА", intervalKm = 30000, intervalMonths = 24, warningKm = 3000, warningMonths = 2),
-    RegulationTemplate(name = "Колодки тормозные задние", groupName = "6. ТОРМОЗА", intervalKm = 60000, intervalMonths = 36, warningKm = 5000, warningMonths = 3),
-    // 7. ДАТЧИКИ И ПРОЧЕЕ
-    RegulationTemplate(name = "Датчик кислорода (Лямбда-зонд)", groupName = "7. ДАТЧИКИ И ПРОЧЕЕ", intervalKm = 100000, intervalMonths = 72, warningKm = 10000, warningMonths = 6),
-    RegulationTemplate(name = "Помпа (водяной насос) + прокладка", groupName = "7. ДАТЧИКИ И ПРОЧЕЕ", intervalKm = 120000, intervalMonths = 72, warningKm = 10000, warningMonths = 6, notes = "Артикул: 25100 26902"),
-    RegulationTemplate(name = "Чистка инжектора (форсунок)", groupName = "7. ДАТЧИКИ И ПРОЧЕЕ", intervalKm = 20000, intervalMonths = 24, warningKm = 2000, warningMonths = 1)
-).map { it.copy(isSystem = true) }
