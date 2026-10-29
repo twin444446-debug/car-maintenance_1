@@ -24,10 +24,12 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import coil.compose.AsyncImage
 import java.util.Calendar
 
-// ==================== НОВЫЙ ДИАЛОГ АВТОМОБИЛЯ (ModalBottomSheet) ====================
+// ==================== НОВЫЙ ДИАЛОГ АВТОМОБИЛЯ (Dialog с имитацией шторки) ====================
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -48,140 +50,160 @@ fun AddCarDialog(existingCar: Car?, onDismiss: () -> Unit, onSave: (Car) -> Unit
         }
     }
 
-    ModalBottomSheet(
+    Dialog(
         onDismissRequest = onDismiss,
-        containerColor = CardColor,
-        contentColor = TextPrimary,
-        dragHandle = { BottomSheetDefaults.DragHandle(color = TextSecondary) },
-        windowInsets = WindowInsets(0, 0, 0, 0)
+        properties = DialogProperties(usePlatformDefaultWidth = false)
     ) {
-        Column(
+        Surface(
             modifier = Modifier
                 .fillMaxWidth()
-                .imePadding() // <-- Вот это исправляет наезд клавиатуры
-                .padding(horizontal = 16.dp)
-                .padding(bottom = 32.dp)
-                .verticalScroll(rememberScrollState())
+                .fillMaxHeight(0.92f),
+            shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp),
+            color = CardColor
         ) {
-            Text(
-                text = if (existingCar == null) "Новый автомобиль" else "Редактировать автомобиль",
-                color = TextPrimary,
-                fontSize = 20.sp,
-                fontWeight = FontWeight.Bold,
-                modifier = Modifier.padding(bottom = 16.dp)
-            )
-
-            if (imageUri.isNotBlank()) {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .imePadding()
+            ) {
                 Box(
-                    modifier = Modifier.fillMaxWidth().height(160.dp),
-                    contentAlignment = Alignment.TopEnd
-                ) {
-                    AsyncImage(
-                        model = imageUri,
-                        contentDescription = "Фото авто",
-                        modifier = Modifier.fillMaxWidth().fillMaxHeight().background(Color.Black.copy(alpha = 0.2f), RoundedCornerShape(12.dp)),
-                        contentScale = ContentScale.Crop
-                    )
-                    IconButton(
-                        onClick = { imageUri = "" },
-                        modifier = Modifier.padding(4.dp).background(Color.Black.copy(alpha = 0.5f), RoundedCornerShape(50))
-                    ) {
-                        Icon(Icons.Default.Delete, contentDescription = "Удалить фото", tint = Color.White)
-                    }
-                }
-                Spacer(Modifier.height(8.dp))
-            }
-
-            Button(
-                onClick = { launcher.launch("image/*") },
-                modifier = Modifier.fillMaxWidth().height(44.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = NavColor),
-                shape = RoundedCornerShape(8.dp)
-            ) {
-                Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(18.dp))
-                Spacer(Modifier.width(8.dp))
-                Text(if (imageUri.isBlank()) "Загрузить фото" else "Изменить фото", fontSize = 14.sp)
-            }
-
-            Spacer(Modifier.height(16.dp))
-            HorizontalDivider(color = TextSecondary.copy(alpha = 0.2f))
-            Spacer(Modifier.height(16.dp))
-
-            Text("Основная информация", color = ColorGreen, fontSize = 14.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(bottom = 8.dp))
-            
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                modernField("Марка *", brand, Modifier.weight(1f)) { brand = it }
-                modernField("Модель *", model, Modifier.weight(1f)) { model = it }
-            }
-            Spacer(Modifier.height(8.dp))
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                modernField("Год выпуска", year, Modifier.weight(1f), KeyboardType.Number) { year = it }
-                modernField("Пробег (км)", mileage, Modifier.weight(1f), KeyboardType.Number) { mileage = it }
-            }
-
-            Spacer(Modifier.height(16.dp))
-            HorizontalDivider(color = TextSecondary.copy(alpha = 0.2f))
-            Spacer(Modifier.height(16.dp))
-
-            Text("Технические данные", color = ColorGreen, fontSize = 14.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(bottom = 8.dp))
-            
-            modernField("VIN-код", vin) { vin = it }
-            Spacer(Modifier.height(8.dp))
-            modernField("Двигатель", engine) { engine = it }
-            Spacer(Modifier.height(8.dp))
-            modernField("Заметки", notes) { notes = it }
-            
-            Spacer(Modifier.height(8.dp))
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Checkbox(
-                    checked = hasLpg, 
-                    onCheckedChange = { hasLpg = it },
-                    colors = CheckboxDefaults.colors(checkedColor = ColorGreen, uncheckedColor = TextSecondary)
+                    modifier = Modifier
+                        .padding(top = 12.dp)
+                        .width(32.dp)
+                        .height(4.dp)
+                        .background(TextSecondary.copy(alpha = 0.5f), RoundedCornerShape(2.dp))
+                        .align(Alignment.CenterHorizontally)
                 )
-                Text("Установлено ГБО (Газ)", color = TextPrimary, fontSize = 14.sp)
-            }
 
-            Spacer(Modifier.height(24.dp))
+                Text(
+                    text = if (existingCar == null) "Новый автомобиль" else "Редактировать автомобиль",
+                    color = TextPrimary,
+                    fontSize = 20.sp,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 16.dp)
+                )
 
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                if (existingCar != null && onDelete != null) {
+                Column(
+                    modifier = Modifier
+                        .weight(1f)
+                        .verticalScroll(rememberScrollState())
+                        .padding(horizontal = 16.dp)
+                ) {
+                    if (imageUri.isNotBlank()) {
+                        Box(
+                            modifier = Modifier.fillMaxWidth().height(160.dp),
+                            contentAlignment = Alignment.TopEnd
+                        ) {
+                            AsyncImage(
+                                model = imageUri,
+                                contentDescription = "Фото авто",
+                                modifier = Modifier.fillMaxWidth().fillMaxHeight().background(Color.Black.copy(alpha = 0.2f), RoundedCornerShape(12.dp)),
+                                contentScale = ContentScale.Crop
+                            )
+                            IconButton(
+                                onClick = { imageUri = "" },
+                                modifier = Modifier.padding(4.dp).background(Color.Black.copy(alpha = 0.5f), RoundedCornerShape(50))
+                            ) {
+                                Icon(Icons.Default.Delete, contentDescription = "Удалить фото", tint = Color.White)
+                            }
+                        }
+                        Spacer(Modifier.height(8.dp))
+                    }
+
+                    Button(
+                        onClick = { launcher.launch("image/*") },
+                        modifier = Modifier.fillMaxWidth().height(44.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = NavColor),
+                        shape = RoundedCornerShape(8.dp)
+                    ) {
+                        Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(18.dp))
+                        Spacer(Modifier.width(8.dp))
+                        Text(if (imageUri.isBlank()) "Загрузить фото" else "Изменить фото", fontSize = 14.sp)
+                    }
+
+                    Spacer(Modifier.height(16.dp))
+                    HorizontalDivider(color = TextSecondary.copy(alpha = 0.2f))
+                    Spacer(Modifier.height(16.dp))
+
+                    Text("Основная информация", color = ColorGreen, fontSize = 14.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(bottom = 8.dp))
+                    
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        modernField("Марка *", brand, Modifier.weight(1f)) { brand = it }
+                        modernField("Модель *", model, Modifier.weight(1f)) { model = it }
+                    }
+                    Spacer(Modifier.height(8.dp))
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        modernField("Год выпуска", year, Modifier.weight(1f), KeyboardType.Number) { year = it }
+                        modernField("Пробег (км)", mileage, Modifier.weight(1f), KeyboardType.Number) { mileage = it }
+                    }
+
+                    Spacer(Modifier.height(16.dp))
+                    HorizontalDivider(color = TextSecondary.copy(alpha = 0.2f))
+                    Spacer(Modifier.height(16.dp))
+
+                    Text("Технические данные", color = ColorGreen, fontSize = 14.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(bottom = 8.dp))
+                    
+                    modernField("VIN-код", vin) { vin = it }
+                    Spacer(Modifier.height(8.dp))
+                    modernField("Двигатель", engine) { engine = it }
+                    Spacer(Modifier.height(8.dp))
+                    modernField("Заметки", notes) { notes = it }
+                    
+                    Spacer(Modifier.height(8.dp))
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Checkbox(
+                            checked = hasLpg, 
+                            onCheckedChange = { hasLpg = it },
+                            colors = CheckboxDefaults.colors(checkedColor = ColorGreen, uncheckedColor = TextSecondary)
+                        )
+                        Text("Установлено ГБО (Газ)", color = TextPrimary, fontSize = 14.sp)
+                    }
+                    
+                    Spacer(Modifier.height(16.dp))
+                }
+
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    if (existingCar != null && onDelete != null) {
+                        OutlinedButton(
+                            onClick = { onDelete() },
+                            modifier = Modifier.weight(1f).height(48.dp),
+                            shape = RoundedCornerShape(8.dp),
+                            colors = ButtonDefaults.outlinedButtonColors(contentColor = ColorRed),
+                            border = BorderStroke(1.dp, ColorRed)
+                        ) { Text("Удалить") }
+                    }
                     OutlinedButton(
-                        onClick = { onDelete() },
+                        onClick = onDismiss,
                         modifier = Modifier.weight(1f).height(48.dp),
                         shape = RoundedCornerShape(8.dp),
-                        colors = ButtonDefaults.outlinedButtonColors(contentColor = ColorRed),
-                        border = BorderStroke(1.dp, ColorRed)
-                    ) { Text("Удалить") }
+                        colors = ButtonDefaults.outlinedButtonColors(contentColor = TextSecondary),
+                        border = BorderStroke(1.dp, TextSecondary.copy(alpha = 0.5f))
+                    ) { Text("Отмена") }
+                    Button(
+                        onClick = {
+                            if (brand.isNotBlank() && model.isNotBlank()) {
+                                val newCar = existingCar?.copy(
+                                    brand = brand, model = model, year = year, vin = vin, mileage = mileage,
+                                    engine = engine, fuel = if(hasLpg) "Бензин/Газ" else "Бензин", hasLpg = hasLpg,
+                                    notes = notes, imageUri = imageUri
+                                ) ?: Car(
+                                    brand = brand, model = model, year = year, vin = vin, mileage = mileage,
+                                    engine = engine, fuel = if(hasLpg) "Бензин/Газ" else "Бензин", hasLpg = hasLpg,
+                                    notes = notes, imageUri = imageUri
+                                )
+                                onSave(newCar)
+                            }
+                        },
+                        modifier = Modifier.weight(1f).height(48.dp),
+                        shape = RoundedCornerShape(8.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = ColorGreen)
+                    ) { Text("Сохранить", fontWeight = FontWeight.Bold) }
                 }
-                OutlinedButton(
-                    onClick = onDismiss,
-                    modifier = Modifier.weight(1f).height(48.dp),
-                    shape = RoundedCornerShape(8.dp),
-                    colors = ButtonDefaults.outlinedButtonColors(contentColor = TextSecondary),
-                    border = BorderStroke(1.dp, TextSecondary.copy(alpha = 0.5f))
-                ) { Text("Отмена") }
-                Button(
-                    onClick = {
-                        if (brand.isNotBlank() && model.isNotBlank()) {
-                            val newCar = existingCar?.copy(
-                                brand = brand, model = model, year = year, vin = vin, mileage = mileage,
-                                engine = engine, fuel = if(hasLpg) "Бензин/Газ" else "Бензин", hasLpg = hasLpg,
-                                notes = notes, imageUri = imageUri
-                            ) ?: Car(
-                                brand = brand, model = model, year = year, vin = vin, mileage = mileage,
-                                engine = engine, fuel = if(hasLpg) "Бензин/Газ" else "Бензин", hasLpg = hasLpg,
-                                notes = notes, imageUri = imageUri
-                            )
-                            onSave(newCar)
-                        }
-                    },
-                    modifier = Modifier.weight(1f).height(48.dp),
-                    shape = RoundedCornerShape(8.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = ColorGreen)
-                ) { Text("Сохранить", fontWeight = FontWeight.Bold) }
             }
         }
     }
