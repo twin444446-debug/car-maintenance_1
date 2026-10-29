@@ -29,7 +29,7 @@ import androidx.compose.ui.window.DialogProperties
 import coil.compose.AsyncImage
 import java.util.Calendar
 
-// ==================== НОВЫЙ ДИАЛОГ АВТОМОБИЛЯ (Dialog с имитацией шторки) ====================
+// ==================== ДИАЛОГ АВТОМОБИЛЯ ====================
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -209,64 +209,7 @@ fun AddCarDialog(existingCar: Car?, onDismiss: () -> Unit, onSave: (Car) -> Unit
     }
 }
 
-@Composable
-private fun modernField(
-    label: String,
-    value: String,
-    modifier: Modifier = Modifier,
-    type: KeyboardType = KeyboardType.Text,
-    onValue: (String) -> Unit
-) = OutlinedTextField(
-    value = value,
-    onValueChange = onValue,
-    label = { Text(label, fontSize = 12.sp) },
-    keyboardOptions = KeyboardOptions(keyboardType = type),
-    singleLine = true,
-    modifier = modifier,
-    shape = RoundedCornerShape(10.dp),
-    textStyle = androidx.compose.ui.text.TextStyle(fontSize = 14.sp),
-    colors = OutlinedTextFieldDefaults.colors(
-        focusedTextColor = TextPrimary,
-        unfocusedTextColor = TextPrimary,
-        focusedBorderColor = ColorGreen,
-        unfocusedBorderColor = TextSecondary.copy(alpha = 0.3f),
-        focusedContainerColor = BgColor.copy(alpha = 0.5f),
-        unfocusedContainerColor = BgColor.copy(alpha = 0.5f),
-        focusedLabelColor = ColorGreen,
-        unfocusedLabelColor = TextSecondary,
-        cursorColor = ColorGreen
-    )
-)
-
-// ==================== ОСТАЛЬНЫЕ ДИАЛОГИ (без изменений) ====================
-
-@Composable 
-private fun field(
-    label: String, 
-    value: String, 
-    type: KeyboardType = KeyboardType.Text, 
-    modifier: Modifier = Modifier,
-    onValue: (String) -> Unit
-) = OutlinedTextField(
-    value = value,
-    onValueChange = onValue,
-    label = { Text(label) },
-    keyboardOptions = KeyboardOptions(keyboardType = type),
-    singleLine = label != "Заметки",
-    modifier = modifier,
-    colors = OutlinedTextFieldDefaults.colors(
-        focusedTextColor = TextPrimary,
-        unfocusedTextColor = TextPrimary,
-        focusedBorderColor = ColorBlue,
-        unfocusedBorderColor = TextSecondary,
-        focusedLabelColor = ColorBlue,
-        unfocusedLabelColor = TextSecondary,
-        cursorColor = ColorBlue
-    )
-)
-
-@Composable
-fun MileageDialog(current: String, onDismiss:()->Unit, onSave:(String)->Unit) { var v by remember { mutableStateOf(current) }; AlertDialog(onDismissRequest=onDismiss,containerColor=CardColor,title={Text("Текущий пробег",color=TextPrimary)},text={field("Пробег (км)",v,KeyboardType.Number){v=it}},confirmButton={TextButton(onClick={onSave(v)}){Text("Сохранить",color=ColorGreen)}},dismissButton={TextButton(onClick=onDismiss){Text("Отмена",color=TextSecondary)}}) }
+// ==================== ДИАЛОГ ЗАПИСИ ОБСЛУЖИВАНИЯ (в новом стиле) ====================
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -302,135 +245,204 @@ fun ServiceRecordDialog(
         }
     }
 
-    AlertDialog(
+    Dialog(
         onDismissRequest = onDismiss,
-        containerColor = CardColor,
-        title = { Text(if (initial == null) "Новая запись обслуживания" else "Изменить запись", color = TextPrimary) },
-        text = {
+        properties = DialogProperties(usePlatformDefaultWidth = false)
+    ) {
+        Surface(
+            modifier = Modifier
+                .fillMaxWidth()
+                .fillMaxHeight(0.92f),
+            shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp),
+            color = CardColor
+        ) {
             Column(
-                Modifier.heightIn(max = 450.dp).verticalScroll(rememberScrollState()),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
+                modifier = Modifier
+                    .fillMaxSize()
+                    .imePadding()
             ) {
-                if (initial == null) {
-                    SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
-                        SegmentedButton(
-                            selected = mode == 0,
-                            onClick = { mode = 0 },
-                            shape = SegmentedButtonDefaults.itemShape(index = 0, count = 2),
-                            colors = SegmentedButtonDefaults.colors(activeContainerColor = ColorGreen.copy(alpha = 0.2f), activeContentColor = ColorGreen),
-                            modifier = Modifier.weight(1f)
-                        ) { Text("Ремонт", maxLines = 1) }
-                        
-                        SegmentedButton(
-                            selected = mode == 1,
-                            onClick = { mode = 1 },
-                            shape = SegmentedButtonDefaults.itemShape(index = 1, count = 2),
-                            colors = SegmentedButtonDefaults.colors(activeContainerColor = ColorGreen.copy(alpha = 0.2f), activeContentColor = ColorGreen),
-                            modifier = Modifier.weight(1f)
-                        ) { Text("По регламенту", maxLines = 1) }
-                    }
-                }
+                Box(
+                    modifier = Modifier
+                        .padding(top = 12.dp)
+                        .width(32.dp)
+                        .height(4.dp)
+                        .background(TextSecondary.copy(alpha = 0.5f), RoundedCornerShape(2.dp))
+                        .align(Alignment.CenterHorizontally)
+                )
 
-                if (mode == 1 && availableWorks.isNotEmpty()) {
-                    var expanded by remember { mutableStateOf(false) }
-                    ExposedDropdownMenuBox(
-                        expanded = expanded,
-                        onExpandedChange = { expanded = !expanded },
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        OutlinedTextField(
-                            value = selectedWork?.name ?: "Выберите работу...",
-                            onValueChange = {},
-                            readOnly = true,
-                            label = { Text("Регламентная работа") },
-                            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
-                            modifier = Modifier.menuAnchor(),
-                            colors = OutlinedTextFieldDefaults.colors(
-                                focusedTextColor = TextPrimary,
-                                unfocusedTextColor = TextPrimary,
-                                focusedBorderColor = ColorGreen,
-                                unfocusedBorderColor = TextSecondary
-                            )
-                        )
-                        ExposedDropdownMenu(
+                Text(
+                    text = if (initial == null) "Новая запись" else "Редактировать запись",
+                    color = TextPrimary,
+                    fontSize = 20.sp,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 16.dp)
+                )
+
+                Column(
+                    modifier = Modifier
+                        .weight(1f)
+                        .verticalScroll(rememberScrollState())
+                        .padding(horizontal = 16.dp)
+                ) {
+                    if (initial == null) {
+                        SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
+                            SegmentedButton(
+                                selected = mode == 0,
+                                onClick = { mode = 0 },
+                                shape = SegmentedButtonDefaults.itemShape(index = 0, count = 2),
+                                colors = SegmentedButtonDefaults.colors(activeContainerColor = ColorGreen.copy(alpha = 0.2f), activeContentColor = ColorGreen),
+                                modifier = Modifier.weight(1f)
+                            ) { Text("Ремонт", maxLines = 1) }
+                            
+                            SegmentedButton(
+                                selected = mode == 1,
+                                onClick = { mode = 1 },
+                                shape = SegmentedButtonDefaults.itemShape(index = 1, count = 2),
+                                colors = SegmentedButtonDefaults.colors(activeContainerColor = ColorGreen.copy(alpha = 0.2f), activeContentColor = ColorGreen),
+                                modifier = Modifier.weight(1f)
+                            ) { Text("По регламенту", maxLines = 1) }
+                        }
+                        Spacer(Modifier.height(12.dp))
+                    }
+
+                    if (mode == 1 && availableWorks.isNotEmpty()) {
+                        var expanded by remember { mutableStateOf(false) }
+                        ExposedDropdownMenuBox(
                             expanded = expanded,
-                            onDismissRequest = { expanded = false },
-                            modifier = Modifier.background(CardColor)
+                            onExpandedChange = { expanded = !expanded },
+                            modifier = Modifier.fillMaxWidth()
                         ) {
-                            availableWorks.forEach { work ->
-                                DropdownMenuItem(
-                                    text = { 
-                                        Column {
-                                            Text(work.name, color = TextPrimary)
-                                            Text("Статус: ${getWorkStatus(work, car, listOfNotNull(initial)).title()}", color = TextSecondary, fontSize = 12.sp)
-                                        }
-                                    },
-                                    onClick = {
-                                        selectedWork = work
-                                        if (lines.isEmpty()) {
-                                            lines = listOf(ServiceLine(name = work.name))
-                                        } else {
-                                            lines = lines.toMutableList().also { it[0] = it[0].copy(name = work.name) }
-                                        }
-                                        reason = work.name
-                                        expanded = false
-                                    }
+                            OutlinedTextField(
+                                value = selectedWork?.name ?: "Выберите работу...",
+                                onValueChange = {},
+                                readOnly = true,
+                                label = { Text("Регламентная работа", fontSize = 12.sp) },
+                                trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
+                                modifier = Modifier.menuAnchor().fillMaxWidth(),
+                                shape = RoundedCornerShape(10.dp),
+                                colors = OutlinedTextFieldDefaults.colors(
+                                    focusedTextColor = TextPrimary, unfocusedTextColor = TextPrimary,
+                                    focusedBorderColor = ColorGreen, unfocusedBorderColor = TextSecondary.copy(alpha = 0.3f),
+                                    focusedContainerColor = BgColor.copy(alpha = 0.5f), unfocusedContainerColor = BgColor.copy(alpha = 0.5f)
                                 )
+                            )
+                            ExposedDropdownMenu(
+                                expanded = expanded,
+                                onDismissRequest = { expanded = false },
+                                modifier = Modifier.background(CardColor)
+                            ) {
+                                availableWorks.forEach { work ->
+                                    DropdownMenuItem(
+                                        text = { 
+                                            Column {
+                                                Text(work.name, color = TextPrimary)
+                                                Text("Статус: ${getWorkStatus(work, car, listOfNotNull(initial)).title()}", color = TextSecondary, fontSize = 12.sp)
+                                            }
+                                        },
+                                        onClick = {
+                                            selectedWork = work
+                                            if (lines.isEmpty()) {
+                                                lines = listOf(ServiceLine(name = work.name))
+                                            } else {
+                                                lines = lines.toMutableList().also { it[0] = it[0].copy(name = work.name) }
+                                            }
+                                            reason = work.name
+                                            expanded = false
+                                        }
+                                    )
+                                }
                             }
                         }
+                        Spacer(Modifier.height(12.dp))
                     }
+
+                    Text("Дата: ${formatDate(date)}", color = TextPrimary, fontSize = 14.sp)
+                    Spacer(Modifier.height(4.dp))
+                    Button(
+                        onClick = {
+                            val c = Calendar.getInstance().apply { timeInMillis = date }
+                            DatePickerDialog(context, { _, y, m, d -> date = Calendar.getInstance().apply { set(y, m, d, 12, 0, 0) }.timeInMillis }, c.get(Calendar.YEAR), c.get(Calendar.MONTH), c.get(Calendar.DAY_OF_MONTH)).show()
+                        },
+                        colors = ButtonDefaults.buttonColors(containerColor = NavColor),
+                        modifier = Modifier.fillMaxWidth().height(40.dp),
+                        shape = RoundedCornerShape(8.dp)
+                    ) { Text("Изменить дату", fontSize = 14.sp) }
+                    
+                    Spacer(Modifier.height(12.dp))
+
+                    modernField("СТО / магазин", place) { place = it }
+                    Spacer(Modifier.height(8.dp))
+                    modernField("Причина", reason) { reason = it }
+                    Spacer(Modifier.height(8.dp))
+                    modernField("Пробег (км)", mileage, type = KeyboardType.Number) { mileage = it }
+                    Spacer(Modifier.height(8.dp))
+                    modernField("Примечания", notes) { notes = it }
+                    
+                    Spacer(Modifier.height(16.dp))
+                    HorizontalDivider(color = TextSecondary.copy(alpha = 0.2f))
+                    Spacer(Modifier.height(16.dp))
+
+                    Text("Работы и запчасти", color = TextPrimary, fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                    Spacer(Modifier.height(8.dp))
+                    lines.forEachIndexed { i, l -> 
+                        LineEditor(l, onChange = { x -> lines = lines.toMutableList().also { it[i] = x } }, onDelete = { lines = lines.toMutableList().also { it.removeAt(i) } }) 
+                    }
+                    TextButton(onClick = { lines = lines + ServiceLine(name = "") }, modifier = Modifier.fillMaxWidth()) { 
+                        Text("+ Добавить строку", color = ColorGreen) 
+                    }
+                    if (parts.isNotEmpty()) {
+                        Text("Сохранённые запчасти можно повторно выбрать в перечне работ.", color = TextSecondary, fontSize = 12.sp)
+                    }
+                    
+                    Spacer(Modifier.height(16.dp))
                 }
 
-                Text("Дата: ${formatDate(date)}", color = TextPrimary)
-                Button(
-                    onClick = {
-                        val c = Calendar.getInstance().apply { timeInMillis = date }
-                        DatePickerDialog(context, { _, y, m, d -> date = Calendar.getInstance().apply { set(y, m, d, 12, 0, 0) }.timeInMillis }, c.get(Calendar.YEAR), c.get(Calendar.MONTH), c.get(Calendar.DAY_OF_MONTH)).show()
-                    },
-                    colors = ButtonDefaults.buttonColors(containerColor = NavColor)
-                ) { Text("Изменить дату") }
-                
-                field("СТО / магазин", place) { place = it }
-                field("Причина", reason) { reason = it }
-                field("Пробег (км)", mileage, KeyboardType.Number) { mileage = it }
-                field("Примечания", notes) { notes = it }
-                
-                Text("Работы и запчасти", color = TextPrimary)
-                lines.forEachIndexed { i, l -> 
-                    LineEditor(l, onChange = { x -> lines = lines.toMutableList().also { it[i] = x } }, onDelete = { lines = lines.toMutableList().also { it.removeAt(i) } }) 
-                }
-                TextButton(onClick = { lines = lines + ServiceLine(name = "") }) { Text("+ Добавить работу / запчасть", color = ColorGreen) }
-                if (parts.isNotEmpty()) Text("Сохранённые запчасти можно повторно выбрать в перечне работ.", color = TextSecondary)
-            }
-        },
-        confirmButton = {
-            TextButton(onClick = {
-                onSave(
-                    ServiceRecord(
-                        id = initial?.id ?: java.util.UUID.randomUUID().toString(),
-                        carId = car.id,
-                        workId = selectedWork?.id ?: initial?.workId,
-                        date = date,
-                        servicePlace = place,
-                        reason = reason,
-                        mileage = mileage.toIntOrNull() ?: 0,
-                        lines = lines.filter { it.name.isNotBlank() },
-                        notes = notes
-                    )
-                )
-            }) { Text("Сохранить", color = ColorGreen) }
-        },
-        dismissButton = {
-            Row {
-                if (initial != null && onDelete != null) {
-                    TextButton(onClick = { showDeleteConfirm = true }) {
-                        Text("Удалить", color = ColorRed)
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    if (initial != null && onDelete != null) {
+                        OutlinedButton(
+                            onClick = { showDeleteConfirm = true },
+                            modifier = Modifier.weight(1f).height(48.dp),
+                            shape = RoundedCornerShape(8.dp),
+                            colors = ButtonDefaults.outlinedButtonColors(contentColor = ColorRed),
+                            border = BorderStroke(1.dp, ColorRed)
+                        ) { Text("Удалить") }
                     }
+                    OutlinedButton(
+                        onClick = onDismiss,
+                        modifier = Modifier.weight(1f).height(48.dp),
+                        shape = RoundedCornerShape(8.dp),
+                        colors = ButtonDefaults.outlinedButtonColors(contentColor = TextSecondary),
+                        border = BorderStroke(1.dp, TextSecondary.copy(alpha = 0.5f))
+                    ) { Text("Отмена") }
+                    Button(
+                        onClick = {
+                            onSave(
+                                ServiceRecord(
+                                    id = initial?.id ?: java.util.UUID.randomUUID().toString(),
+                                    carId = car.id,
+                                    workId = selectedWork?.id ?: initial?.workId,
+                                    date = date,
+                                    servicePlace = place,
+                                    reason = reason,
+                                    mileage = mileage.toIntOrNull() ?: 0,
+                                    lines = lines.filter { it.name.isNotBlank() },
+                                    notes = notes
+                                )
+                            )
+                        },
+                        modifier = Modifier.weight(1f).height(48.dp),
+                        shape = RoundedCornerShape(8.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = ColorGreen)
+                    ) { Text("Сохранить", fontWeight = FontWeight.Bold) }
                 }
-                TextButton(onClick = onDismiss) { Text("Отмена", color = TextSecondary) }
             }
         }
-    )
+    }
 
     if (showDeleteConfirm && initial != null && onDelete != null) {
         AlertDialog(
@@ -452,6 +464,62 @@ fun ServiceRecordDialog(
     }
 }
 
+// ==================== ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ ====================
+
+@Composable
+private fun modernField(
+    label: String,
+    value: String,
+    modifier: Modifier = Modifier,
+    type: KeyboardType = KeyboardType.Text,
+    onValue: (String) -> Unit
+) = OutlinedTextField(
+    value = value,
+    onValueChange = onValue,
+    label = { Text(label, fontSize = 12.sp) },
+    keyboardOptions = KeyboardOptions(keyboardType = type),
+    singleLine = true,
+    modifier = modifier,
+    shape = RoundedCornerShape(10.dp),
+    textStyle = androidx.compose.ui.text.TextStyle(fontSize = 14.sp),
+    colors = OutlinedTextFieldDefaults.colors(
+        focusedTextColor = TextPrimary,
+        unfocusedTextColor = TextPrimary,
+        focusedBorderColor = ColorGreen,
+        unfocusedBorderColor = TextSecondary.copy(alpha = 0.3f),
+        focusedContainerColor = BgColor.copy(alpha = 0.5f),
+        unfocusedContainerColor = BgColor.copy(alpha = 0.5f),
+        focusedLabelColor = ColorGreen,
+        unfocusedLabelColor = TextSecondary,
+        cursorColor = ColorGreen
+    )
+)
+
+@Composable 
+private fun field(
+    label: String, 
+    value: String, 
+    type: KeyboardType = KeyboardType.Text, 
+    modifier: Modifier = Modifier,
+    onValue: (String) -> Unit
+) = OutlinedTextField(
+    value = value,
+    onValueChange = onValue,
+    label = { Text(label) },
+    keyboardOptions = KeyboardOptions(keyboardType = type),
+    singleLine = label != "Заметки",
+    modifier = modifier,
+    colors = OutlinedTextFieldDefaults.colors(
+        focusedTextColor = TextPrimary,
+        unfocusedTextColor = TextPrimary,
+        focusedBorderColor = ColorBlue,
+        unfocusedBorderColor = TextSecondary,
+        focusedLabelColor = ColorBlue,
+        unfocusedLabelColor = TextSecondary,
+        cursorColor = ColorBlue
+    )
+)
+
 @Composable 
 private fun LineEditor(line: ServiceLine, onChange: (ServiceLine)->Unit, onDelete: ()->Unit) {
     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -468,6 +536,23 @@ private fun LineEditor(line: ServiceLine, onChange: (ServiceLine)->Unit, onDelet
         TextButton(onClick = onDelete) { Text("Удалить строку", color = ColorRed) }
     }
 }
+
+@Composable
+private fun InfoRow(label: String, value: String, valueColor: Color = TextPrimary) {
+    Row(
+        modifier = Modifier.fillMaxWidth().padding(vertical = 2.dp),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(label, color = TextSecondary, fontSize = 14.sp)
+        Text(value, color = valueColor, fontSize = 14.sp, fontWeight = FontWeight.Bold)
+    }
+}
+
+// ==================== ОСТАЛЬНЫЕ ДИАЛОГИ (без изменений) ====================
+
+@Composable
+fun MileageDialog(current: String, onDismiss:()->Unit, onSave:(String)->Unit) { var v by remember { mutableStateOf(current) }; AlertDialog(onDismissRequest=onDismiss,containerColor=CardColor,title={Text("Текущий пробег",color=TextPrimary)},text={field("Пробег (км)",v,KeyboardType.Number){v=it}},confirmButton={TextButton(onClick={onSave(v)}){Text("Сохранить",color=ColorGreen)}},dismissButton={TextButton(onClick=onDismiss){Text("Отмена",color=TextSecondary)}}) }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -668,18 +753,6 @@ fun WorkActionsDialog(
                 }) { Text("Назад", color = TextSecondary) } 
             }
         )
-    }
-}
-
-@Composable
-private fun InfoRow(label: String, value: String, valueColor: Color = TextPrimary) {
-    Row(
-        modifier = Modifier.fillMaxWidth().padding(vertical = 2.dp),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Text(label, color = TextSecondary, fontSize = 14.sp)
-        Text(value, color = valueColor, fontSize = 14.sp, fontWeight = FontWeight.Bold)
     }
 }
 
