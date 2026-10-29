@@ -51,7 +51,9 @@ fun MaintenanceMatrixScreen(
     val rowHeight = 60.dp
 
     // Группируем работы по groupName
-    val groupedWorks = carWorks.groupBy { it.groupName.ifBlank { "Без группы" } }
+    val groupedWorks = carWorks
+    .groupBy { it.groupName.ifBlank { "8. БЕЗ ГРУППЫ" } }
+    .toSortedMap(compareBy { it })
 
     Column(Modifier.fillMaxSize().padding(8.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
