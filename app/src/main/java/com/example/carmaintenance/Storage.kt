@@ -424,12 +424,32 @@ fun migrateGroupNames(context: Context) {
     
     val updatedWorks = works.map { work ->
         if (work.groupName.isBlank()) {
-            // Ищем по точному названию или по вхождению подстроки (например, "масляный" и "масло")
-            val template = templates.find { 
+            // 1. Пытаемся найти точное совпадение или вхождение подстроки в шаблонах
+            var template = templates.find { 
                 it.name.trim().equals(work.name.trim(), ignoreCase = true) ||
                 work.name.contains(it.name.trim(), ignoreCase = true) ||
                 it.name.contains(work.name.trim(), ignoreCase = true)
             }
+            
+            // 2. Если не нашли, ищем по ключевым словам
+            if (template == null) {
+                val name = work.name.lowercase()
+                val group = when {
+                    name.contains("масл") -> "1. МАСЛА"
+                    name.contains("жидкост") || name.contains("антифриз") || name.contains("тормозн") -> "2. ЖИДКОСТИ"
+                    name.contains("фильтр") -> "3. ФИЛЬТРЫ"
+                    name.contains("ремень") || name.contains("грм") || name.contains("ролик") -> "4. РЕМНИ"
+                    name.contains("свеч") || name.contains("провод") || name.contains("зажиган") || name.contains("катушк") -> "5. ЗАЖИГАНИЕ"
+                    name.contains("колодк") || name.contains("тормоз") -> "6. ТОРМОЗА"
+                    name.contains("датчик") || name.contains("помпа") || name.contains("инжектор") -> "7. ДАТЧИКИ И ПРОЧЕЕ"
+                    else -> null
+                }
+                if (group != null) {
+                    changed = true
+                    return@map work.copy(groupName = group)
+                }
+            }
+            
             if (template != null && template.groupName.isNotBlank()) {
                 changed = true
                 work.copy(groupName = template.groupName)
