@@ -490,4 +490,20 @@ fun defaultTemplates(): List<RegulationTemplate> = listOf(
     RegulationTemplate(name = "Фильтр воздушный", groupName = "3. ФИЛЬТРЫ", intervalKm = 10000, intervalMonths = 12, warningKm = 1000, warningMonths = 1),
     RegulationTemplate(name = "Фильтр кондиционера (салона)", groupName = "3. ФИЛЬТРЫ", intervalKm = 10000, intervalMonths = 12, warningKm = 1000, warningMonths = 1),
     RegulationTemplate(name = "Фильтр топливный (сеточка в баке)", groupName = "3. ФИЛЬТРЫ", intervalKm = 40000, intervalMonths = 48, warningKm = 3000, warningMonths = 2, notes = "Артикул: 31090-07000"),
-    RegulationTemplate(name = "Фильтр топливный (тонкой очистки)", groupName = "3. ФИЛЬТРЫ", intervalKm = 40000, intervalMonths = 48, warningKm = 3000, warningMonths = 2, notes = "Ар
+    RegulationTemplate(name = "Фильтр топливный (тонкой очистки)", groupName = "3. ФИЛЬТРЫ", intervalKm = 40000, intervalMonths = 48, warningKm = 3000, warningMonths = 2, notes = "Артикул: 31112-1G500"),
+    // 4. РЕМНИ
+    RegulationTemplate(name = "Ремень ГРМ + ролики", groupName = "4. РЕМНИ", intervalKm = 60000, intervalMonths = 60, warningKm = 5000, warningMonths = 3),
+    RegulationTemplate(name = "Ремень генератора", groupName = "4. РЕМНИ", intervalKm = 60000, intervalMonths = 60, warningKm = 5000, warningMonths = 3),
+    RegulationTemplate(name = "Ремень кондиционера", groupName = "4. РЕМНИ", intervalKm = 60000, intervalMonths = 60, warningKm = 5000, warningMonths = 3),
+    // 5. ЗАЖИГАНИЕ
+    RegulationTemplate(name = "Свечи зажигания", groupName = "5. ЗАЖИГАНИЕ", intervalKm = 20000, intervalMonths = 24, warningKm = 2000, warningMonths = 1, notes = "Оригинал: 18814-11051 / 18854-10080"),
+    RegulationTemplate(name = "Высоковольтные провода", groupName = "5. ЗАЖИГАНИЕ", intervalKm = 40000, intervalMonths = 48, warningKm = 3000, warningMonths = 2, notes = "Артикул: 27501-26D00"),
+    RegulationTemplate(name = "Катушки зажигания", groupName = "5. ЗАЖИГАНИЕ", intervalKm = 140000, intervalMonths = 84, warningKm = 10000, warningMonths = 6, notes = "Артикул: 27301 26600"),
+    // 6. ТОРМОЗА
+    RegulationTemplate(name = "Колодки тормозные передние", groupName = "6. ТОРМОЗА", intervalKm = 30000, intervalMonths = 24, warningKm = 3000, warningMonths = 2),
+    RegulationTemplate(name = "Колодки тормозные задние", groupName = "6. ТОРМОЗА", intervalKm = 60000, intervalMonths = 36, warningKm = 5000, warningMonths = 3),
+    // 7. ДАТЧИКИ И ПРОЧЕЕ
+    RegulationTemplate(name = "Датчик кислорода (Лямбда-зонд)", groupName = "7. ДАТЧИКИ И ПРОЧЕЕ", intervalKm = 100000, intervalMonths = 72, warningKm = 10000, warningMonths = 6),
+    RegulationTemplate(name = "Помпа (водяной насос) + прокладка", groupName = "7. ДАТЧИКИ И ПРОЧЕЕ", intervalKm = 120000, intervalMonths = 72, warningKm = 10000, warningMonths = 6, notes = "Артикул: 25100 26902"),
+    RegulationTemplate(name = "Чистка инжектора (форсунок)", groupName = "7. ДАТЧИКИ И ПРОЧЕЕ", intervalKm = 20000, intervalMonths = 24, warningKm = 2000, warningMonths = 1)
+).map { it.copy(isSystem = true) }
