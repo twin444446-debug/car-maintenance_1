@@ -415,6 +415,28 @@ fun restoreFromLocalBackup(context: Context, file: File): BackupResult {
     }
 }
 
+// ==================== МИГРАЦИЯ ГРУПП ====================
+
+fun migrateGroupNames(context: Context) {
+    val works = loadWorks(context)
+    val templates = defaultTemplates()
+    var changed = false
+    
+    val updatedWorks = works.map { work ->
+        if (work.groupName.isBlank()) {
+            val template = templates.find { it.name.trim().equals(work.name.trim(), ignoreCase = true) }
+            if (template != null && template.groupName.isNotBlank()) {
+                changed = true
+                work.copy(groupName = template.groupName)
+            } else work
+        } else work
+    }
+    
+    if (changed) {
+        saveWorks(context, updatedWorks)
+    }
+}
+
 // ==================== ШАБЛОНЫ РЕГЛАМЕНТА ====================
 
 fun defaultTemplates(): List<RegulationTemplate> = listOf(
