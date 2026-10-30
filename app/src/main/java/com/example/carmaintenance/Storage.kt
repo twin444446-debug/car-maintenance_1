@@ -518,3 +518,18 @@ fun syncNewTemplatesToCars(context: Context) {
         saveWorks(context, works)
     }
 }
+
+// ==================== УДАЛЕНИЕ ШАБЛОНА ====================
+
+fun deleteTemplateAndRelatedWorks(context: Context, templateId: String) {
+    // 1. Удаляем шаблон
+    val templates = loadTemplates(context).filter { it.id != templateId }
+    saveTemplates(context, templates)
+    
+    // 2. Удаляем работы с этим templateId
+    val works = loadWorks(context)
+    val remainingWorks = works.filter { it.templateId != templateId }
+    saveWorks(context, remainingWorks)
+    
+    // 3. История (records) НЕ удаляется — остается как архив
+}
