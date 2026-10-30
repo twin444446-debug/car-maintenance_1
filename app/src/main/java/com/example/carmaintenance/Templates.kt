@@ -11,7 +11,6 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -33,8 +32,9 @@ fun TemplateEditorScreen(
     templates: List<RegulationTemplate>, 
     onBack: () -> Unit, 
     onSave: (List<RegulationTemplate>) -> Unit,
-    onSync: () -> Unit // <-- КОЛБЭК ДЛЯ СИНХРОНИЗАЦИИ
+    onSync: () -> Unit
 ) {
+    val context = androidx.compose.ui.platform.LocalContext.current
     var list by remember(templates) { mutableStateOf(templates) }
     var show by remember { mutableStateOf(false) }
     var templateToDelete by remember { mutableStateOf<RegulationTemplate?>(null) }
@@ -122,11 +122,13 @@ fun TemplateEditorScreen(
             onDismissRequest = { templateToDelete = null },
             containerColor = CardColor,
             title = { Text("Удалить шаблон?", color = TextPrimary) },
-            text = { Text("Вы уверены, что хотите удалить шаблон \"${templateToDelete!!.name}\"?", color = TextSecondary) },
+            text = { Text("Вы уверены, что хотите удалить шаблон \"${templateToDelete!!.name}\"?\n\nВнимание: это также удалит эту работу из регламента всех автомобилей (история выполненных работ сохранится).", color = TextSecondary) },
             confirmButton = {
                 TextButton(onClick = {
-                    list = list.filter { it.id != templateToDelete!!.id }
+                    val templateId = templateToDelete!!.id
+                    list = list.filter { it.id != templateId }
                     onSave(list)
+                    deleteTemplateAndRelatedWorks(context, templateId)
                     templateToDelete = null
                 }) { Text("Удалить", color = ColorRed, fontWeight = androidx.compose.ui.text.font.FontWeight.Bold) }
             },
