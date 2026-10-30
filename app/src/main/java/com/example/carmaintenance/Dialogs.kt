@@ -667,7 +667,6 @@ fun WorkActionsDialog(
                             val currentTime = System.currentTimeMillis()
                             val lastExecTime = if (work.hasLastExecution) work.lastDate else currentTime
                             
-                            // Сколько месяцев прошло с последней замены (или с текущего момента, если не было)
                             val monthsPassed = if (work.hasLastExecution) {
                                 ((currentTime - lastExecTime) / (1000L * 60 * 60 * 24 * 30)).toInt()
                             } else 0
@@ -782,84 +781,86 @@ fun WorkActionsDialog(
                     }
                 }
 
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            if (!showCompleteForm) {
-                val currentMileage = car.mileage.toIntOrNull() ?: 0
-                val nextMileage = if (work.hasLastExecution) work.lastMileage + work.intervalKm else currentMileage + work.intervalKm
-                val showSkipButton = currentMileage >= nextMileage && !work.skipped
-
-                OutlinedButton(
-                    onClick = onDismiss,
-                    modifier = Modifier.weight(1f).height(48.dp),
-                    shape = RoundedCornerShape(8.dp),
-                    colors = ButtonDefaults.outlinedButtonColors(contentColor = TextSecondary),
-                    border = BorderStroke(1.dp, TextSecondary.copy(alpha = 0.5f)),
-                    contentPadding = PaddingValues(horizontal = 4.dp, vertical = 0.dp)
-                ) { 
-                    Text("Закрыть", fontSize = 14.sp, maxLines = 1) 
-                }
-
-                Column(
-                    modifier = Modifier.weight(1f),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    if (showSkipButton) {
+                    if (!showCompleteForm) {
+                        val currentMileage = car.mileage.toIntOrNull() ?: 0
+                        val nextMileage = if (work.hasLastExecution) work.lastMileage + work.intervalKm else currentMileage + work.intervalKm
+                        val showSkipButton = currentMileage >= nextMileage && !work.skipped
+
                         OutlinedButton(
-                            onClick = onSkip,
-                            modifier = Modifier.fillMaxWidth().height(48.dp),
+                            onClick = onDismiss,
+                            modifier = Modifier.weight(1f).height(48.dp),
                             shape = RoundedCornerShape(8.dp),
-                            colors = ButtonDefaults.outlinedButtonColors(contentColor = ColorPurple),
-                            border = BorderStroke(1.dp, ColorPurple),
+                            colors = ButtonDefaults.outlinedButtonColors(contentColor = TextSecondary),
+                            border = BorderStroke(1.dp, TextSecondary.copy(alpha = 0.5f)),
                             contentPadding = PaddingValues(horizontal = 4.dp, vertical = 0.dp)
                         ) { 
-                            Text("Пропустить", fontSize = 14.sp, fontWeight = FontWeight.Medium, maxLines = 1) 
+                            Text("Закрыть", fontSize = 14.sp, maxLines = 1) 
+                        }
+
+                        Column(
+                            modifier = Modifier.weight(1f),
+                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            if (showSkipButton) {
+                                OutlinedButton(
+                                    onClick = onSkip,
+                                    modifier = Modifier.fillMaxWidth().height(48.dp),
+                                    shape = RoundedCornerShape(8.dp),
+                                    colors = ButtonDefaults.outlinedButtonColors(contentColor = ColorPurple),
+                                    border = BorderStroke(1.dp, ColorPurple),
+                                    contentPadding = PaddingValues(horizontal = 4.dp, vertical = 0.dp)
+                                ) { 
+                                    Text("Пропустить", fontSize = 14.sp, fontWeight = FontWeight.Medium, maxLines = 1) 
+                                }
+                            }
+
+                            Button(
+                                onClick = { showCompleteForm = true },
+                                modifier = Modifier.fillMaxWidth().height(48.dp),
+                                shape = RoundedCornerShape(8.dp),
+                                colors = ButtonDefaults.buttonColors(containerColor = ColorGreen),
+                                contentPadding = PaddingValues(horizontal = 4.dp, vertical = 0.dp)
+                            ) { 
+                                Text("Выполнить", fontSize = 14.sp, fontWeight = FontWeight.Bold, maxLines = 1) 
+                            }
+                        }
+                    } else {
+                        OutlinedButton(
+                            onClick = { 
+                                if (initialRecord != null) onDismiss() else showCompleteForm = false 
+                            },
+                            modifier = Modifier.weight(1f).height(48.dp),
+                            shape = RoundedCornerShape(8.dp),
+                            colors = ButtonDefaults.outlinedButtonColors(contentColor = TextSecondary),
+                            border = BorderStroke(1.dp, TextSecondary.copy(alpha = 0.5f)),
+                            contentPadding = PaddingValues(horizontal = 4.dp, vertical = 0.dp)
+                        ) { 
+                            Text(if (initialRecord != null) "Отмена" else "Назад", fontSize = 14.sp, maxLines = 1) 
+                        }
+                        
+                        Button(
+                            onClick = { onComplete(km.toIntOrNull() ?: 0, selectedDate, note, lines.toList()) },
+                            modifier = Modifier.weight(1f).height(48.dp),
+                            shape = RoundedCornerShape(8.dp),
+                            colors = ButtonDefaults.buttonColors(containerColor = ColorGreen),
+                            contentPadding = PaddingValues(horizontal = 4.dp, vertical = 0.dp)
+                        ) { 
+                            Text("Сохранить", fontSize = 14.sp, fontWeight = FontWeight.Bold, maxLines = 1) 
                         }
                     }
-
-                    Button(
-                        onClick = { showCompleteForm = true },
-                        modifier = Modifier.fillMaxWidth().height(48.dp),
-                        shape = RoundedCornerShape(8.dp),
-                        colors = ButtonDefaults.buttonColors(containerColor = ColorGreen),
-                        contentPadding = PaddingValues(horizontal = 4.dp, vertical = 0.dp)
-                    ) { 
-                        Text("Выполнить", fontSize = 14.sp, fontWeight = FontWeight.Bold, maxLines = 1) 
-                    }
-                }
-            } else {
-                OutlinedButton(
-                    onClick = { 
-                        if (initialRecord != null) onDismiss() else showCompleteForm = false 
-                    },
-                    modifier = Modifier.weight(1f).height(48.dp),
-                    shape = RoundedCornerShape(8.dp),
-                    colors = ButtonDefaults.outlinedButtonColors(contentColor = TextSecondary),
-                    border = BorderStroke(1.dp, TextSecondary.copy(alpha = 0.5f)),
-                    contentPadding = PaddingValues(horizontal = 4.dp, vertical = 0.dp)
-                ) { 
-                    Text(if (initialRecord != null) "Отмена" else "Назад", fontSize = 14.sp, maxLines = 1) 
-                }
-                
-                Button(
-                    onClick = { onComplete(km.toIntOrNull() ?: 0, selectedDate, note, lines.toList()) },
-                    modifier = Modifier.weight(1f).height(48.dp),
-                    shape = RoundedCornerShape(8.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = ColorGreen),
-                    contentPadding = PaddingValues(horizontal = 4.dp, vertical = 0.dp)
-                ) { 
-                    Text("Сохранить", fontSize = 14.sp, fontWeight = FontWeight.Bold, maxLines = 1) 
                 }
             }
         }
     }
 }
-}
+                        
 @Composable
 fun CompletedWorkInfoDialog(
     work: MaintenanceWork,
