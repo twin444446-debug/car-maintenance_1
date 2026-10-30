@@ -46,6 +46,16 @@ fun MaintenanceMatrixScreen(
     val currentMileage = car.mileage.toIntOrNull() ?: 0
     val carWorks = works.filter { it.carId == car.id }
 
+    // Состояние вкладки: 0 - Автомобиль, 1 - ГБО
+    var selectedTab by remember { mutableIntStateOf(0) }
+
+    // Фильтруем работы по вкладке
+    val filteredWorks = if (selectedTab == 0) {
+        carWorks.filter { it.category == WorkCategory.GENERAL }
+    } else {
+        carWorks.filter { it.category == WorkCategory.LPG }
+    }
+
     // Сетка всегда с шагом 10 000 км
     val maxMileage = maxOf(120000, ((currentMileage / 10000) + 2) * 10000)
     val mileageSteps = (1..(maxMileage / 10000)).map { it * 10000 }
@@ -57,7 +67,7 @@ fun MaintenanceMatrixScreen(
 
     var selectedWork by remember { mutableStateOf<MaintenanceWork?>(null) }
 
-    val groupedWorks = carWorks
+    val groupedWorks = filteredWorks
         .groupBy { it.groupName.ifBlank { "9. БЕЗ ГРУППЫ" } }
         .toList()
         .sortedBy { (groupName, _) ->
@@ -74,6 +84,28 @@ fun MaintenanceMatrixScreen(
             
             Text("${car.brand} ${car.model} • Пробег: $currentMileage км", color = ColorGreen, fontWeight = FontWeight.Bold, fontSize = 14.sp)
             Spacer(Modifier.height(8.dp))
+
+            // Вкладки (показываем "ГБО" только если у машины есть ГБО)
+            if (car.hasLpg) {
+                SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
+                    SegmentedButton(
+                        selected = selectedTab == 0,
+                        onClick = { selectedTab = 0 },
+                        shape = SegmentedButtonDefaults.itemShape(index = 0, count = 2),
+                        colors = SegmentedButtonDefaults.colors(activeContainerColor = ColorGreen.copy(alpha = 0.2f), activeContentColor = ColorGreen),
+                        modifier = Modifier.weight(1f)
+                    ) { Text("Автомобиль", maxLines = 1) }
+
+                    SegmentedButton(
+                        selected = selectedTab == 1,
+                        onClick = { selectedTab = 1 },
+                        shape = SegmentedButtonDefaults.itemShape(index = 1, count = 2),
+                        colors = SegmentedButtonDefaults.colors(activeContainerColor = ColorGreen.copy(alpha = 0.2f), activeContentColor = ColorGreen),
+                        modifier = Modifier.weight(1f)
+                    ) { Text("ГБО", maxLines = 1) }
+                }
+                Spacer(Modifier.height(8.dp))
+            }
 
             Box(
                 modifier = Modifier
@@ -110,6 +142,15 @@ fun MaintenanceMatrixScreen(
 
                     // Тело таблицы
                     LazyColumn(modifier = Modifier.fillMaxHeight()) {
+                        if (groupedWorks.isEmpty()) {
+                            item {
+                                Text(
+                                    "Нет работ в этой категории",
+                                    color = TextSecondary,
+                                    modifier = Modifier.padding(16.dp)
+                                )
+                            }
+                        }
                         groupedWorks.forEach { (groupName, groupWorks) ->
                             item {
                                 Row(modifier = Modifier.background(CardColor.copy(alpha = 0.8f))) {
