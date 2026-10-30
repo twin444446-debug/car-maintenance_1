@@ -789,20 +789,36 @@ fun WorkActionsDialog(
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     if (!showCompleteForm) {
-                        OutlinedButton(
-                            onClick = onDismiss,
-                            modifier = Modifier.weight(1f).height(48.dp),
-                            shape = RoundedCornerShape(8.dp),
-                            colors = ButtonDefaults.outlinedButtonColors(contentColor = TextSecondary),
-                            border = BorderStroke(1.dp, TextSecondary.copy(alpha = 0.5f))
-                        ) { Text("Закрыть") }
-                        Button(
-                            onClick = { showCompleteForm = true },
-                            modifier = Modifier.weight(1f).height(48.dp),
-                            shape = RoundedCornerShape(8.dp),
-                            colors = ButtonDefaults.buttonColors(containerColor = ColorGreen)
-                        ) { Text("Выполнить", fontWeight = FontWeight.Bold) }
-                    } else {
+    val currentMileage = car.mileage.toIntOrNull() ?: 0
+    val nextMileage = if (work.hasLastExecution) work.lastMileage + work.intervalKm else currentMileage + work.intervalKm
+    
+    val showSkipButton = currentMileage >= nextMileage && !work.skipped
+    
+    OutlinedButton(
+        onClick = onDismiss,
+        modifier = Modifier.weight(1f).height(48.dp),
+        shape = RoundedCornerShape(8.dp),
+        colors = ButtonDefaults.outlinedButtonColors(contentColor = TextSecondary),
+        border = BorderStroke(1.dp, TextSecondary.copy(alpha = 0.5f))
+    ) { Text("Закрыть") }
+    
+    if (showSkipButton) {
+        OutlinedButton(
+            onClick = onSkip,
+            modifier = Modifier.weight(1f).height(48.dp),
+            shape = RoundedCornerShape(8.dp),
+            colors = ButtonDefaults.outlinedButtonColors(contentColor = ColorPurple),
+            border = BorderStroke(1.dp, ColorPurple)
+        ) { Text("Пропустить") }
+    }
+    
+    Button(
+        onClick = { showCompleteForm = true },
+        modifier = Modifier.weight(1f).height(48.dp),
+        shape = RoundedCornerShape(8.dp),
+        colors = ButtonDefaults.buttonColors(containerColor = ColorGreen)
+    ) { Text("Выполнить", fontWeight = FontWeight.Bold) }
+}
                         OutlinedButton(
                             onClick = { 
                                 if (initialRecord != null) onDismiss() else showCompleteForm = false 
