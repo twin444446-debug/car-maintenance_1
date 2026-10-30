@@ -812,29 +812,29 @@ fun WorkActionsDialog(
         ) { Text("Пропустить") }
     }
     
-    Button(
+        Button(
         onClick = { showCompleteForm = true },
         modifier = Modifier.weight(1f).height(48.dp),
         shape = RoundedCornerShape(8.dp),
         colors = ButtonDefaults.buttonColors(containerColor = ColorGreen)
     ) { Text("Выполнить", fontWeight = FontWeight.Bold) }
+} else {
+    OutlinedButton(
+        onClick = { 
+            if (initialRecord != null) onDismiss() else showCompleteForm = false 
+        },
+        modifier = Modifier.weight(1f).height(48.dp),
+        shape = RoundedCornerShape(8.dp),
+        colors = ButtonDefaults.outlinedButtonColors(contentColor = TextSecondary),
+        border = BorderStroke(1.dp, TextSecondary.copy(alpha = 0.5f))
+    ) { Text(if (initialRecord != null) "Отмена" else "Назад") }
+    Button(
+        onClick = { onComplete(km.toIntOrNull() ?: 0, selectedDate, note, lines.toList()) },
+        modifier = Modifier.weight(1f).height(48.dp),
+        shape = RoundedCornerShape(8.dp),
+        colors = ButtonDefaults.buttonColors(containerColor = ColorGreen)
+    ) { Text("Сохранить", fontWeight = FontWeight.Bold) }
 }
-                        OutlinedButton(
-                            onClick = { 
-                                if (initialRecord != null) onDismiss() else showCompleteForm = false 
-                            },
-                            modifier = Modifier.weight(1f).height(48.dp),
-                            shape = RoundedCornerShape(8.dp),
-                            colors = ButtonDefaults.outlinedButtonColors(contentColor = TextSecondary),
-                            border = BorderStroke(1.dp, TextSecondary.copy(alpha = 0.5f))
-                        ) { Text(if (initialRecord != null) "Отмена" else "Назад") }
-                        Button(
-                            onClick = { onComplete(km.toIntOrNull() ?: 0, selectedDate, note, lines.toList()) },
-                            modifier = Modifier.weight(1f).height(48.dp),
-                            shape = RoundedCornerShape(8.dp),
-                            colors = ButtonDefaults.buttonColors(containerColor = ColorGreen)
-                        ) { Text("Сохранить", fontWeight = FontWeight.Bold) }
-                    }
                 }
             }
         }
