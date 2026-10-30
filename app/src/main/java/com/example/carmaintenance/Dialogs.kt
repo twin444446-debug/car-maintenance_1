@@ -859,7 +859,7 @@ fun WorkActionsDialog(
         }
     }
 }
-
+}
 @Composable
 fun CompletedWorkInfoDialog(
     work: MaintenanceWork,
