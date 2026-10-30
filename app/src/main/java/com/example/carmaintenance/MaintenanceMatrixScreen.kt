@@ -46,6 +46,7 @@ fun MaintenanceMatrixScreen(
     val currentMileage = car.mileage.toIntOrNull() ?: 0
     val carWorks = works.filter { it.carId == car.id }
 
+    // Сетка всегда с шагом 10 000 км
     val maxMileage = maxOf(120000, ((currentMileage / 10000) + 2) * 10000)
     val mileageSteps = (1..(maxMileage / 10000)).map { it * 10000 }
 
@@ -144,15 +145,17 @@ fun MaintenanceMatrixScreen(
 
                                     // Ячейки с шагами
                                     mileageSteps.forEach { step ->
-                                        val isTargetStep = work.intervalKm > 0 && step % work.intervalKm == 0
+                                        // Ищем запись, которая при округлении попадает в этот шаг
+                                        val record = records.find { r ->
+                                            r.workId == work.id && 
+                                            (Math.round(r.mileage / 10000f) * 10000) == step
+                                        }
+
+                                        // Ячейка активна, если есть интервал или это шаг, где есть запись
+                                        val isTargetStep = work.intervalKm > 0 || record != null
                                         
                                         if (isTargetStep) {
-                                            val record = records.find { r ->
-                                                r.workId == work.id && 
-                                                Math.abs(r.mileage - step) <= 3000
-                                            }
-
-                                            val isOverdue = step <= currentMileage && record == null
+                                            val isOverdue = step <= currentMileage && record == null && work.intervalKm > 0 && step % work.intervalKm == 0
                                             val cellColor = when {
                                                 record != null -> ColorGreen.copy(alpha = 0.8f)
                                                 isOverdue -> ColorRed.copy(alpha = 0.15f)
@@ -198,9 +201,8 @@ fun MaintenanceMatrixScreen(
         // Всплывающая подсказка
         if (selectedWork != null) {
             val work = selectedWork!!
-            val lastRecord = records.filter { it.workId == work.id }.maxByOrNull { it.date }
+            val lastRecord = records.filter { it.workId == work.id }.maxByOrNull { it.mileage }
             
-            // Прозрачный фон для закрытия
             Box(
                 modifier = Modifier
                     .fillMaxSize()
@@ -210,7 +212,6 @@ fun MaintenanceMatrixScreen(
                     ) { selectedWork = null }
             )
 
-            // Подсказка
             Popup(
                 alignment = Alignment.Center,
                 onDismissRequest = { selectedWork = null },
