@@ -18,6 +18,8 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -27,6 +29,7 @@ import androidx.compose.ui.window.PopupProperties
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import kotlinx.coroutines.delay
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -47,26 +50,47 @@ fun MaintenanceMatrixScreen(
     val currentMileage = car.mileage.toIntOrNull() ?: 0
     val carWorks = works.filter { it.carId == car.id }
 
-    // Состояние вкладки: 0 - Автомобиль, 1 - ГБО
     var selectedTab by remember { mutableIntStateOf(0) }
 
-    // Фильтруем работы по вкладке
     val filteredWorks = if (selectedTab == 0) {
         carWorks.filter { it.category == WorkCategory.GENERAL }
     } else {
         carWorks.filter { it.category == WorkCategory.LPG }
     }
 
-    // Сетка всегда с шагом 10 000 км
-    val maxMileage = maxOf(120000, ((currentMileage / 10000) + 2) * 10000)
+    // Запас вперед на 100 000 км от текущего пробега, но не менее 120 000
+    val maxMileage = maxOf(120000, ((currentMileage + 100000) / 10000) * 10000)
     val mileageSteps = (1..(maxMileage / 10000)).map { it * 10000 }
 
-    // Увеличили ширину и высоту для 3 строк
     val colNameWidth = 160.dp
     val colStepWidth = 70.dp
     val rowHeight = 80.dp
 
     var selectedWork by remember { mutableStateOf<MaintenanceWork?>(null) }
+
+    // --- ЛОГИКА АВТОПРОКРУТКИ ---
+    val horizontalScrollState = rememberScrollState()
+    val density = LocalDensity.current
+    val configuration = LocalConfiguration.current
+    val screenWidthDp = configuration.screenWidthDp
+    
+    LaunchedEffect(Unit) {
+        delay(100) // Небольшая задержка для инициализации UI
+        // Вычисляем позицию текущего пробега
+        val currentStepIndex = mileageSteps.indexOfFirst { it >= currentMileage }.coerceAtLeast(0)
+        val scrollToStep = mileageSteps.getOrElse(currentStepIndex) { currentMileage }
+        
+        // Приводим к Float и переводим в пиксели
+        val scrollPositionPx = with(density) {
+            (colNameWidth + (colStepWidth * (scrollToStep / 10000f))).toPx()
+        }
+        
+        // Центрируем: отнимаем половину ширины экрана
+        val screenWidthPx = with(density) { screenWidthDp.dp.toPx() }
+        val targetScroll = (scrollPositionPx - screenWidthPx / 2).toInt().coerceAtLeast(0)
+        
+        horizontalScrollState.animateScrollTo(targetScroll)
+    }
 
     val groupedWorks = filteredWorks
         .groupBy { it.groupName.ifBlank { "9. БЕЗ ГРУППЫ" } }
@@ -86,7 +110,6 @@ fun MaintenanceMatrixScreen(
             Text("${car.brand} ${car.model} • Пробег: $currentMileage км", color = ColorGreen, fontWeight = FontWeight.Bold, fontSize = 14.sp)
             Spacer(Modifier.height(8.dp))
 
-            // Вкладки (показываем "ГБО" только если у машины есть ГБО)
             if (car.hasLpg) {
                 SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
                     SegmentedButton(
@@ -112,7 +135,7 @@ fun MaintenanceMatrixScreen(
                 modifier = Modifier
                     .fillMaxSize()
                     .border(1.dp, TextSecondary.copy(alpha = 0.3f))
-                    .horizontalScroll(rememberScrollState())
+                    .horizontalScroll(horizontalScrollState) // <-- Применили состояние скролла
             ) {
                 Column {
                     // Заголовок таблицы
@@ -164,7 +187,7 @@ fun MaintenanceMatrixScreen(
 
                             items(groupWorks) { work ->
                                 Row(modifier = Modifier.background(if (groupWorks.indexOf(work) % 2 == 0) BgColor else CardColor.copy(alpha = 0.5f))) {
-                                    // Ячейка с названием (кликабельная)
+                                    // Ячейка с названием
                                     Column(
                                         modifier = Modifier
                                             .width(colNameWidth)
@@ -189,7 +212,6 @@ fun MaintenanceMatrixScreen(
                                     val workRecords = records.filter { it.workId == work.id }.sortedBy { it.mileage }
                                     val lastRecord = workRecords.maxByOrNull { it.mileage }
 
-                                    // Строим теоретические плановые точки (по регламенту)
                                     val plannedPoints = mutableListOf<Int>()
                                     if (work.intervalKm > 0) {
                                         var p = work.intervalKm
@@ -199,27 +221,24 @@ fun MaintenanceMatrixScreen(
                                         }
                                     }
 
-                                    // Строим новые расчетные точки от последней фактической замены
                                     val projectedPoints = mutableListOf<Int>()
                                     if (work.intervalKm > 0 && lastRecord != null) {
                                         var p = lastRecord.mileage + work.intervalKm
                                         while (p <= maxMileage) {
-                                            projectedPoints.add(Math.round(p / 10000f) * 10000) // Округляем до сетки
+                                            projectedPoints.add(Math.round(p / 10000f) * 10000)
                                             p += work.intervalKm
                                         }
                                     }
 
                                     // Ячейки с шагами
                                     mileageSteps.forEach { step ->
-                                        // Ищем запись, которая при округлении попадает в этот шаг
                                         val record = workRecords.find { Math.round(it.mileage / 10000f) * 10000 == step }
 
                                         val isActual = record != null
-                                        val isPlannedOriginal = plannedPoints.contains(step) // Плановая по регламенту
-                                        val isProjected = projectedPoints.contains(step)   // Плановая по новой замене
+                                        val isPlannedOriginal = plannedPoints.contains(step)
+                                        val isProjected = projectedPoints.contains(step)
                                         val isPast = step <= currentMileage
 
-                                        // Проверяем, была ли замена раньше текущего шага
                                         val wasDoneEarlier = workRecords.any { it.mileage <= step }
 
                                         val cellColor: Color
@@ -227,35 +246,30 @@ fun MaintenanceMatrixScreen(
                                         var iconVector: androidx.compose.ui.graphics.vector.ImageVector? = null
 
                                         when {
-                                            // 1. Фактическая замена
                                             isActual -> {
                                                 cellColor = ColorGreen.copy(alpha = 0.8f)
                                                 iconVector = Icons.Default.Check
                                                 iconTint = Color.White
                                             }
-                                            // 2. Старая плановая точка, которая была перекрыта более ранней заменой (в прошлом)
                                             !isActual && wasDoneEarlier && isPast && isPlannedOriginal -> {
                                                 cellColor = Color.Transparent
                                                 iconVector = Icons.Default.Check
-                                                iconTint = TextSecondary.copy(alpha = 0.3f) // Серая галочка (отменено)
+                                                iconTint = TextSecondary.copy(alpha = 0.3f)
                                             }
-                                            // 3. Просрочка (шаг прошел, плановый/рассчитанный, но не выполнен и не перекрыт)
                                             !isActual && !wasDoneEarlier && isPast && (isPlannedOriginal || isProjected) -> {
                                                 cellColor = ColorRed.copy(alpha = 0.15f)
                                                 iconVector = Icons.Default.Close
                                                 iconTint = Color.Red
                                             }
-                                            // 4. Будущая расчетная замена (новый план от последней замены)
                                             !isActual && !isPast && isProjected -> {
-                                                cellColor = ColorGreen.copy(alpha = 0.1f) // Легкий зеленый фон
+                                                cellColor = ColorGreen.copy(alpha = 0.1f)
                                                 iconVector = Icons.Default.Check
-                                                iconTint = ColorGreen.copy(alpha = 0.4f) // Бледно-зеленая галочка
+                                                iconTint = ColorGreen.copy(alpha = 0.4f)
                                             }
-                                            // 5. Будущая плановая точка по регламенту, которая отменилась
                                             !isActual && !isPast && isPlannedOriginal && !isProjected -> {
                                                 cellColor = Color.Transparent
                                                 iconVector = Icons.Default.Check
-                                                iconTint = TextSecondary.copy(alpha = 0.2f) // Бледная серая галочка
+                                                iconTint = TextSecondary.copy(alpha = 0.2f)
                                             }
                                             else -> {
                                                 cellColor = Color.Transparent
