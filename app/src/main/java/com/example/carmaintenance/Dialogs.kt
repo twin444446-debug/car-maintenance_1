@@ -601,7 +601,6 @@ fun WorkActionsDialog(
                     .fillMaxSize()
                     .imePadding()
             ) {
-                // Ручка
                 Box(
                     modifier = Modifier
                         .padding(top = 12.dp)
@@ -611,7 +610,6 @@ fun WorkActionsDialog(
                         .align(Alignment.CenterHorizontally)
                 )
 
-                // Заголовок
                 Text(
                     text = if (showCompleteForm) {
                         if (initialRecord != null) "Изменить выполнение: ${work.name}" else "Выполнение: ${work.name}"
@@ -624,7 +622,6 @@ fun WorkActionsDialog(
                     modifier = Modifier.padding(horizontal = 16.dp, vertical = 16.dp)
                 )
 
-                // Скроллируемый контент
                 Column(
                     modifier = Modifier
                         .weight(1f)
@@ -649,28 +646,45 @@ fun WorkActionsDialog(
                             color = TextSecondary.copy(alpha = 0.3f),
                             thickness = 1.dp
                         )
+                        
                         val currentMileage = car.mileage.toIntOrNull() ?: 0
                         val nextMileage = if (work.hasLastExecution) work.lastMileage + work.intervalKm else currentMileage + work.intervalKm
                         val remainingKm = nextMileage - currentMileage
+                        
                         InfoRow(
                             label = "Следующая замена, км:",
                             value = "$nextMileage",
                             valueColor = if (currentMileage >= nextMileage) Color.Red else TextPrimary
                         )
                         InfoRow(
-                            label = "Остаток пробега:",
+                            label = "Остаток, км:",
                             value = "$remainingKm",
                             valueColor = if (remainingKm > 0) TextPrimary else Color.Red
                         )
+                        
+                        // --- Блок месяцев ---
                         if (work.intervalMonths > 0) {
                             val currentTime = System.currentTimeMillis()
-                            val lastExecTime = work.lastDate
-                            val monthsPassed = if (work.hasLastExecution) ((currentTime - lastExecTime) / (1000L * 60 * 60 * 24 * 30)).toInt() else 0
-                            val isOverdue = work.hasLastExecution && monthsPassed >= work.intervalMonths
+                            val lastExecTime = if (work.hasLastExecution) work.lastDate else currentTime
+                            
+                            // Сколько месяцев прошло с последней замены (или с текущего момента, если не было)
+                            val monthsPassed = if (work.hasLastExecution) {
+                                ((currentTime - lastExecTime) / (1000L * 60 * 60 * 24 * 30)).toInt()
+                            } else 0
+                            
+                            val nextMonths = work.intervalMonths
+                            val remainingMonths = nextMonths - monthsPassed
+                            val isOverdue = remainingMonths <= 0
+                            
                             InfoRow(
                                 label = "Следующая замена, мес:",
-                                value = "${work.intervalMonths}",
+                                value = "$nextMonths",
                                 valueColor = if (isOverdue) Color.Red else TextPrimary
+                            )
+                            InfoRow(
+                                label = "Остаток, мес:",
+                                value = "$remainingMonths",
+                                valueColor = if (remainingMonths > 0) TextPrimary else Color.Red
                             )
                         }
 
@@ -702,26 +716,8 @@ fun WorkActionsDialog(
                             }
                         }
                         
-                        Spacer(Modifier.height(16.dp))
-                        
-                        // Кнопки управления работой (Редактировать, Удалить, В список)
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            TextButton(onClick = onEdit, modifier = Modifier.weight(1f)) {
-                                Text("Ред. работу", color = ColorYellow, fontSize = 12.sp)
-                            }
-                            TextButton(onClick = onDelete, modifier = Modifier.weight(1f)) {
-                                Text("Удалить", color = ColorRed, fontSize = 12.sp)
-                            }
-                            TextButton(onClick = onShowInList, modifier = Modifier.weight(1f)) {
-                                Text("В список", color = ColorBlue, fontSize = 12.sp)
-                            }
-                        }
-                        
                     } else {
-                        // --- РЕЖИМ ВЫПОЛНЕНИЯ (ФОРМА) ---
+                        // --- РЕЖИМ ВЫПОЛНЕНИЯ ---
                         
                         Text("Дата: ${formatDate(selectedDate)}", color = TextPrimary, fontSize = 14.sp)
                         Spacer(Modifier.height(4.dp))
@@ -786,7 +782,6 @@ fun WorkActionsDialog(
                     }
                 }
 
-                // Кнопки внизу
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -829,6 +824,7 @@ fun WorkActionsDialog(
         }
     }
 }
+
 
 @Composable
 fun CompletedWorkInfoDialog(
