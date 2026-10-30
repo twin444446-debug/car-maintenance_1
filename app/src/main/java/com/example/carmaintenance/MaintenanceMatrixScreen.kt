@@ -185,33 +185,81 @@ fun MaintenanceMatrixScreen(
                                         }
                                     }
 
+                                    // --- ЛОГИКА РАСЧЕТА ДЛЯ ЭТОЙ РАБОТЫ ---
+                                    val workRecords = records.filter { it.workId == work.id }.sortedBy { it.mileage }
+                                    val lastRecord = workRecords.maxByOrNull { it.mileage }
+
+                                    // Строим теоретические плановые точки (по регламенту)
+                                    val plannedPoints = mutableListOf<Int>()
+                                    if (work.intervalKm > 0) {
+                                        var p = work.intervalKm
+                                        while (p <= maxMileage) {
+                                            plannedPoints.add(p)
+                                            p += work.intervalKm
+                                        }
+                                    }
+
+                                    // Строим новые расчетные точки от последней фактической замены
+                                    val projectedPoints = mutableListOf<Int>()
+                                    if (work.intervalKm > 0 && lastRecord != null) {
+                                        var p = lastRecord.mileage + work.intervalKm
+                                        while (p <= maxMileage) {
+                                            projectedPoints.add(Math.round(p / 10000f) * 10000) // Округляем до сетки
+                                            p += work.intervalKm
+                                        }
+                                    }
+
                                     // Ячейки с шагами
                                     mileageSteps.forEach { step ->
                                         // Ищем запись, которая при округлении попадает в этот шаг
-                                        val record = records.find { r ->
-                                            r.workId == work.id && 
-                                            (Math.round(r.mileage / 10000f) * 10000) == step
-                                        }
+                                        val record = workRecords.find { Math.round(it.mileage / 10000f) * 10000 == step }
 
-                                        // Проверяем, была ли замена на этом шаге или на любом предыдущем
-                                        val wasDoneEarlier = records.any { r ->
-                                            r.workId == work.id && r.mileage <= step
-                                        }
+                                        val isActual = record != null
+                                        val isPlannedOriginal = plannedPoints.contains(step) // Плановая по регламенту
+                                        val isProjected = projectedPoints.contains(step)   // Плановая по новой замене
+                                        val isPast = step <= currentMileage
 
-                                        // Ячейка плановая, если шаг кратен интервалу
-                                        val isPlannedStep = work.intervalKm > 0 && step % work.intervalKm == 0
+                                        // Проверяем, была ли замена раньше текущего шага
+                                        val wasDoneEarlier = workRecords.any { it.mileage <= step }
 
-                                        // Просрочка: шаг плановый, пробег машины его прошел, записи нет, и раньше не было
-                                        val isOverdue = isPlannedStep && step <= currentMileage && record == null && !wasDoneEarlier
+                                        val cellColor: Color
+                                        var iconTint: Color? = null
+                                        var iconVector: androidx.compose.ui.graphics.vector.ImageVector? = null
 
-                                        // Закрыто предыдущей заменой: шаг плановый, записи нет, но раньше было выполнено
-                                        val isCoveredByPrevious = isPlannedStep && record == null && wasDoneEarlier
-
-                                        val cellColor = when {
-                                            record != null -> ColorGreen.copy(alpha = 0.8f)       // Запись на этом шаге
-                                            isCoveredByPrevious -> ColorGreen.copy(alpha = 0.2f) // Закрыто предыдущей
-                                            isOverdue -> ColorRed.copy(alpha = 0.15f)            // Просрочено
-                                            else -> Color.Transparent
+                                        when {
+                                            // 1. Фактическая замена
+                                            isActual -> {
+                                                cellColor = ColorGreen.copy(alpha = 0.8f)
+                                                iconVector = Icons.Default.Check
+                                                iconTint = Color.White
+                                            }
+                                            // 2. Старая плановая точка, которая была перекрыта более ранней заменой (в прошлом)
+                                            !isActual && wasDoneEarlier && isPast && isPlannedOriginal -> {
+                                                cellColor = Color.Transparent
+                                                iconVector = Icons.Default.Check
+                                                iconTint = TextSecondary.copy(alpha = 0.3f) // Серая галочка (отменено)
+                                            }
+                                            // 3. Просрочка (шаг прошел, плановый/рассчитанный, но не выполнен и не перекрыт)
+                                            !isActual && !wasDoneEarlier && isPast && (isPlannedOriginal || isProjected) -> {
+                                                cellColor = ColorRed.copy(alpha = 0.15f)
+                                                iconVector = Icons.Default.Close
+                                                iconTint = Color.Red
+                                            }
+                                            // 4. Будущая расчетная замена (новый план от последней замены)
+                                            !isActual && !isPast && isProjected -> {
+                                                cellColor = ColorGreen.copy(alpha = 0.1f) // Легкий зеленый фон
+                                                iconVector = Icons.Default.Check
+                                                iconTint = ColorGreen.copy(alpha = 0.4f) // Бледно-зеленая галочка
+                                            }
+                                            // 5. Будущая плановая точка по регламенту, которая отменилась
+                                            !isActual && !isPast && isPlannedOriginal && !isProjected -> {
+                                                cellColor = Color.Transparent
+                                                iconVector = Icons.Default.Check
+                                                iconTint = TextSecondary.copy(alpha = 0.2f) // Бледная серая галочка
+                                            }
+                                            else -> {
+                                                cellColor = Color.Transparent
+                                            }
                                         }
 
                                         Box(
@@ -222,21 +270,18 @@ fun MaintenanceMatrixScreen(
                                                 .background(cellColor),
                                             contentAlignment = Alignment.Center
                                         ) {
-                                            when {
-                                                record != null -> {
-                                                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                                        Icon(Icons.Default.Check, contentDescription = null, tint = Color.White, modifier = Modifier.size(16.dp))
+                                            if (iconVector != null && iconTint != null) {
+                                                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                                    Icon(
+                                                        imageVector = iconVector!!, 
+                                                        contentDescription = null, 
+                                                        tint = iconTint!!, 
+                                                        modifier = Modifier.size(16.dp)
+                                                    )
+                                                    if (isActual && record != null) {
                                                         Text(text = "${record.mileage}", color = Color.White, fontSize = 10.sp, fontWeight = FontWeight.Bold, maxLines = 1)
                                                         Text(text = formatShortDate(record.date), color = Color.White.copy(alpha = 0.8f), fontSize = 9.sp, maxLines = 1)
                                                     }
-                                                }
-                                                isCoveredByPrevious -> {
-                                                    // Бледная галочка (выполнено раньше)
-                                                    Icon(Icons.Default.Check, contentDescription = "Выполнено ранее", tint = TextSecondary.copy(alpha = 0.5f), modifier = Modifier.size(16.dp))
-                                                }
-                                                isOverdue -> {
-                                                    // Красный крестик (просрочено)
-                                                    Icon(Icons.Default.Close, contentDescription = "Просрочено", tint = Color.Red, modifier = Modifier.size(16.dp))
                                                 }
                                             }
                                         }
@@ -253,7 +298,8 @@ fun MaintenanceMatrixScreen(
         // Всплывающая подсказка
         if (selectedWork != null) {
             val work = selectedWork!!
-            val lastRecord = records.filter { it.workId == work.id }.maxByOrNull { it.mileage }
+            val workRecords = records.filter { it.workId == work.id }
+            val lastRecord = workRecords.maxByOrNull { it.mileage }
             
             Box(
                 modifier = Modifier
