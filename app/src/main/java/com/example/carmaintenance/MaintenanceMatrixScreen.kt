@@ -76,16 +76,13 @@ fun MaintenanceMatrixScreen(
     
     LaunchedEffect(Unit) {
         delay(100) // Небольшая задержка для инициализации UI
-        // Вычисляем позицию текущего пробега
         val currentStepIndex = mileageSteps.indexOfFirst { it >= currentMileage }.coerceAtLeast(0)
         val scrollToStep = mileageSteps.getOrElse(currentStepIndex) { currentMileage }
         
-        // Приводим к Float и переводим в пиксели
         val scrollPositionPx = with(density) {
             (colNameWidth + (colStepWidth * (scrollToStep / 10000f))).toPx()
         }
         
-        // Центрируем: отнимаем половину ширины экрана
         val screenWidthPx = with(density) { screenWidthDp.dp.toPx() }
         val targetScroll = (scrollPositionPx - screenWidthPx / 2).toInt().coerceAtLeast(0)
         
@@ -135,7 +132,7 @@ fun MaintenanceMatrixScreen(
                 modifier = Modifier
                     .fillMaxSize()
                     .border(1.dp, TextSecondary.copy(alpha = 0.3f))
-                    .horizontalScroll(horizontalScrollState) // <-- Применили состояние скролла
+                    .horizontalScroll(horizontalScrollState)
             ) {
                 Column {
                     // Заголовок таблицы
@@ -238,34 +235,40 @@ fun MaintenanceMatrixScreen(
                                         val isPlannedOriginal = plannedPoints.contains(step)
                                         val isProjected = projectedPoints.contains(step)
                                         val isPast = step <= currentMileage
-
                                         val wasDoneEarlier = workRecords.any { it.mileage <= step }
 
                                         val cellColor: Color
                                         var iconTint: Color? = null
                                         var iconVector: androidx.compose.ui.graphics.vector.ImageVector? = null
+                                        var isFuturePlan = false
 
                                         when {
+                                            // 1. Выполнено - ЗЕЛЕНЫЙ ФОН, БЕЛАЯ ГАЛОЧКА
                                             isActual -> {
                                                 cellColor = ColorGreen.copy(alpha = 0.8f)
                                                 iconVector = Icons.Default.Check
                                                 iconTint = Color.White
                                             }
+                                            // 2. Предстоящая (Будущая) - БЛЕДНО-КРАСНЫЙ ФОН, КРАСНАЯ ГАЛОЧКА В КРУЖКЕ
+                                            !isActual && !isPast && isProjected -> {
+                                                cellColor = Color.Red.copy(alpha = 0.05f)
+                                                iconVector = Icons.Default.Check
+                                                iconTint = Color.Red
+                                                isFuturePlan = true
+                                            }
+                                            // 3. Отмененная старая точка - СЕРАЯ ГАЛОЧКА
                                             !isActual && wasDoneEarlier && isPast && isPlannedOriginal -> {
                                                 cellColor = Color.Transparent
                                                 iconVector = Icons.Default.Check
                                                 iconTint = TextSecondary.copy(alpha = 0.3f)
                                             }
+                                            // 4. ПРОСРОЧКА (Авто/Ручная) - БЛЕДНО-ФИОЛЕТОВЫЙ ФОН, КРАСНЫЙ КРЕСТИК
                                             !isActual && !wasDoneEarlier && isPast && (isPlannedOriginal || isProjected) -> {
-                                                cellColor = ColorRed.copy(alpha = 0.15f)
+                                                cellColor = ColorPurple.copy(alpha = 0.15f)
                                                 iconVector = Icons.Default.Close
                                                 iconTint = Color.Red
                                             }
-                                            !isActual && !isPast && isProjected -> {
-                                                cellColor = ColorGreen.copy(alpha = 0.1f)
-                                                iconVector = Icons.Default.Check
-                                                iconTint = ColorGreen.copy(alpha = 0.4f)
-                                            }
+                                            // 5. Будущая плановая точка (отменена) - ПРОЗРАЧНЫЙ ФОН, СЕРАЯ ГАЛОЧКА
                                             !isActual && !isPast && isPlannedOriginal && !isProjected -> {
                                                 cellColor = Color.Transparent
                                                 iconVector = Icons.Default.Check
@@ -280,18 +283,39 @@ fun MaintenanceMatrixScreen(
                                             modifier = Modifier
                                                 .width(colStepWidth)
                                                 .height(rowHeight)
-                                                .border(0.5.dp, TextSecondary.copy(alpha = 0.1f))
+                                                .border(
+                                                    width = if (isFuturePlan) 1.dp else 0.5.dp,
+                                                    color = if (isFuturePlan) Color.Red.copy(alpha = 0.4f) else TextSecondary.copy(alpha = 0.1f)
+                                                )
                                                 .background(cellColor),
                                             contentAlignment = Alignment.Center
                                         ) {
                                             if (iconVector != null && iconTint != null) {
                                                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                                    Icon(
-                                                        imageVector = iconVector!!, 
-                                                        contentDescription = null, 
-                                                        tint = iconTint!!, 
-                                                        modifier = Modifier.size(16.dp)
-                                                    )
+                                                    if (isFuturePlan) {
+                                                        Box(
+                                                            modifier = Modifier
+                                                                .size(24.dp)
+                                                                .border(1.dp, Color.Red.copy(alpha = 0.6f), RoundedCornerShape(50))
+                                                                .padding(4.dp),
+                                                            contentAlignment = Alignment.Center
+                                                        ) {
+                                                            Icon(
+                                                                imageVector = iconVector!!,
+                                                                contentDescription = "Предстоящая замена",
+                                                                tint = iconTint!!,
+                                                                modifier = Modifier.size(16.dp)
+                                                            )
+                                                        }
+                                                    } else {
+                                                        Icon(
+                                                            imageVector = iconVector!!,
+                                                            contentDescription = null,
+                                                            tint = iconTint!!,
+                                                            modifier = Modifier.size(16.dp)
+                                                        )
+                                                    }
+                                                    
                                                     if (isActual && record != null) {
                                                         Text(text = "${record.mileage}", color = Color.White, fontSize = 10.sp, fontWeight = FontWeight.Bold, maxLines = 1)
                                                         Text(text = formatShortDate(record.date), color = Color.White.copy(alpha = 0.8f), fontSize = 9.sp, maxLines = 1)
