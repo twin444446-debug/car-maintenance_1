@@ -130,7 +130,7 @@ fun AppScreen() {
                 workRecords.isEmpty() && (work.hasLastExecution || work.lastMileage != 0 || work.lastDate != 0L) ->
                     work.copy(hasLastExecution = false, lastMileage = 0, lastDate = 0L)
                 workRecords.isNotEmpty() -> {
-                    val last = workRecords.maxByOrNull { it.date }!!
+                    val last = workRecords.maxByOrNull { it.mileage }!!
                     if (!work.hasLastExecution || work.lastMileage != last.mileage || work.lastDate != last.date) {
                         work.copy(hasLastExecution = true, lastMileage = last.mileage, lastDate = last.date)
                     } else work
