@@ -151,42 +151,52 @@ fun MaintenanceMatrixScreen(
                                             (Math.round(r.mileage / 10000f) * 10000) == step
                                         }
 
-                                        // Ячейка активна, если есть интервал или это шаг, где есть запись
-                                        val isTargetStep = work.intervalKm > 0 || record != null
-                                        
-                                        if (isTargetStep) {
-                                            val isOverdue = step <= currentMileage && record == null && work.intervalKm > 0 && step % work.intervalKm == 0
-                                            val cellColor = when {
-                                                record != null -> ColorGreen.copy(alpha = 0.8f)
-                                                isOverdue -> ColorRed.copy(alpha = 0.15f)
-                                                else -> Color.Transparent
-                                            }
+                                        // Проверяем, была ли замена на этом шаге или на любом предыдущем
+                                        val wasDoneEarlier = records.any { r ->
+                                            r.workId == work.id && r.mileage <= step
+                                        }
 
-                                            Box(
-                                                modifier = Modifier
-                                                    .width(colStepWidth)
-                                                    .height(rowHeight)
-                                                    .border(0.5.dp, TextSecondary.copy(alpha = 0.1f))
-                                                    .background(cellColor),
-                                                contentAlignment = Alignment.Center
-                                            ) {
-                                                if (record != null) {
+                                        // Ячейка плановая, если шаг кратен интервалу
+                                        val isPlannedStep = work.intervalKm > 0 && step % work.intervalKm == 0
+
+                                        // Просрочка: шаг плановый, пробег машины его прошел, записи нет, и раньше не было
+                                        val isOverdue = isPlannedStep && step <= currentMileage && record == null && !wasDoneEarlier
+
+                                        // Закрыто предыдущей заменой: шаг плановый, записи нет, но раньше было выполнено
+                                        val isCoveredByPrevious = isPlannedStep && record == null && wasDoneEarlier
+
+                                        val cellColor = when {
+                                            record != null -> ColorGreen.copy(alpha = 0.8f)       // Запись на этом шаге
+                                            isCoveredByPrevious -> ColorGreen.copy(alpha = 0.2f) // Закрыто предыдущей
+                                            isOverdue -> ColorRed.copy(alpha = 0.15f)            // Просрочено
+                                            else -> Color.Transparent
+                                        }
+
+                                        Box(
+                                            modifier = Modifier
+                                                .width(colStepWidth)
+                                                .height(rowHeight)
+                                                .border(0.5.dp, TextSecondary.copy(alpha = 0.1f))
+                                                .background(cellColor),
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            when {
+                                                record != null -> {
                                                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
                                                         Icon(Icons.Default.Check, contentDescription = null, tint = Color.White, modifier = Modifier.size(16.dp))
                                                         Text(text = "${record.mileage}", color = Color.White, fontSize = 10.sp, fontWeight = FontWeight.Bold, maxLines = 1)
                                                         Text(text = formatShortDate(record.date), color = Color.White.copy(alpha = 0.8f), fontSize = 9.sp, maxLines = 1)
                                                     }
-                                                } else if (isOverdue) {
-                                                    Icon(Icons.Default.Close, contentDescription = null, tint = ColorRed, modifier = Modifier.size(16.dp))
+                                                }
+                                                isCoveredByPrevious -> {
+                                                    // Бледная галочка (выполнено раньше)
+                                                    Icon(Icons.Default.Check, contentDescription = "Выполнено ранее", tint = TextSecondary.copy(alpha = 0.5f), modifier = Modifier.size(16.dp))
+                                                }
+                                                isOverdue -> {
+                                                    // Красный крестик (просрочено)
+                                                    Icon(Icons.Default.Close, contentDescription = "Просрочено", tint = Color.Red, modifier = Modifier.size(16.dp))
                                                 }
                                             }
-                                        } else {
-                                            Box(
-                                                modifier = Modifier
-                                                    .width(colStepWidth)
-                                                    .height(rowHeight)
-                                                    .border(0.5.dp, TextSecondary.copy(alpha = 0.1f))
-                                            )
                                         }
                                     }
                                 }
