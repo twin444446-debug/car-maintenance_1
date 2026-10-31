@@ -58,9 +58,13 @@ fun MaintenanceMatrixScreen(
         carWorks.filter { it.category == WorkCategory.LPG }
     }
 
-    // Запас вперед на 100 000 км от текущего пробега, но не менее 120 000
-    val maxMileage = maxOf(120000, ((currentMileage + 100000) / 10000) * 10000)
-    val mileageSteps = (1..(maxMileage / 10000)).map { it * 10000 }
+    // Шаг сетки: 10 000 для авто, 15 000 для ГБО
+    val gridStep = if (selectedTab == 1) 15000 else 10000
+
+    // Запас вперед на 100 000 км от текущего пробега, округленный по шагу сетки
+    val maxMileageRaw = maxOf(120000, currentMileage + 100000)
+    val maxMileage = ((maxMileageRaw + gridStep - 1) / gridStep) * gridStep
+    val mileageSteps = (1..(maxMileage / gridStep)).map { it * gridStep }
 
     val colNameWidth = 160.dp
     val colStepWidth = 70.dp
@@ -74,13 +78,13 @@ fun MaintenanceMatrixScreen(
     val configuration = LocalConfiguration.current
     val screenWidthDp = configuration.screenWidthDp
     
-    LaunchedEffect(Unit) {
-        delay(100) // Небольшая задержка для инициализации UI
+    LaunchedEffect(selectedTab) { // Перезапускаем скролл при смене вкладки
+        delay(100)
         val currentStepIndex = mileageSteps.indexOfFirst { it >= currentMileage }.coerceAtLeast(0)
         val scrollToStep = mileageSteps.getOrElse(currentStepIndex) { currentMileage }
         
         val scrollPositionPx = with(density) {
-            (colNameWidth + (colStepWidth * (scrollToStep / 10000f))).toPx()
+            (colNameWidth + (colStepWidth * (scrollToStep / gridStep.toFloat()))).toPx()
         }
         
         val screenWidthPx = with(density) { screenWidthDp.dp.toPx() }
@@ -222,14 +226,14 @@ fun MaintenanceMatrixScreen(
                                     if (work.intervalKm > 0 && lastRecord != null) {
                                         var p = lastRecord.mileage + work.intervalKm
                                         while (p <= maxMileage) {
-                                            projectedPoints.add(Math.round(p / 10000f) * 10000)
+                                            projectedPoints.add(Math.round(p / gridStep.toFloat()) * gridStep)
                                             p += work.intervalKm
                                         }
                                     }
 
                                     // Ячейки с шагами
                                     mileageSteps.forEach { step ->
-                                        val record = workRecords.find { Math.round(it.mileage / 10000f) * 10000 == step }
+                                        val record = workRecords.find { Math.round(it.mileage / gridStep.toFloat()) * gridStep == step }
 
                                         val isActual = record != null
                                         val isPlannedOriginal = plannedPoints.contains(step)
