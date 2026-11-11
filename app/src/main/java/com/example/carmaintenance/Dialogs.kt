@@ -858,8 +858,11 @@ fun WorkActionsDialog(
                     }
                 }
             }
-            if (recordToCancelConfirm != null) {
-    AlertDialog(
+        }
+    }      
+    
+    if (recordToCancelConfirm != null) {
+        AlertDialog(
         onDismissRequest = { recordToCancelConfirm = null },
         containerColor = CardColor,
         title = { Text("Отменить выполнение?", color = TextPrimary) },
@@ -872,9 +875,11 @@ fun WorkActionsDialog(
         },
         dismissButton = {
             TextButton(onClick = { recordToCancelConfirm = null }) { Text("Назад", color = TextSecondary) }
-        }
-    )
-}
+           }
+        )
+     }
+  }
+    
                         
 @Composable
 fun CompletedWorkInfoDialog(
