@@ -575,6 +575,7 @@ fun WorkActionsDialog(
     var km by remember { mutableStateOf(initialRecord?.mileage?.toString() ?: car.mileage.ifBlank { "0" }) }
     var note by remember { mutableStateOf(initialRecord?.notes ?: "") }
     var selectedDate by remember { mutableStateOf(initialRecord?.date ?: System.currentTimeMillis()) }
+    var recordToCancelConfirm by remember { mutableStateOf<ServiceRecord?>(null) }
     
     val lines = remember { 
         mutableStateListOf<ServiceLine>().apply {
@@ -708,7 +709,7 @@ fun WorkActionsDialog(
                                     TextButton(onClick = { onEditRecord(record) }) {
                                         Text("Изменить", color = ColorYellow, fontSize = 12.sp)
                                     }
-                                    TextButton(onClick = { onCancelRecord(record) }) {
+                                    TextButton(onClick = { recordToCancelConfirm = record }) {
                                         Text("Отменить", color = ColorRed, fontSize = 12.sp)
                                     }
                                 }
@@ -857,8 +858,22 @@ fun WorkActionsDialog(
                     }
                 }
             }
+            if (recordToCancelConfirm != null) {
+    AlertDialog(
+        onDismissRequest = { recordToCancelConfirm = null },
+        containerColor = CardColor,
+        title = { Text("Отменить выполнение?", color = TextPrimary) },
+        text = { Text("Вы уверены, что хотите отменить выполнение этой работы? Запись будет удалена, а статус работы вернется к предыдущему.", color = TextSecondary) },
+        confirmButton = {
+            TextButton(onClick = {
+                onCancelRecord(recordToCancelConfirm!!)
+                recordToCancelConfirm = null
+            }) { Text("Отменить", color = ColorRed, fontWeight = FontWeight.Bold) }
+        },
+        dismissButton = {
+            TextButton(onClick = { recordToCancelConfirm = null }) { Text("Назад", color = TextSecondary) }
         }
-    }
+    )
 }
                         
 @Composable
@@ -871,6 +886,7 @@ fun CompletedWorkInfoDialog(
     onDelete: () -> Unit,
     onCancelCompletion: () -> Unit
 ) {
+    var showCancelConfirm by remember { mutableStateOf(false) }
     AlertDialog(
         onDismissRequest = onDismiss,
         containerColor = CardColor,
@@ -891,8 +907,8 @@ fun CompletedWorkInfoDialog(
                     }
                 }
                 Spacer(Modifier.height(8.dp))
-                TextButton(onClick = onCancelCompletion, modifier = Modifier.fillMaxWidth()) {
-                    Text("Отменить выполнение", color = ColorRed, fontWeight = FontWeight.Bold)
+                TextButton(onClick = { showCancelConfirm = true }, modifier = Modifier.fillMaxWidth()) {
+                Text("Отменить выполнение", color = ColorRed, fontWeight = FontWeight.Bold)
                 }
             }
         },
@@ -904,6 +920,23 @@ fun CompletedWorkInfoDialog(
             }
         }
     )
+    if (showCancelConfirm) {
+        AlertDialog(
+            onDismissRequest = { showCancelConfirm = false },
+            containerColor = CardColor,
+            title = { Text("Отменить выполнение?", color = TextPrimary) },
+            text = { Text("Вы уверены, что хотите отменить выполнение этой работы? Запись будет удалена, а статус работы вернется к предыдущему.", color = TextSecondary) },
+            confirmButton = {
+                TextButton(onClick = {
+                    onCancelCompletion()
+                    showCancelConfirm = false
+                }) { Text("Отменить", color = ColorRed, fontWeight = FontWeight.Bold) }
+            },
+            dismissButton = {
+                TextButton(onClick = { showCancelConfirm = false }) { Text("Назад", color = TextSecondary) }
+            }
+        )
+    }
 }
 
 @Composable
