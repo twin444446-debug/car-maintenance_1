@@ -532,8 +532,8 @@ fun AppScreen() {
         AlertDialog(
             onDismissRequest = { recordToDelete = null },
             containerColor = CardColor,
-            title = { Text("Удалить запись?", color = TextPrimary) },
-            text = { Text("Вы уверены, что хотите удалить эту запись? Это действие нельзя отменить.", color = TextSecondary) },
+            title = { Text("Отменить выполнение?", color = TextPrimary) },
+            text = { Text("Вы уверены, что хотите отменить выполнение этой работы? Запись будет удалена, а статус работы вернется к предыдущему.", color = TextSecondary) },
             confirmButton = {
                 TextButton(onClick = {
                     val newRecords = records.filter { it.id != record.id }
@@ -549,7 +549,7 @@ fun AppScreen() {
                         }
                     }
                     recordToDelete = null
-                }) { Text("Удалить", color = ColorRed, fontWeight = FontWeight.Bold) }
+                }) { Text("Отменить", color = ColorRed, fontWeight = FontWeight.Bold) }
             },
             dismissButton = {
                 TextButton(onClick = { recordToDelete = null }) { Text("Отмена", color = TextSecondary) }
