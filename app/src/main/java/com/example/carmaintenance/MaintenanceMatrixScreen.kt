@@ -36,13 +36,11 @@ import kotlinx.coroutines.delay
 fun MaintenanceMatrixScreen(
     car: Car?,
     works: List<MaintenanceWork>,
-    records: List<ServiceRecord>,
-    onBack: () -> Unit
+    records: List<ServiceRecord>
 ) {
     if (car == null) {
         Column(Modifier.fillMaxSize().padding(16.dp)) {
             Text("Сначала добавьте автомобиль", color = TextSecondary)
-            TextButton(onClick = onBack) { Text("← Назад", color = ColorBlue) }
         }
         return
     }
@@ -103,9 +101,9 @@ fun MaintenanceMatrixScreen(
 
     Box(modifier = Modifier.fillMaxSize()) {
         Column(Modifier.fillMaxSize().padding(8.dp)) {
+            // Убрана кнопка "Назад", оставлен только заголовок
             Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
-                TextButton(onClick = onBack) { Text("← Назад", color = ColorBlue) }
-                Text("Матрица ТО", color = TextPrimary, fontSize = 20.sp, fontWeight = FontWeight.Bold)
+                Text("Таблица ТО", color = TextPrimary, fontSize = 20.sp, fontWeight = FontWeight.Bold)
             }
             
             Text("${car.brand} ${car.model} • Пробег: $currentMileage км", color = ColorGreen, fontWeight = FontWeight.Bold, fontSize = 14.sp)
