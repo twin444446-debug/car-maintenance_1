@@ -252,10 +252,11 @@ fun AppScreen() {
         }
     ) {
         Scaffold(containerColor = BgColor, bottomBar = { 
-            BottomNav(screen) { title ->
+            BottomNav(if (matrixScreen) "Таблица ТО" else screen) { title ->
                 if (title == "Таблица ТО") {
                     matrixScreen = true
                 } else {
+                    matrixScreen = false
                     screen = title
                 }
             }
@@ -279,8 +280,7 @@ fun AppScreen() {
                     matrixScreen -> MaintenanceMatrixScreen(
                         car = car,
                         works = works,
-                        records = records,
-                        onBack = { matrixScreen = false }
+                        records = records
                     )
                     templateEditor -> TemplateEditorScreen(
                         templates = templates, 
