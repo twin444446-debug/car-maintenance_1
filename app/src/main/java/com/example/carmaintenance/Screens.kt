@@ -639,7 +639,7 @@ private fun BottomNav(screen: String, onSelect: (String) -> Unit) {
             "Главная" to Icons.Default.Home,
             "Перечень работ" to Icons.Default.List,
             "Регламент" to Icons.Default.Build,
-            "Статистика" to Icons.Default.Info,
+            "Таблица ТО" to Icons.Default.Info,
             "История" to Icons.Default.History
         ).forEach { (title, icon) ->
             NavigationBarItem(
