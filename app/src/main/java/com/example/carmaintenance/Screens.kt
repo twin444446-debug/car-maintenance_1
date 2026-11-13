@@ -232,9 +232,6 @@ fun AppScreen() {
                 DrawerItem("Шаблоны регламента", Icons.Default.List, ColorGreen, templateEditor) {
                     templateEditor = true; scope.launch { drawerState.close() }
                 }
-                DrawerItem("Матрица ТО", Icons.Default.List, ColorGreen, matrixScreen) {
-                    matrixScreen = true; scope.launch { drawerState.close() }
-                }
                 DrawerItem("Запчасти и расходники", Icons.Default.Build, ColorBlue, partsScreen) {
                     partsScreen = true; scope.launch { drawerState.close() }
                 }
@@ -254,7 +251,15 @@ fun AppScreen() {
             }
         }
     ) {
-        Scaffold(containerColor = BgColor, bottomBar = { BottomNav(screen) { screen = it } }) { pad ->
+        Scaffold(containerColor = BgColor, bottomBar = { 
+            BottomNav(screen) { title ->
+                if (title == "Таблица ТО") {
+                    matrixScreen = true
+                } else {
+                    screen = title
+                }
+            }
+        }) { pad ->
             Box(Modifier.fillMaxSize().padding(pad)) {
                 when {
                     backupScreen -> BackupScreen(
